@@ -2,15 +2,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# The authoring gate flags untraced boundaries even in generated, gitignored
+# output, and configure rewrites these files on every run: stamp the
+# exemption at the source so it survives regeneration. Never hand-edit output.
+TRACE_EXEMPT_PY = "# trace:exempt reason=generated-by-bughunt-configure-do-not-hand-edit"
 
+
+# trace:v1 id=impl.src-bughunt-runtime-plugins.blockbuster-plugin work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def blockbuster_plugin() -> str:
-    return '''from __future__ import annotations\n\nimport pytest\nfrom blockbuster import blockbuster_ctx\n\n@pytest.fixture(autouse=True)\ndef _bughunt_blockbuster():\n    with blockbuster_ctx():\n        yield\n'''
+    return TRACE_EXEMPT_PY + "\n" + '''from __future__ import annotations\n\nimport pytest\nfrom blockbuster import blockbuster_ctx\n\n@pytest.fixture(autouse=True)\ndef _bughunt_blockbuster():\n    with blockbuster_ctx():\n        yield\n'''
 
 
+# trace:v1 id=impl.src-bughunt-runtime-plugins.noxfile work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
     versions = repr(python_versions)
     paths = repr(test_paths or ["tests"])
-    return f'''from __future__ import annotations
+    return TRACE_EXEMPT_PY + "\n" + f'''from __future__ import annotations
 
 import os
 import secrets
