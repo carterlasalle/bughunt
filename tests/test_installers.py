@@ -1,9 +1,14 @@
+from pathlib import Path
+
+import pytest
+
 """Installer package-set compatibility (dry-run; executes nothing)."""
 
 from bughunt.installers import install_all
 
 
-def test_typescript_capped_below_7_with_eslint(tmp_path):
+# trace:v1 id=test.tests-test-installers.test-typescript-capped-below-7-with-eslint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_typescript_capped_below_7_with_eslint(tmp_path: Path):
     # typescript-eslint v8 hard-errors on TypeScript >= 7
     # (typescript-eslint#10940); floating both specs resolved
     # typescript@7 + typescript-eslint@8 and crashed eslint with
@@ -16,7 +21,9 @@ def test_typescript_capped_below_7_with_eslint(tmp_path):
 
 
 # trace:v1 id=test.tests-test-installers.test-typescript-capped-below-7-for-tsc-only work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_typescript_capped_below_7_for_tsc_only(tmp_path, monkeypatch):
+def test_typescript_capped_below_7_for_tsc_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     from bughunt import installers
 
     # Same cap as the eslint branch: tsc ships inside the typescript
@@ -32,7 +39,7 @@ def test_typescript_capped_below_7_for_tsc_only(tmp_path, monkeypatch):
 
 
 # trace:v1 id=test.tests-test-installers.test-pysa-provider-present-checks-binary work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_pysa_provider_present_checks_binary(tmp_path) -> None:
+def test_pysa_provider_present_checks_binary(tmp_path: Path) -> None:
     from bughunt.installers import _pysa_provider_present
 
     runtime = tmp_path / "pysa-venv"

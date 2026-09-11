@@ -3,6 +3,7 @@ from pathlib import Path
 from bughunt.discovery import discover_all, discover_schemathesis
 
 
+# trace:v1 id=test.tests-test-discovery.test-discovers-fastapi-and-parser work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_discovers_fastapi_and_parser(tmp_path: Path):
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
@@ -43,6 +44,7 @@ def test_discovers_fastapi_and_parser(tmp_path: Path):
     assert "as_state_machine" in api_harness
 
 
+# trace:v1 id=test.tests-test-discovery.test-remote-openapi-is-not-auto-run work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_remote_openapi_is_not_auto_run(tmp_path: Path):
     schema = tmp_path / "openapi.json"
     schema.write_text(
@@ -54,6 +56,7 @@ def test_remote_openapi_is_not_auto_run(tmp_path: Path):
     assert match.kind == "schemathesis-candidate"
 
 
+# trace:v1 id=test.tests-test-discovery.test-discovers-semantic-custom-campaigns-and-pysa-models work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
@@ -106,6 +109,7 @@ def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
     assert "TaintSink[BugHuntSensitiveOperation]" in pysa_text
 
 
+# trace:v1 id=test.tests-test-discovery.test-does-not-invent-differential-oracle-for-io-functions work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path):
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
@@ -122,6 +126,7 @@ def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path):
     assert not any(target.kind == "custom-differential" for target in targets)
 
 
+# trace:v1 id=test.tests-test-discovery.test-discovers-flask-with-explicit-openapi-route work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path):
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
@@ -139,6 +144,7 @@ def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path):
     assert target.metadata["transport"] == "wsgi"
 
 
+# trace:v1 id=test.tests-test-discovery.test-atheris-infers-expected-parser-rejections work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_atheris_infers_expected_parser_rejections(tmp_path: Path):
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
@@ -155,6 +161,7 @@ def test_atheris_infers_expected_parser_rejections(tmp_path: Path):
     assert "importlib.import_module(owner)" in harness
 
 
+# trace:v1 id=test.tests-test-discovery.test-export-import-names-generate-real-roundtrip-property-when-pure work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_export_import_names_generate_real_roundtrip_property_when_pure(
     tmp_path: Path,
 ) -> None:

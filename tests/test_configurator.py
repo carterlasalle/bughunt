@@ -6,6 +6,7 @@ from bughunt.configurator import configure_custom_checks
 from bughunt.discovery import DiscoveredTarget
 
 
+# trace:v1 id=test.tests-test-configurator.test-custom-checks-are-managed-and-loadable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
     targets = [
         DiscoveredTarget(
@@ -32,6 +33,7 @@ def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
     ) == 1
 
 
+# trace:v1 id=test.tests-test-configurator.test-configure-all-generates-complexity-and-env-contract work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_configure_all_generates_complexity_and_env_contract(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -50,7 +52,8 @@ def test_configure_all_generates_complexity_and_env_contract(tmp_path: Path) -> 
     assert any(item.name == "BugHunt policy pack" for item in artifacts)
 
 
-def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path):
+# trace:v1 id=test.tests-test-configurator.test-shipped-astgrep-rules-have-positive-negative-tests work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path: Path):
     from bughunt.configurator import configure_all
 
     (tmp_path / "src/pkg").mkdir(parents=True)
@@ -65,6 +68,7 @@ def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path):
     assert "valid:" in swallowed_test and "invalid:" in swallowed_test
 
 
+# trace:v1 id=test.tests-test-configurator.test-configure-all-ships-correctness-first-semgrep-rules work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_configure_all_ships_correctness_first_semgrep_rules(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -84,6 +88,7 @@ def test_configure_all_ships_correctness_first_semgrep_rules(tmp_path: Path) -> 
     assert "security-audit/secrets are opt-in" in semgrep.detail
 
 
+# trace:v1 id=test.tests-test-configurator.test-existing-user-mutmut-config-is-coverage-checked work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_existing_user_mutmut_config_is_coverage_checked(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -100,6 +105,7 @@ def test_existing_user_mutmut_config_is_coverage_checked(tmp_path: Path) -> None
     assert 'source_paths=["other/"]' in (tmp_path / "pyproject.toml").read_text()
 
 
+# trace:v1 id=test.tests-test-configurator.test-managed-mutmut-config-refreshes-inferred-paths work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_managed_mutmut_config_refreshes_inferred_paths(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 

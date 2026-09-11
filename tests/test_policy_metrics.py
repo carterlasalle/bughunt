@@ -15,6 +15,7 @@ def _pkg(tmp_path: Path) -> Path:
     return src
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-env-example-is-generated-from-static-environment-contract work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_env_example_is_generated_from_static_environment_contract(
     tmp_path: Path,
 ) -> None:
@@ -39,6 +40,7 @@ def test_env_example_is_generated_from_static_environment_contract(
     assert "BHCFG002" not in codes
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-env-example-real-looking-secret-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_env_example_real_looking_secret_is_flagged(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "x.py").write_text("import os\nTOKEN = os.environ['API_TOKEN']\n")
@@ -51,6 +53,7 @@ def test_env_example_real_looking_secret_is_flagged(tmp_path: Path) -> None:
     )
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-policy-flags-private-and-persistence-implementation-cross-layer-imports work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_policy_flags_private_and_persistence_implementation_cross_layer_imports(
     tmp_path: Path,
 ) -> None:
@@ -68,6 +71,7 @@ def test_policy_flags_private_and_persistence_implementation_cross_layer_imports
     assert "BHARCH001" in codes
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-export-import-pair-requires-roundtrip-test work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_export_import_pair_requires_roundtrip_test(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "formats.py").write_text(
@@ -85,6 +89,7 @@ def test_export_import_pair_requires_roundtrip_test(tmp_path: Path) -> None:
     assert not any(item.code == "BHRT001" for item in findings)
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-implementation-coupled-mock-sequence-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_implementation_coupled_mock_sequence_is_flagged(tmp_path: Path) -> None:
     _pkg(tmp_path)
     (tmp_path / "tests" / "test_calls.py").write_text(
@@ -94,6 +99,7 @@ def test_implementation_coupled_mock_sequence_is_flagged(tmp_path: Path) -> None
     assert any(item.code == "BHTEST002" for item in findings)
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-metrics-enforce-cyclomatic-loc-and-abc-budgets work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_metrics_enforce_cyclomatic_loc_and_abc_budgets(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (tmp_path / "bughunt.toml").write_text(
@@ -122,6 +128,7 @@ def test_metrics_enforce_cyclomatic_loc_and_abc_budgets(tmp_path: Path) -> None:
     assert "BHCX004" in codes
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-metrics-enforce-built-asset-budget work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_metrics_enforce_built_asset_budget(tmp_path: Path) -> None:
     _pkg(tmp_path)
     (tmp_path / "bughunt.toml").write_text(
@@ -136,6 +143,7 @@ def test_metrics_enforce_built_asset_budget(tmp_path: Path) -> None:
     assert "BHCX006" in codes
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-env-example-documents-inferred-numeric-range work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_env_example_documents_inferred_numeric_range(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "settings.py").write_text(
@@ -154,6 +162,7 @@ def test_env_example_documents_inferred_numeric_range(tmp_path: Path) -> None:
     )
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-finally-jump-is-default-builtin-error work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_finally_jump_is_default_builtin_error(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "danger.py").write_text(
@@ -169,6 +178,7 @@ def test_finally_jump_is_default_builtin_error(tmp_path: Path) -> None:
     assert "finally" in item.message
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-operational-keyword-literal-is-configuration-note work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_operational_keyword_literal_is_configuration_note(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "worker.py").write_text(
@@ -181,6 +191,7 @@ def test_operational_keyword_literal_is_configuration_note(tmp_path: Path) -> No
     assert all(item.severity == "note" for item in hits)
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-one-sided-export-is-reported-as-roundtrip-contract-gap work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_one_sided_export_is_reported_as_roundtrip_contract_gap(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "formats.py").write_text(
@@ -192,6 +203,7 @@ def test_one_sided_export_is_reported_as_roundtrip_contract_gap(tmp_path: Path) 
     )
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-persistence-type-exposed-from-upper-layer-signature-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_persistence_type_exposed_from_upper_layer_signature_is_flagged(
     tmp_path: Path,
 ) -> None:
@@ -208,6 +220,7 @@ def test_persistence_type_exposed_from_upper_layer_signature_is_flagged(
     assert any(item.code == "BHPERS002" for item in findings)
 
 
+# trace:v1 id=test.tests-test-policy-metrics.test-generated-source-exact-string-assertion-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_generated_source_exact_string_assertion_is_flagged(tmp_path: Path) -> None:
     _pkg(tmp_path)
     expected = "x" * 250

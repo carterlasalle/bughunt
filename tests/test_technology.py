@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from bughunt.cli import (
     Config,
     Finding,
@@ -22,6 +24,7 @@ from bughunt.configurator import configure_all
 from bughunt.technology import discover_technologies, infer_sql_dialect
 
 
+# trace:v1 id=test.tests-test-technology.test-detects-mixed-repository-capabilities work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_detects_mixed_repository_capabilities(tmp_path: Path) -> None:
     (tmp_path / ".github/workflows").mkdir(parents=True)
     (tmp_path / ".github/workflows/ci.yml").write_text("name: ci\non: push\n")
@@ -71,6 +74,7 @@ def test_detects_mixed_repository_capabilities(tmp_path: Path) -> None:
         assert inv.has(capability), capability
 
 
+# trace:v1 id=test.tests-test-technology.test-ignored-trees-do-not-create-capabilities work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_ignored_trees_do_not_create_capabilities(tmp_path: Path) -> None:
     (tmp_path / "node_modules/pkg").mkdir(parents=True)
     (tmp_path / "node_modules/pkg/index.ts").write_text("const x: number = 1")
@@ -81,6 +85,7 @@ def test_ignored_trees_do_not_create_capabilities(tmp_path: Path) -> None:
     assert not inv.has("openapi")
 
 
+# trace:v1 id=test.tests-test-technology.test-sql-dialect-inference-detects-postgres work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_sql_dialect_inference_detects_postgres(tmp_path: Path) -> None:
     (tmp_path / "x.sql").write_text(
         "CREATE TABLE x (id SERIAL PRIMARY KEY, body JSONB);\n",
@@ -97,6 +102,7 @@ def test_not_applicable_defenses_do_not_lower_health() -> None:
     assert overall_score(results) == 100
 
 
+# trace:v1 id=test.tests-test-technology.test-build-checks-marks-irrelevant-technology-na work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_build_checks_marks_irrelevant_technology_na(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src/x.py").write_text("x = 1\n")
@@ -118,6 +124,7 @@ def test_build_checks_marks_irrelevant_technology_na(tmp_path: Path) -> None:
     assert by_name["oasdiff"].status == Status.NA
 
 
+# trace:v1 id=test.tests-test-technology.test-configure-generates-applicable-technology-overlays work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_configure_generates_applicable_technology_overlays(tmp_path: Path) -> None:
     (tmp_path / "queries").mkdir()
     (tmp_path / "queries/x.sql").write_text("select * from x limit 1;\n")
@@ -257,6 +264,7 @@ def test_parse_clippy_compiler_message() -> None:
     assert out[0].path == "src/lib.rs"
 
 
+# trace:v1 id=test.tests-test-technology.test-python-only-defenses-are-na-without-python work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_python_only_defenses_are_na_without_python(tmp_path: Path) -> None:
     (tmp_path / "Cargo.toml").write_text('[package]\nname="demo"\nversion="0.1.0"\n')
     (tmp_path / "src").mkdir()
@@ -309,7 +317,7 @@ def test_eslint_empty_scope_banner_parses_clean() -> None:
 
 
 # trace:v1 id=test.tests-test-technology.test-tsc-gated-on-tsconfig work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_tsc_gated_on_tsconfig(tmp_path, monkeypatch) -> None:
+def test_tsc_gated_on_tsconfig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from bughunt import cli as cli_mod
 
     # Without a project file tsc prints help text that is not a finding;

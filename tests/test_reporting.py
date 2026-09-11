@@ -32,6 +32,7 @@ def test_signal_groups_repeated_rule():
     assert groups[0]["code"] == "F821"
 
 
+# trace:v1 id=test.tests-test-reporting.test-agent-report-artifacts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_agent_report_artifacts(tmp_path: Path):
     cfg = Config(tmp_path, {"execution": {}})
     result = Result(
@@ -58,6 +59,7 @@ def test_agent_report_artifacts(tmp_path: Path):
     assert list((agent / "tasks").glob("*.md"))
 
 
+# trace:v1 id=test.tests-test-reporting.test-report-counts-autofixes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_report_counts_autofixes(tmp_path: Path):
     from bughunt.cli import autofix_summary
 

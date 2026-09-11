@@ -38,6 +38,7 @@ def _python_repo(root: Path) -> None:
     )
 
 
+# trace:v1 id=test.tests-test-v060.test-coverage-parser-reports-line-and-branch-gaps work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_coverage_parser_reports_line_and_branch_gaps(tmp_path: Path) -> None:
     report = tmp_path / "coverage.json"
     report.write_text(
@@ -61,6 +62,7 @@ def test_coverage_parser_reports_line_and_branch_gaps(tmp_path: Path) -> None:
     assert summary["missing_branches"] == 1
 
 
+# trace:v1 id=test.tests-test-v060.test-seam-scanner-finds-producer-consumer-key-drift work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
     _python_repo(tmp_path)
     (tmp_path / "src/pkg/a.py").write_text(
@@ -74,6 +76,7 @@ def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
     assert any(f.code == "BHSEAM003" and "nmae" in f.message for f in findings)
 
 
+# trace:v1 id=test.tests-test-v060.test-seam-scanner-finds-schema-model-drift work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_seam_scanner_finds_schema_model_drift(tmp_path: Path) -> None:
     _python_repo(tmp_path)
     (tmp_path / "src/pkg/models.py").write_text(
@@ -92,6 +95,7 @@ def test_seam_scanner_finds_schema_model_drift(tmp_path: Path) -> None:
     assert any(f.code == "BHSEAM004" for f in findings)
 
 
+# trace:v1 id=test.tests-test-v060.test-local-schema-pairs-refuses-remote-and-resolves-local work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_local_schema_pairs_refuses_remote_and_resolves_local(tmp_path: Path) -> None:
     (tmp_path / "schema.json").write_text('{"type":"object"}')
     (tmp_path / "local.json").write_text('{"$schema":"schema.json","x":1}')
@@ -103,6 +107,7 @@ def test_local_schema_pairs_refuses_remote_and_resolves_local(tmp_path: Path) ->
     ]
 
 
+# trace:v1 id=test.tests-test-v060.test-correctness-floors-are-not-omitted-by-old-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_correctness_floors_are_not_omitted_by_old_config(tmp_path: Path) -> None:
     cfg = Config(
         tmp_path,
@@ -139,6 +144,7 @@ def test_type_disagreement_is_first_class() -> None:
     assert result.findings[0].code == "BHDIS001"
 
 
+# trace:v1 id=test.tests-test-v060.test-budgeted-search-timeout-is-not-infrastructure-error work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_budgeted_search_timeout_is_not_infrastructure_error(tmp_path: Path) -> None:
     check = Check(
         "budget",
@@ -154,6 +160,7 @@ def test_budgeted_search_timeout_is_not_infrastructure_error(tmp_path: Path) -> 
     assert "search budget exhausted" in (result.note or "")
 
 
+# trace:v1 id=test.tests-test-v060.test-main-pytest-seed-is-recorded-not-hard-pinned-zero work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_main_pytest_seed_is_recorded_not_hard_pinned_zero(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -191,6 +198,7 @@ def test_main_pytest_seed_is_recorded_not_hard_pinned_zero(
     assert "--randomly-seed=" in " ".join(randomized.command)
 
 
+# trace:v1 id=test.tests-test-v060.test-correlations-and-risk-map-preserve-independent-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_correlations_and_risk_map_preserve_independent_evidence(
     tmp_path: Path,
 ) -> None:
@@ -230,6 +238,7 @@ def test_correlations_and_risk_map_preserve_independent_evidence(
     assert (agent / "RISK_MAP.md").exists()
 
 
+# trace:v1 id=test.tests-test-v060.test-managed-mutmut-uses-covered-lines work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_managed_mutmut_uses_covered_lines(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -239,6 +248,7 @@ def test_managed_mutmut_uses_covered_lines(tmp_path: Path) -> None:
     assert "mutate_only_covered_lines = true" in text
 
 
+# trace:v1 id=test.tests-test-v060.test-version-differential-finds-observable-change work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_version_differential_finds_observable_change(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -302,6 +312,7 @@ def test_logical_dedup_preserves_raw_evidence() -> None:
     assert len(results[0].findings) + len(results[1].findings) == 2
 
 
+# trace:v1 id=test.tests-test-v060.test-report-writes-checklist-and-deduplicated-queue work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_report_writes_checklist_and_deduplicated_queue(tmp_path: Path) -> None:
     cfg = Config(tmp_path, {"execution": {}})
     results = [
@@ -325,6 +336,7 @@ def test_report_writes_checklist_and_deduplicated_queue(tmp_path: Path) -> None:
     assert "ci-fix-dont-freeze" in (agent / "CHECKLIST.md").read_text()
 
 
+# trace:v1 id=test.tests-test-v060.test-guarded-generators-do-not-reduce-health work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_guarded_generators_do_not_reduce_health(tmp_path: Path) -> None:
     _python_repo(tmp_path)
     cfg = Config(
@@ -344,6 +356,7 @@ def test_guarded_generators_do_not_reduce_health(tmp_path: Path) -> None:
     assert states["pynguin"] == Status.NA
 
 
+# trace:v1 id=test.tests-test-v060.test-typescript-eslint-config-is-type-aware work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_typescript_eslint_config_is_type_aware(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -362,6 +375,7 @@ def test_typescript_eslint_config_is_type_aware(tmp_path: Path) -> None:
     assert "projectService: true" in eslint
 
 
+# trace:v1 id=test.tests-test-v060.test-odoo-capability-detected work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_odoo_capability_detected(tmp_path: Path) -> None:
     from bughunt.technology import discover_technologies
 
