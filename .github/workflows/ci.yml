@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.1.0
       - run: uv sync --frozen
       - run: uv run coverage run -m pytest -q
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     # Enforcing: the tree is clean under default configs (2026-09-11).
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.1.0
       - run: uv sync --frozen
       - run: uv run ruff check src tests
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     # Enforcing: the tree is clean under default configs (2026-09-11).
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.1.0
       - run: uv sync --frozen
       - run: uv run mypy src
