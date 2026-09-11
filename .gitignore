@@ -40,3 +40,6 @@ node_modules/
 bun.lock
 .bughunt/configs/
 .bughunt/stubs/
+
+# bughunt regenerates the JS toolchain manifest on every scan; never commit it.
+package.json
