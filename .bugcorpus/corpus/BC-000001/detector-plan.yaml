@@ -1,0 +1,45 @@
+# trace:v1 id=ops.bc-000001-plan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000001
+# trace:v1 id=ops.bc-000001-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: ''
+# trace:v1 id=ops.bc-000001-related work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+related: []
+# trace:v1 id=ops.bc-000001-recommended-engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc-000001-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: purpose-built searcher; document minimum semantic model
+# trace:v1 id=ops.bc-000001-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  id: BC-000001
+  title: Unvalidated module name interpolated into python -c subprocess source
+  invariant: untrusted strings must never be interpolated into executed code strings;
+    validate as dotted identifiers first
+  root_cause: module names from target-repo discovery/argv interpolated raw into -c
+    source strings
+  symptom: scanning a repo with a crafted directory name executes arbitrary code in
+    the scan subprocess
+  signature: {}
+  symbols: []
+  calls: []
+  family: ''
+  original.diff: ''
+  fix.diff: ''
+  fixtures:
+    positive:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000001/fixtures/positive/import_probe.py
+    negative:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000001/fixtures/negative/import_probe_validated.py
+    adversarial:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000001/fixtures/adversarial/import_variants.py
+# trace:v1 id=ops.bc-000001-checklist work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+checklist:
+- minimize reproducer
+- positive fixture
+- fixed negative fixture
+- neighboring negatives
+- synthesize detector
+- verify fixtures
+- adversarial variants
+- scan repo
+- evaluation report
+- recommend promotion (shadow first)

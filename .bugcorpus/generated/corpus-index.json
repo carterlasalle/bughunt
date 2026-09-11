@@ -1,4 +1,15 @@
 {
-  "bugs": [],
+  "bugs": [
+    {
+      "id": "BC-000001",
+      "title": "Unvalidated module name interpolated into python -c subprocess source",
+      "family": "",
+      "detectors": [],
+      "severity": "medium",
+      "symbols": [],
+      "subsystem": "",
+      "invariant": ""
+    }
+  ],
   "families": []
 }

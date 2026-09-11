@@ -2988,6 +2988,32 @@ Record exact traps, for example:
 - `WORK-BUG-06107X2Q` / `REQ-BUG-5XJWASR4` (spec `docs/specs/repo-compliance.md`):
   the skipmutmut-compliance program. New markers use these, not the closed
   CI-green IDs.
+- Cross-repo validation (bugcorpus scan 2026-09-11, pre-fix bughunt 0.6.0):
+  TS cap hole: `typescript@<7` applies only on the eslint branch; the
+  tsc-missing branch installs bare `typescript` (TS 7 breaks
+  typescript-eslint v8 at startup: `typescript-eslint does not support
+  TS 7.0`). Fix: cap every branch that installs typescript while v8 is
+  the line (installers.py ~L813).
+- Pysa provider gap: installer verifies `pyre --help` (never exercises
+  the pyrefly lookup) and run_pysa doesn't put pysa-venv/bin on PATH, so
+  `Cannot locate a Pyrefly binary` surfaces as analyze ERROR. Fix:
+  PATH prepend + install-verify asserts runtime/bin/pyrefly + post-hoc
+  banner to SKIP. Our tree masks this via .venv/bin/pyrefly on PATH.
+- tsc without tsconfig prints help text that parses as a finding. Fix:
+  gate tsc on root tsconfig.json (SKIP with reason otherwise); bare
+  `tsc --noEmit` already uses ./tsconfig.json when present.
+- knip needs a generated config: `knip.json` with `ignoreFiles` from
+  `_JS_TOOL_IGNORES`, passed via `knip -c/--config` (flag confirmed).
+- Subagents without full context spiral: 5 E501 workers burned ~35 min and
+  zero writes re-running `ls`/`wc`/`cat pyproject` and grepping for "PARANOID"
+  instead of the exact ruff command in their spec (observed 2026-09-11;
+  cancelled, did it directly). For mechanical edits: assign tiny slices with
+  literal commands and no exploration budget, or do it yourself. Verify with
+  `history://<id>` before assuming progress.
+- Env fallback is intended, not a bug: `target_executable` prefers
+  root/.venv then PATH. System-pytest ERRORs on a foreign tree mean the
+  target env is incomplete (check install outcomes + root/.venv/bin), not
+  that the resolver is wrong. Do not "fix" by removing the PATH fallback.
 - Hook obligation notices can go stale for gitignored generated files
   (observed: `.bughunt/configs/blockbuster_plugin.py`). Authoritative checks
   are `trace verify --changed` and `trace summary`; when both are clean, do
