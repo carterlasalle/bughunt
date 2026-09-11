@@ -38,7 +38,9 @@ def _ranges(lines: list[int]) -> list[tuple[int, int]]:
 
 # trace:v1 id=impl.src-bughunt-coverage_tools.parse-coverage-json work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_coverage_json(
-    path: Path, *, line_group_limit: int = 50
+    path: Path,
+    *,
+    line_group_limit: int = 50,
 ) -> tuple[list[CoverageGap], dict[str, Any]]:
     data = json.loads(path.read_text())
     findings: list[CoverageGap] = []
@@ -62,7 +64,7 @@ def parse_coverage_json(
                     start,
                     f"{count} executable line(s) are never exercised by the test suite (missing range {span})",
                     severity,
-                )
+                ),
             )
         for branch in missing_branches[:line_group_limit]:
             if isinstance(branch, list) and len(branch) >= 2:
@@ -74,7 +76,7 @@ def parse_coverage_json(
                         int(src) if isinstance(src, int) else None,
                         f"branch edge {src} -> {dst} is never exercised; uncovered exception/decision arms are latent-bug risk",
                         "warning",
-                    )
+                    ),
                 )
     summary = {
         "percent_covered": totals.get("percent_covered"),

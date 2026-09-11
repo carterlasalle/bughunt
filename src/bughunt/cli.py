@@ -34,7 +34,7 @@ from rich.text import Text
 
 from bughunt.default_rules import DEFAULT_RULES
 
-from .configurator import configure_all, configure_custom_checks
+from .configurator import _JS_TOOL_IGNORES, configure_all, configure_custom_checks
 from .discovery import (
     discover_all,
     infer_source_paths,
@@ -192,6 +192,7 @@ class Status(str, Enum):
     NA = "N/A"
 
 
+# trace:v1 id=impl.src-bughunt-cli.finding work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class Finding:
     tool: str
@@ -205,6 +206,7 @@ class Finding:
     fix_safety: str | None = None
     fix_preview: str | None = None
 
+    # trace:v1 id=impl.src-bughunt-cli.finding.fingerprint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
     def fingerprint(self) -> str:
         raw = "|".join(
@@ -213,7 +215,7 @@ class Finding:
                 self.code or "",
                 self.path or "",
                 self.message.strip(),
-            ]
+            ],
         )
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
@@ -266,6 +268,7 @@ class Result:
         return len(self.findings)
 
 
+# trace:v1 id=impl.src-bughunt-cli.check work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 @dataclass(slots=True)
 class Check:
     name: str
@@ -279,6 +282,11 @@ class Check:
     skip_reason: str | None = None
     findings_exit_codes: set[int] = field(default_factory=lambda: {1})
     skip_exit_codes: set[int] = field(default_factory=set)
+    # Banner substrings proving the tool ran but had nothing in scope (as
+    # opposed to erroring). When the exit code is a findings code yet the
+    # parser yields nothing and a marker is present, the result is SKIPPED
+    # ("nothing in scope") instead of a synthetic FINDINGS entry.
+    empty_scope_markers: tuple[str, ...] = ()
     record_progress: bool = True
     timeout_is_success: bool = False
 
@@ -381,7 +389,7 @@ def _default_config_raw() -> dict[str, Any]:
         "timeouts": {"fast": 120, "pr": 900, "deep": 7200, "all": 14400},
         "profiles": {
             "fast": {
-                "tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly"]
+                "tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly"],
             },
             "pr": {
                 "tools": [
@@ -406,7 +414,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "deal",
                     "crosshair",
                     "pytest",
-                ]
+                ],
             },
             "deep": {
                 "tools": [
@@ -438,7 +446,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "schemathesis",
                     "atheris",
                     "custom",
-                ]
+                ],
             },
             "all": {
                 "tools": [
@@ -470,7 +478,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "schemathesis",
                     "atheris",
                     "custom",
-                ]
+                ],
             },
         },
         "autodiscovery": {
@@ -689,7 +697,7 @@ def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[F
                     code=code,
                     message=message,
                     severity=(gd.get("severity") or "error").lower(),
-                )
+                ),
             )
             break
     if not findings:
@@ -716,7 +724,7 @@ def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         # but ranked below likely correctness/security findings in agent queues.
         if code and (
             code.startswith(
-                ("D", "COM", "Q", "I", "N", "PTH", "T20", "TD", "FIX", "ERA", "EM")
+                ("D", "COM", "Q", "I", "N", "PTH", "T20", "TD", "FIX", "ERA", "EM"),
             )
             or code in {"E501", "W505"}
         ):
@@ -739,7 +747,7 @@ def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 fixable=isinstance(fix, dict),
                 fix_safety=applicability,
                 fix_preview=str(preview) if preview else None,
-            )
+            ),
         )
     return out
 
@@ -766,14 +774,17 @@ def parse_basedpyright(stdout: str, stderr: str, exit_code: int) -> list[Finding
                 code=item.get("rule"),
                 message=item.get("message", "Type error"),
                 severity=item.get("severity", "error"),
-            )
+            ),
         )
     return out
 
 
 # trace:v1 id=impl.src-bughunt-cli.parse-json-list work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_json_list(
-    tool: str, stdout: str, stderr: str, exit_code: int
+    tool: str,
+    stdout: str,
+    stderr: str,
+    exit_code: int,
 ) -> list[Finding]:
     try:
         data = json.loads(stdout)
@@ -826,9 +837,9 @@ def parse_json_list(
                 code=str(code) if code else None,
                 message=str(msg),
                 severity=str(
-                    item.get("severity") or item.get("type") or "error"
+                    item.get("severity") or item.get("type") or "error",
                 ).lower(),
-            )
+            ),
         )
     if not out and exit_code:
         return text_findings(tool, stdout, stderr, exit_code)
@@ -878,12 +889,12 @@ def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                     item.get("message")
                     or item.get("description")
                     or name
-                    or "Pyrefly finding"
+                    or "Pyrefly finding",
                 ),
                 severity=str(
-                    item.get("severity") or item.get("type") or "error"
+                    item.get("severity") or item.get("type") or "error",
                 ).lower(),
-            )
+            ),
         )
     return out or (
         text_findings("pyrefly", stdout, stderr, exit_code) if exit_code else []
@@ -923,7 +934,7 @@ def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 or item.get("messageId"),
                 message=str(item.get("message") or "Pylint finding"),
                 severity=severity,
-            )
+            ),
         )
     return out or (
         text_findings("pylint", stdout, stderr, exit_code) if exit_code else []
@@ -936,7 +947,7 @@ def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
     pattern = re.compile(
         r"^(?P<path>.+?)(?::(?P<line>\d+):(?P<col>\d+))?:\s+"
-        r"(?P<code>DEP\d{3})\s+(?P<msg>.+)$"
+        r"(?P<code>DEP\d{3})\s+(?P<msg>.+)$",
     )
     for raw in (stdout + "\n" + stderr).splitlines():
         m = pattern.match(raw.strip())
@@ -952,11 +963,12 @@ def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=gd["code"],
                 message=gd["msg"],
                 severity="error",
-            )
+            ),
         )
     return out or text_findings("deptry", stdout, stderr, exit_code)
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-semgrep work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout)
@@ -978,7 +990,7 @@ def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 fixable=bool(extra.get("fix")),
                 fix_safety="rule" if extra.get("fix") else None,
                 fix_preview=str(extra.get("fix"))[:500] if extra.get("fix") else None,
-            )
+            ),
         )
     return out
 
@@ -1009,7 +1021,7 @@ def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 or item.get("value")
                 or "Deal contract finding",
                 severity="error",
-            )
+            ),
         )
     if out:
         return out
@@ -1057,7 +1069,7 @@ def parse_ast_grep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 else None,
                 code=i.get("ruleId"),
                 message=i.get("message") or i.get("text") or "ast-grep finding",
-            )
+            ),
         )
     return out
 
@@ -1070,7 +1082,8 @@ def parse_complexipy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         if not stripped or stripped.startswith(("Analyzing", "Summary", "─", "=")):
             continue
         match = re.match(
-            r"^(?P<path>.+?\.py)\s+(?P<name>\S+)\s+(?P<score>\d+)\s*$", stripped
+            r"^(?P<path>.+?\.py)\s+(?P<name>\S+)\s+(?P<score>\d+)\s*$",
+            stripped,
         )
         if not match:
             continue
@@ -1082,7 +1095,7 @@ def parse_complexipy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code="COG001",
                 message=f"`{match.group('name')}` cognitive complexity is {score} (budget 10)",
                 severity="warning" if score <= 20 else "error",
-            )
+            ),
         )
     if not out and exit_code not in {0, 1}:
         return text_findings("complexipy", stdout, stderr, exit_code)
@@ -1112,7 +1125,7 @@ def parse_radon_mi(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code="RADON_MI",
                 message=f"maintainability index is {mi:.1f} (rank {rank or '?'})",
                 severity="error" if mi <= 9 else "warning",
-            )
+            ),
         )
     return out
 
@@ -1121,7 +1134,8 @@ def parse_radon_mi(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
 def parse_lizard(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
     pattern = re.compile(
-        r"^(?P<path>.+?):(?P<line>\d+):\s*warning:\s*(?P<msg>.+)$", re.IGNORECASE
+        r"^(?P<path>.+?):(?P<line>\d+):\s*warning:\s*(?P<msg>.+)$",
+        re.IGNORECASE,
     )
     for line in (stdout + "\n" + stderr).splitlines():
         match = pattern.match(line.strip())
@@ -1141,7 +1155,7 @@ def parse_lizard(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=code,
                 message=msg,
                 severity="warning",
-            )
+            ),
         )
     if not out and exit_code not in {0, 1}:
         return text_findings("lizard", stdout, stderr, exit_code)
@@ -1179,7 +1193,7 @@ def parse_actionlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=item.get("kind") or item.get("code"),
                 message=str(item.get("message") or "GitHub Actions workflow problem"),
                 severity="error",
-            )
+            ),
         )
     return out or (
         text_findings("actionlint", stdout, stderr, exit_code) if exit_code else []
@@ -1206,7 +1220,7 @@ def parse_shellcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=f"SC{item.get('code')}" if item.get("code") is not None else None,
                 message=str(item.get("message") or "ShellCheck finding"),
                 severity=_severity(item.get("level"), "warning"),
-            )
+            ),
         )
     return out or (
         text_findings("shellcheck", stdout, stderr, exit_code) if exit_code else []
@@ -1237,10 +1251,10 @@ def parse_sqlfluff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                     message=str(
                         item.get("description")
                         or item.get("message")
-                        or "SQLFluff finding"
+                        or "SQLFluff finding",
                     ),
                     severity="error",
-                )
+                ),
             )
     return out or (
         text_findings("sqlfluff", stdout, stderr, exit_code) if exit_code else []
@@ -1294,9 +1308,10 @@ def parse_tflint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=rule.get("name") if isinstance(rule, dict) else None,
                 message=str(item.get("message") or "TFLint finding"),
                 severity=_severity(
-                    rule.get("severity") if isinstance(rule, dict) else None, "warning"
+                    rule.get("severity") if isinstance(rule, dict) else None,
+                    "warning",
                 ),
-            )
+            ),
         )
     return out or (
         text_findings("tflint", stdout, stderr, exit_code) if exit_code else []
@@ -1327,10 +1342,10 @@ def parse_golangci(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 or item.get("fromLinter")
                 or item.get("linter"),
                 message=str(
-                    item.get("Text") or item.get("text") or "Go correctness finding"
+                    item.get("Text") or item.get("text") or "Go correctness finding",
                 ),
                 severity="error",
-            )
+            ),
         )
     return out or (
         text_findings("golangci-lint", stdout, stderr, exit_code) if exit_code else []
@@ -1352,7 +1367,8 @@ def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             continue
         spans = msg.get("spans") or []
         primary = next(
-            (x for x in spans if isinstance(x, dict) and x.get("is_primary")), {}
+            (x for x in spans if isinstance(x, dict) and x.get("is_primary")),
+            {},
         )
         code_obj = msg.get("code") or {}
         out.append(
@@ -1364,7 +1380,7 @@ def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=code_obj.get("code") if isinstance(code_obj, dict) else None,
                 message=str(msg.get("message") or "Clippy finding"),
                 severity=_severity(msg.get("level")),
-            )
+            ),
         )
     return out or (
         text_findings("clippy", stdout, stderr, exit_code) if exit_code else []
@@ -1396,7 +1412,7 @@ def parse_cppcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 code=error.get("id"),
                 message=error.get("verbose") or error.get("msg") or "Cppcheck finding",
                 severity=_severity(error.get("severity"), "warning"),
-            )
+            ),
         )
     return out
 
@@ -1423,7 +1439,7 @@ def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                     code=item.get("identifier"),
                     message=str(item.get("message") or "PHPStan finding"),
                     severity="error",
-                )
+                ),
             )
     for message in data.get("errors", []) if isinstance(data, dict) else []:
         out.append(Finding(tool="phpstan", message=str(message), severity="error"))
@@ -1432,10 +1448,22 @@ def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     )
 
 
+# Banner ESLint prints (to stderr) when ignore patterns exclude every file
+# under the lint target. The caller maps this to SKIPPED ("nothing in scope")
+# via empty_scope_markers.
+ESLINT_EMPTY_SCOPE = "all of the files matching the glob pattern"
+
+
 # trace:v1 id=impl.src-bughunt-cli.parse-eslint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_eslint(
-    stdout: str, stderr: str, exit_code: int, *, tool: str = "eslint"
+    stdout: str,
+    stderr: str,
+    exit_code: int,
+    *,
+    tool: str = "eslint",
 ) -> list[Finding]:
+    if ESLINT_EMPTY_SCOPE in stdout or ESLINT_EMPTY_SCOPE in stderr:
+        return []
     try:
         data = json.loads(stdout or "[]")
     except json.JSONDecodeError:
@@ -1472,19 +1500,27 @@ def parse_eslint(
                     message=str(
                         item.get("message")
                         or item.get("description")
-                        or f"{tool} finding"
+                        or f"{tool} finding",
                     ),
                     severity="error"
                     if item.get("severity") in {2, "error"}
                     else "warning",
                     fixable=bool(item.get("fix")),
                     fix_safety="review" if item.get("fix") else None,
-                )
+                ),
             )
     return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
 
 
+# Banner oxlint prints when ignore patterns exclude every candidate file.
+# The caller maps this to SKIPPED ("nothing in scope") via empty_scope_markers.
+OXLINT_EMPTY_SCOPE = "No files found to lint"
+
+
+# trace:v1 id=impl.src-bughunt-cli.parse-oxlint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_oxlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+    if OXLINT_EMPTY_SCOPE in stdout:
+        return []
     return parse_eslint(stdout, stderr, exit_code, tool="oxlint")
 
 
@@ -1520,7 +1556,7 @@ def parse_buf_json_lines(stdout: str, stderr: str, exit_code: int) -> list[Findi
                 code=item.get("rule_id") or item.get("rule"),
                 message=str(item.get("message") or "Buf schema finding"),
                 severity="error",
-            )
+            ),
         )
     return out or (text_findings("buf", stdout, stderr, exit_code) if exit_code else [])
 
@@ -1550,14 +1586,17 @@ def parse_sarif(path: Path, tool: str) -> list[Finding]:
                     code=result.get("ruleId"),
                     message=msg.get("text") or msg.get("markdown") or "SARIF finding",
                     severity=result.get("level", "error"),
-                )
+                ),
             )
     return out
 
 
 # trace:v1 id=impl.src-bughunt-cli.parse-bughunt-helper work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_bughunt_helper(
-    tool: str, stdout: str, stderr: str, exit_code: int
+    tool: str,
+    stdout: str,
+    stderr: str,
+    exit_code: int,
 ) -> list[Finding]:
     """Parse BugHunt helper modules that emit {findings:[...]} JSON."""
     try:
@@ -1580,7 +1619,7 @@ def parse_bughunt_helper(
                 else None,
                 code=str(item.get("code")) if item.get("code") is not None else None,
                 severity=str(item.get("severity") or "warning"),
-            )
+            ),
         )
     return out
 
@@ -1628,7 +1667,9 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
             if match:
                 schema_ref = match.group(1)
         if not schema_ref or re.match(
-            r"^[a-z][a-z0-9+.-]*://", schema_ref, re.IGNORECASE
+            r"^[a-z][a-z0-9+.-]*://",
+            schema_ref,
+            re.IGNORECASE,
         ):
             continue
         schema = (path.parent / schema_ref).resolve(strict=False)
@@ -1682,7 +1723,8 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
         for f in result.findings:
             if f.path and f.line:
                 by_location.setdefault((f.path, f.line), {}).setdefault(
-                    result.name, []
+                    result.name,
+                    [],
                 ).append(f)
     findings: list[Finding] = []
     for (path, line), tools in by_location.items():
@@ -1699,7 +1741,7 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
                 line=line,
                 severity="warning",
                 message=f"type-checker disagreement: {', '.join(loud)} reports a problem here while {', '.join(silent)} does not; inspect erased/dynamic typing at this seam",
-            )
+            ),
         )
     if not findings:
         return Result(
@@ -1739,7 +1781,7 @@ def correlated_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
                 "finding_count": len(findings),
                 "codes": sorted({str(f.code) for f in findings if f.code}),
                 "severity": min((f.severity for f in findings), key=severity_priority),
-            }
+            },
         )
     return sorted(
         out,
@@ -1806,7 +1848,7 @@ def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
                 "severity": primary.severity,
                 "primary_message": primary.message,
                 "finding_ids": [f.finding_id for f in findings],
-            }
+            },
         )
     return sorted(
         groups,
@@ -1845,7 +1887,10 @@ def odc_class(category: str, finding: Finding | None = None) -> str:
 
 # trace:v1 id=impl.src-bughunt-cli.build-checks work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def build_checks(
-    cfg: Config, profile: str, *, excluded: set[str] | None = None
+    cfg: Config,
+    profile: str,
+    *,
+    excluded: set[str] | None = None,
 ) -> tuple[list[Check], list[Result]]:
     root = cfg.root
     timeout = cfg.timeout(profile)
@@ -1885,7 +1930,7 @@ def build_checks(
                         category,
                         Status.NA,
                         note="not applicable: no first-party Python capability detected",
-                    )
+                    ),
                 )
     for name in sorted(excluded & set(profile_tools)):
         skipped.append(
@@ -1894,7 +1939,7 @@ def build_checks(
                 category=category_by_tool.get(name, "excluded"),
                 status=Status.SKIPPED,
                 note="explicitly skipped by user",
-            )
+            ),
         )
 
     # trace:v1 id=impl.src-bughunt-cli-build-checks.add work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -1907,6 +1952,7 @@ def build_checks(
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
         skip_exit_codes: set[int] | None = None,
+        empty_scope_markers: tuple[str, ...] | None = None,
         check_timeout: int | None = None,
         env: dict[str, str] | None = None,
         timeout_is_success: bool = False,
@@ -1920,7 +1966,7 @@ def build_checks(
                     category=category,
                     status=Status.NA,
                     note="not applicable: no first-party Python capability detected",
-                )
+                ),
             )
             return
         if command is None:
@@ -1930,7 +1976,7 @@ def build_checks(
                     category=category,
                     status=Status.SKIPPED,
                     note=reason or "not configured",
-                )
+                ),
             )
             return
         checks.append(
@@ -1947,9 +1993,10 @@ def build_checks(
                 skip_exit_codes=skip_exit_codes
                 if skip_exit_codes is not None
                 else set(),
+                empty_scope_markers=empty_scope_markers or (),
                 env=env,
                 timeout_is_success=timeout_is_success,
-            )
+            ),
         )
 
     add(
@@ -1993,7 +2040,8 @@ def build_checks(
     add("ty", "types", ty_cmd, reason="ty not installed", findings_exit_codes={1})
     pyrefly_cfg = generated_config(root, "pyrefly.toml")
     pyrefly_cmd = _optional_cmd(
-        executable("pyrefly"), ["check", "--output-format=json"]
+        executable("pyrefly"),
+        ["check", "--output-format=json"],
     )
     if pyrefly_cmd and pyrefly_cfg:
         pyrefly_cmd += ["--config", str(pyrefly_cfg)]
@@ -2113,7 +2161,8 @@ def build_checks(
         "vulture",
         "dead-code",
         _optional_cmd(
-            executable("vulture"), [*py, "--min-confidence", vulture_confidence]
+            executable("vulture"),
+            [*py, "--min-confidence", vulture_confidence],
         ),
         reason="vulture not installed",
         findings_exit_codes={3},
@@ -2213,7 +2262,8 @@ def build_checks(
         semgrep_cfgs.extend(
             str(x)
             for x in semgrep_settings.get(
-                "security_configs", ["p/security-audit", "p/secrets"]
+                "security_configs",
+                ["p/security-audit", "p/secrets"],
             )
         )
     local_semgrep = config_dir / "semgrep" / "rules"
@@ -2230,7 +2280,7 @@ def build_checks(
     # otherwise explicitly select CE so behavior is stable and non-interactive.
     if semgrep_cmd:
         semgrep_cmd.append(
-            "--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only"
+            "--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only",
         )
     for c in dict.fromkeys(str(x) for x in semgrep_cfgs):
         semgrep_cmd.extend(["--config", c])
@@ -2327,7 +2377,7 @@ def build_checks(
                     "tests/property/state",
                     Status.NA,
                     note="not applicable: no first-party Python capability detected",
-                )
+                ),
             )
         elif pytest_cmd:
             checks.append(
@@ -2340,7 +2390,7 @@ def build_checks(
                     root,
                     env=pytest_env,
                     findings_exit_codes={1},
-                )
+                ),
             )
         else:
             skipped.append(
@@ -2349,7 +2399,7 @@ def build_checks(
                     "tests/property/state",
                     Status.SKIPPED,
                     note="pytest not installed",
-                )
+                ),
             )
 
     # Structural-hole defenses: execution coverage, runtime annotation truth,
@@ -2576,8 +2626,9 @@ def build_checks(
             hypothesis_cli = executable("hypothesis")
             budget = int(
                 cfg.raw.get("hypofuzz", {}).get(
-                    f"{profile}_seconds", 300 if profile == "all" else 120
-                )
+                    f"{profile}_seconds",
+                    300 if profile == "all" else 120,
+                ),
             )
             workers = int(cfg.raw.get("hypofuzz", {}).get("workers", 2))
             cmd = (
@@ -2680,7 +2731,7 @@ def build_checks(
                             "PYTHONASYNCIODEBUG": "1",
                         },
                         findings_exit_codes={1},
-                    )
+                    ),
                 ) if pytest else None
             # macOS commonly exposes Turkish as tr_TR.UTF-8/tr_TR.UTF-8-like names; only run it if installed.
             try:
@@ -2717,7 +2768,7 @@ def build_checks(
                             "PYTHONHASHSEED": str(repro_seed),
                         },
                         findings_exit_codes={1},
-                    )
+                    ),
                 )
 
         if "memray" in wanted:
@@ -2745,8 +2796,9 @@ def build_checks(
                 if (root / ".benchmarks").exists():
                     regression = int(
                         cfg.raw.get("performance", {}).get(
-                            "benchmark_regression_percent", 10
-                        )
+                            "benchmark_regression_percent",
+                            10,
+                        ),
                     )
                     cmd += [
                         "--benchmark-compare",
@@ -2765,15 +2817,16 @@ def build_checks(
                         note="no pytest-benchmark tests detected"
                         if not technology.has("benchmark-tests")
                         else "pytest-benchmark not installed",
-                    )
+                    ),
                 )
 
         if "pyanalyze" in wanted:
             pa = executable("pyanalyze")
             allowed = bool(
                 cfg.raw.get("execution_imports", {}).get(
-                    "allow_importing_analyzers", False
-                )
+                    "allow_importing_analyzers",
+                    False,
+                ),
             )
             add(
                 "pyanalyze",
@@ -2814,7 +2867,7 @@ def build_checks(
                     "test-generation",
                     Status.NA,
                     note="GUARDED: Hypothesis ghostwriter generates candidate tests and may import project callables; BugHunt property discovery runs automatically, while ghostwriter remains an explicit review/generation helper",
-                )
+                ),
             )
         if "pynguin" in wanted:
             skipped.append(
@@ -2823,7 +2876,7 @@ def build_checks(
                     "search-based-test-generation",
                     Status.NA,
                     note="GUARDED: Pynguin executes modules under test; only run in a throwaway or OS-sandboxed environment, so this candidate does not reduce correctness health",
-                )
+                ),
             )
 
     # Bug Corpus is the V2 learning subsystem, not a third-party executable.
@@ -2836,7 +2889,7 @@ def build_checks(
                 "historical/custom-static",
                 Status.SKIPPED,
                 note="integrated Bug Corpus execution is a V2 feature; see docs/V2_SPEC.md",
-            )
+            ),
         )
 
     # Target-specific fuzz / API / custom checks. Explicit config and safe
@@ -2881,7 +2934,7 @@ def build_checks(
                     partial(text_findings, name),
                     int(target.get("timeout", timeout)),
                     root,
-                )
+                ),
             )
             added += 1
         for target in auto:
@@ -2896,7 +2949,7 @@ def build_checks(
                     partial(text_findings, name),
                     timeout,
                     root,
-                )
+                ),
             )
             added += 1
         if not added:
@@ -2910,7 +2963,7 @@ def build_checks(
                 if candidates:
                     reason += f" ({candidates} schema candidate(s) need a local URL)"
             skipped.append(
-                Result("schemathesis", "api-fuzz", Status.SKIPPED, note=reason)
+                Result("schemathesis", "api-fuzz", Status.SKIPPED, note=reason),
             )
 
     if "atheris" in wanted and not technology.has("python"):
@@ -2920,7 +2973,7 @@ def build_checks(
                 "coverage-fuzz",
                 Status.NA,
                 note="not applicable: no first-party Python capability detected",
-            )
+            ),
         )
     elif "atheris" in wanted:
         explicit = list(cfg.raw.get("atheris", {}).get("targets", []))
@@ -2942,7 +2995,7 @@ def build_checks(
                     partial(text_findings, name),
                     int(target.get("timeout", timeout)),
                     root,
-                )
+                ),
             )
             added += 1
         for target in auto:
@@ -2957,7 +3010,7 @@ def build_checks(
                     partial(text_findings, name),
                     timeout,
                     root,
-                )
+                ),
             )
             added += 1
         if not added:
@@ -2966,7 +3019,7 @@ def build_checks(
             else:
                 reason = "no safe one-argument parser/decoder fuzz target discovered/configured"
             skipped.append(
-                Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason)
+                Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason),
             )
 
     if "custom" in wanted:
@@ -3003,7 +3056,7 @@ def build_checks(
                     "custom",
                     Status.SKIPPED,
                     note="no high-confidence repository-specific semantic campaign could be inferred",
-                )
+                ),
             )
         else:
             rank = {"fast": 0, "pr": 1, "deep": 2, "all": 3}
@@ -3020,7 +3073,7 @@ def build_checks(
                         partial(text_findings, name),
                         int(item.get("timeout", timeout)),
                         root,
-                    )
+                    ),
                 )
 
     # Technology-aware correctness engines. Absence of the technology itself is
@@ -3034,6 +3087,7 @@ def build_checks(
         *,
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
+        empty_scope_markers: tuple[str, ...] | None = None,
         name: str | None = None,
         check_timeout: int | None = None,
     ) -> None:
@@ -3052,7 +3106,7 @@ def build_checks(
                         category,
                         Status.NA,
                         note=f"not applicable: no {cap} capability detected",
-                    )
+                    ),
                 )
             return
         if command is None:
@@ -3062,7 +3116,7 @@ def build_checks(
                     category,
                     Status.SKIPPED,
                     note=reason or f"{engine} not installed/configured",
-                )
+                ),
             )
             return
         checks.append(
@@ -3076,7 +3130,8 @@ def build_checks(
                 findings_exit_codes=findings_exit_codes
                 if findings_exit_codes is not None
                 else {1},
-            )
+                empty_scope_markers=empty_scope_markers or (),
+            ),
         )
 
     # GitHub Actions: semantic workflow checking plus embedded shell/Python
@@ -3134,7 +3189,7 @@ def build_checks(
                 timeout,
                 root,
                 findings_exit_codes={1},
-            )
+            ),
         )
 
     # OpenAPI: validate HEAD and, when the file existed at the selected local
@@ -3147,7 +3202,9 @@ def build_checks(
             add_technology("oasdiff", None)
         elif not oasdiff:
             add_technology(
-                "oasdiff", None, reason="OpenAPI detected but oasdiff is not installed"
+                "oasdiff",
+                None,
+                reason="OpenAPI detected but oasdiff is not installed",
             )
         else:
             for spec in openapi_files:
@@ -3161,10 +3218,12 @@ def build_checks(
                         timeout,
                         root,
                         findings_exit_codes={1},
-                    )
+                    ),
                 )
                 if technology.git_baseline and git_path_exists(
-                    root, technology.git_baseline, spec
+                    root,
+                    technology.git_baseline,
+                    spec,
                 ):
                     checks.append(
                         Check(
@@ -3182,7 +3241,7 @@ def build_checks(
                             timeout,
                             root,
                             findings_exit_codes={1},
-                        )
+                        ),
                     )
 
     buf = project_executable(root, "buf")
@@ -3191,7 +3250,9 @@ def build_checks(
             add_technology("buf", None)
         elif not buf:
             add_technology(
-                "buf", None, reason="Protocol Buffers detected but buf is not installed"
+                "buf",
+                None,
+                reason="Protocol Buffers detected but buf is not installed",
             )
         else:
             buf_cfg = generated_config(root, "buf.yaml")
@@ -3207,7 +3268,7 @@ def build_checks(
                     timeout,
                     root,
                     findings_exit_codes={1, 100},
-                )
+                ),
             )
             if technology.git_baseline:
                 breaking_cmd = [
@@ -3229,7 +3290,7 @@ def build_checks(
                         timeout,
                         root,
                         findings_exit_codes={1, 100},
-                    )
+                    ),
                 )
 
     sqlfluff = project_executable(root, "sqlfluff")
@@ -3383,7 +3444,8 @@ def build_checks(
     )
 
     run_clang_tidy = llvm_executable(root, "run-clang-tidy") or llvm_executable(
-        root, "run-clang-tidy.py"
+        root,
+        "run-clang-tidy.py",
     )
     clang_cmd = None
     if run_clang_tidy and compile_db:
@@ -3445,6 +3507,14 @@ def build_checks(
     oxlint = project_executable(root, "oxlint")
     oxlint_cfg = generated_config(root, "oxlintrc.json")
     oxlint_cmd = [oxlint, "--format=json", "--deny-warnings"] if oxlint else None
+    if oxlint_cmd:
+        # oxlint config-file ignorePatterns cannot address files outside the
+        # generated config's own directory (`..` is rejected), so root-relative
+        # ignores travel as cwd-relative CLI flags instead. Bare directory
+        # names: the `/**` form misbehaves on tracked dot-directories.
+        oxlint_cmd += [
+            f"--ignore-pattern={p.removesuffix('/**')}" for p in _JS_TOOL_IGNORES
+        ]
     if oxlint_cmd and oxlint_cfg:
         oxlint_cmd += ["--config", str(oxlint_cfg)]
     add_technology(
@@ -3453,6 +3523,7 @@ def build_checks(
         parse_oxlint,
         reason="JavaScript/TypeScript detected but Oxlint is not installed",
         findings_exit_codes={1},
+        empty_scope_markers=(OXLINT_EMPTY_SCOPE,),
     )
 
     eslint = project_executable(root, "eslint")
@@ -3488,6 +3559,7 @@ def build_checks(
             else "ESLint detected but no safe config is available"
         ),
         findings_exit_codes={1},
+        empty_scope_markers=(ESLINT_EMPTY_SCOPE,),
     )
 
     react_doctor = project_executable(root, "react-doctor")
@@ -3587,7 +3659,7 @@ def build_checks(
                             timeout,
                             root,
                             findings_exit_codes={1},
-                        )
+                        ),
                     )
             elif not checker:
                 add_technology(
@@ -3602,7 +3674,7 @@ def build_checks(
                         ENGINE_CATEGORY["check-jsonschema"],
                         Status.SKIPPED,
                         note="schema references exist, but none resolve to a repository-local schema; BugHunt refuses to fetch arbitrary remote schemas",
-                    )
+                    ),
                 )
 
     alembic = project_executable(root, "alembic")
@@ -3635,7 +3707,7 @@ def build_checks(
                 and (t.metadata or {}).get("transport") == "asgi"
             ]
             pact_ready = python_module_available("pact") and python_module_available(
-                "uvicorn"
+                "uvicorn",
             )
             if len(asgi) == 1 and pacts and pact_ready:
                 app = asgi[0].name
@@ -3660,7 +3732,7 @@ def build_checks(
                     reasons.append("no concrete local Pact JSON files")
                 if len(asgi) != 1:
                     reasons.append(
-                        f"need exactly one high-confidence local ASGI provider target (found {len(asgi)})"
+                        f"need exactly one high-confidence local ASGI provider target (found {len(asgi)})",
                     )
                 if not pact_ready:
                     reasons.append("pact-python/uvicorn not installed")
@@ -3671,7 +3743,7 @@ def build_checks(
                         Status.SKIPPED,
                         note="Pact capability detected but auto-verification is guarded: "
                         + "; ".join(reasons),
-                    )
+                    ),
                 )
 
     return checks, skipped
@@ -3731,7 +3803,8 @@ class LiveRunState:
 
         now = time.perf_counter()
         for name, entry in sorted(
-            self.running.items(), key=lambda kv: float(kv[1]["started"])
+            self.running.items(),
+            key=lambda kv: float(kv[1]["started"]),
         ):
             age = now - float(entry["started"])
             quiet = now - float(entry["last_activity"])
@@ -3779,7 +3852,9 @@ class LiveRunState:
 
 # trace:v1 id=impl.src-bughunt-cli.run-process work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_process(
-    check: Check, raw_limit: int, progress: LiveRunState | None = None
+    check: Check,
+    raw_limit: int,
+    progress: LiveRunState | None = None,
 ) -> Result:
     started = time.perf_counter()
     if progress:
@@ -3816,7 +3891,8 @@ async def run_process(
                 else:
                     activity_tail = ""
                 meaningful = next(
-                    (line.strip() for line in reversed(parts) if line.strip()), ""
+                    (line.strip() for line in reversed(parts) if line.strip()),
+                    "",
                 )
                 if not meaningful and activity_tail.strip():
                     meaningful = activity_tail.strip()
@@ -3871,7 +3947,7 @@ async def run_process(
                     findings=timeout_findings,
                     note=note,
                     environment=dict(check.env or {}),
-                )
+                ),
             )
     except (FileNotFoundError, PermissionError, OSError) as exc:
         return finish(
@@ -3882,7 +3958,7 @@ async def run_process(
                 duration=time.perf_counter() - started,
                 command=check.command,
                 note=f"could not execute: {exc}",
-            )
+            ),
         )
 
     stdout = b"".join(stdout_chunks).decode(errors="replace")
@@ -3897,6 +3973,11 @@ async def run_process(
 
     if parse_error:
         status = Status.ERROR
+    elif not findings and any(
+        m in stdout or m in stderr for m in check.empty_scope_markers
+    ):
+        status = Status.SKIPPED
+        parse_error = f"exited {exit_code}: nothing in scope"
     elif exit_code == 0:
         status = Status.FINDINGS if findings else Status.PASS
     elif exit_code in check.findings_exit_codes:
@@ -3927,7 +4008,7 @@ async def run_process(
             stderr=stderr[-raw_limit:],
             note=parse_error,
             environment=dict(check.env or {}),
-        )
+        ),
     )
 
 
@@ -3972,14 +4053,20 @@ def _reset_tool_dir(path: Path) -> None:
 
 # trace:v1 id=impl.src-bughunt-cli.run-codeql work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_codeql(
-    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+    cfg: Config,
+    profile: str,
+    raw_limit: int,
+    progress: LiveRunState | None = None,
 ) -> Result:
     if "codeql" not in cfg.tools(profile):
         return Result("codeql", "whole-program", Status.SKIPPED, note="not in profile")
     ql = executable("codeql")
     if not ql:
         return Result(
-            "codeql", "whole-program", Status.SKIPPED, note="codeql CLI not installed"
+            "codeql",
+            "whole-program",
+            Status.SKIPPED,
+            note="codeql CLI not installed",
         )
 
     language = "python"
@@ -4072,7 +4159,10 @@ def pysa_executable(root: Path) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-cli.run-pysa work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_pysa(
-    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+    cfg: Config,
+    profile: str,
+    raw_limit: int,
+    progress: LiveRunState | None = None,
 ) -> Result:
     if "pysa" not in cfg.tools(profile):
         return Result("pysa", "taint", Status.SKIPPED, note="not in profile")
@@ -4136,7 +4226,10 @@ async def run_pysa(
 
 # trace:v1 id=impl.src-bughunt-cli.run-mutmut work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_mutmut(
-    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+    cfg: Config,
+    profile: str,
+    raw_limit: int,
+    progress: LiveRunState | None = None,
 ) -> Result:
     if "mutmut" not in cfg.tools(profile):
         return Result("mutmut", "mutation", Status.SKIPPED, note="not in profile")
@@ -4145,7 +4238,10 @@ async def run_mutmut(
         return Result("mutmut", "mutation", Status.SKIPPED, note="mutmut not installed")
     if not cfg.raw.get("mutmut", {}).get("enabled", True):
         return Result(
-            "mutmut", "mutation", Status.SKIPPED, note="disabled in bughunt.toml"
+            "mutmut",
+            "mutation",
+            Status.SKIPPED,
+            note="disabled in bughunt.toml",
         )
 
     run = Check(
@@ -4182,7 +4278,7 @@ async def run_mutmut(
         low = line.lower()
         if "survived" in low or "suspicious" in low:
             findings.append(
-                Finding(tool="mutmut", message=line.strip(), severity="warning")
+                Finding(tool="mutmut", message=line.strip(), severity="warning"),
             )
 
     return Result(
@@ -4249,10 +4345,44 @@ def canonical_finding_path(root: Path, raw: str | None) -> str | None:
     return normalized
 
 
+_TRACE_MARKER_LINE = re.compile(r"^\s*(?:#\s*|<!--\s*)trace:(?:v1|exempt)\b")
+
+
+# trace:v1 id=impl.src-bughunt-cli.finding-on-trace-marker work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _finding_on_trace_marker(
+    root: Path, finding: Finding, cache: dict[str, list[str]]
+) -> bool:
+    """True when a finding points at a TraceLayer marker line.
+
+    Marker lines carry trace identity, never product logic, so no analyzer
+    verdict about them is actionable. The scan exempts them centrally here
+    instead of scattering per-tool suppressions.
+    """
+    if not finding.path or not finding.line:
+        return False
+    lines = cache.get(finding.path)
+    if lines is None:
+        try:
+            lines = (root / finding.path).read_text(errors="replace").splitlines()
+        except OSError:
+            lines = []
+        cache[finding.path] = lines
+    if not 1 <= finding.line <= len(lines):
+        return False
+    return _TRACE_MARKER_LINE.match(lines[finding.line - 1]) is not None
+
+
+# trace:v1 id=impl.src-bughunt-cli.canonicalize-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def canonicalize_findings(root: Path, results: list[Result]) -> None:
+    cache: dict[str, list[str]] = {}
     for result in results:
+        kept = []
         for finding in result.findings:
             finding.path = canonical_finding_path(root, finding.path)
+            if _finding_on_trace_marker(root, finding, cache):
+                continue
+            kept.append(finding)
+        result.findings = kept
 
 
 # trace:v1 id=impl.src-bughunt-cli.severity-priority work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -4292,7 +4422,7 @@ def signal_groups(results: list[Result]) -> list[dict[str, Any]]:
                 "severity": first.severity,
                 "locations": locations,
                 "finding_ids": [f.finding_id for f in findings],
-            }
+            },
         )
     return sorted(
         out,
@@ -4393,7 +4523,7 @@ def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
                     "message": finding.message,
                     "fingerprint": finding.fingerprint,
                     "correlation_id": correlation_ids.get(
-                        (finding.path or "", finding.line or 0)
+                        (finding.path or "", finding.line or 0),
                     ),
                     "fixable": finding.fixable,
                     "fix_safety": finding.fix_safety,
@@ -4407,7 +4537,7 @@ def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
                         "run the narrowest relevant tests",
                         "if this is a real escaped bug, teach Bug Corpus the bug family/detector",
                     ],
-                }
+                },
             )
     return sorted(
         items,
@@ -4493,7 +4623,8 @@ def risk_map(results: list[Result]) -> list[dict[str, Any]]:
         row["odc"] = dict(row["odc"].most_common())
         out.append(row)
     return sorted(
-        out, key=lambda x: (-int(x["score"]), -int(x["tool_count"]), str(x["path"]))
+        out,
+        key=lambda x: (-int(x["score"]), -int(x["tool_count"]), str(x["path"])),
     )
 
 
@@ -4549,7 +4680,7 @@ def render_terminal(
     )
     console.print()
     console.print(
-        Panel(subtitle, title=title, border_style="bright_cyan", padding=(1, 2))
+        Panel(subtitle, title=title, border_style="bright_cyan", padding=(1, 2)),
     )
 
     bar = ProgressBar(total=100, completed=score, width=60)
@@ -4561,7 +4692,8 @@ def render_terminal(
         Text(f"{score}/100", style="bold bright_cyan"),
     )
     health.add_row(
-        bar, Text("execution coverage, not bug-free probability", style="dim italic")
+        bar,
+        Text("execution coverage, not bug-free probability", style="dim italic"),
     )
     console.print(Panel(health, border_style="blue"))
 
@@ -4613,7 +4745,8 @@ def render_terminal(
             str(fix_count) if fix_count else "—",
             f"{r.duration:.1f}s" if r.duration else "—",
             Text(
-                note, style="dim" if r.status in {Status.SKIPPED, Status.NA} else "none"
+                note,
+                style="dim" if r.status in {Status.SKIPPED, Status.NA} else "none",
             ),
         )
     console.print(table)
@@ -4629,8 +4762,10 @@ def render_terminal(
         )
         console.print(
             Panel(
-                fix_text, title="[bold]Auto-fix Availability[/]", border_style="green"
-            )
+                fix_text,
+                title="[bold]Auto-fix Availability[/]",
+                border_style="green",
+            ),
         )
 
     if groups:
@@ -4688,7 +4823,7 @@ def render_terminal(
             )
         console.print(errors)
         console.print(
-            "[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] skill before weakening or disabling the defense."
+            "[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] skill before weakening or disabling the defense.",
         )
 
     verdict = "CLEAN ACROSS EXECUTED DEFENSES"
@@ -4715,7 +4850,7 @@ def render_terminal(
     console.print(
         "[dim]Debugging protocol:[/] if a defense is hanging, flaky, environment-dependent, "
         "or failing for unclear CI/infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] "
-        "skill before weakening, skipping, quarantining, or disabling it."
+        "skill before weakening, skipping, quarantining, or disabling it.",
     )
     console.print()
 
@@ -4728,7 +4863,10 @@ def result_to_dict(r: Result) -> dict[str, Any]:
 
 # trace:v1 id=impl.src-bughunt-cli.write-reports work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def write_reports(
-    cfg: Config, results: list[Result], profile: str, elapsed: float
+    cfg: Config,
+    results: list[Result],
+    profile: str,
+    elapsed: float,
 ) -> tuple[Path, Path]:
     now = dt.datetime.now().astimezone()
     stamp = now.strftime("%Y%m%d-%H%M%S")
@@ -4792,7 +4930,7 @@ def write_reports(
     json_path.write_text(json.dumps(payload, indent=2, default=str))
     (out / "findings.jsonl").write_text(
         "\n".join(json.dumps(item, default=str) for item in queue)
-        + ("\n" if queue else "")
+        + ("\n" if queue else ""),
     )
     (agent_dir / "queue.json").write_text(
         json.dumps(
@@ -4804,10 +4942,10 @@ def write_reports(
                 "items": queue,
             },
             indent=2,
-        )
+        ),
     )
     (agent_dir / "risk-map.json").write_text(
-        json.dumps({"schema_version": 1, "files": risks}, indent=2)
+        json.dumps({"schema_version": 1, "files": risks}, indent=2),
     )
     risk_lines = [
         "# BugHunt Coverage-weighted Risk Map",
@@ -4819,7 +4957,7 @@ def write_reports(
     ]
     for i, item in enumerate(risks[:200], 1):
         risk_lines.append(
-            f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | {item['findings']} | {item['coverage_gaps']} | {item['branch_gaps']} |"
+            f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | {item['findings']} | {item['coverage_gaps']} | {item['branch_gaps']} |",
         )
     (agent_dir / "RISK_MAP.md").write_text("\n".join(risk_lines) + "\n")
 
@@ -4871,11 +5009,11 @@ Useful files:
             continue
         loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
         autofix_lines.append(
-            f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — `{loc}` — safety `{item.get('fix_safety') or 'review'}`"
+            f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — `{loc}` — safety `{item.get('fix_safety') or 'review'}`",
         )
         if item.get("fix_preview"):
             autofix_lines.append(
-                f"  - Preview: `{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`"
+                f"  - Preview: `{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`",
             )
     (agent_dir / "AUTOFIX.md").write_text("\n".join(autofix_lines) + "\n")
 
@@ -4961,7 +5099,7 @@ Useful files:
         ]
         for item in relevant:
             lines.append(
-                f"- `{item['id']}` — `{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}`"
+                f"- `{item['id']}` — `{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}`",
             )
         lines += [
             "",
@@ -5008,7 +5146,7 @@ Useful files:
         loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
         code = f"/{item['code']}" if item["code"] else ""
         fix_lines.append(
-            f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — {item['message']}"
+            f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — {item['message']}",
         )
     if len(queue) > 2000:
         fix_lines += [
@@ -5062,7 +5200,7 @@ Useful files:
     for r in results:
         note = (r.note or "").replace("|", "\\|").replace("\n", " ")
         lines.append(
-            f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | {r.duration:.1f}s | {note} |"
+            f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | {r.duration:.1f}s | {note} |",
         )
     lines += ["", "## Findings", ""]
     if queue:
@@ -5088,7 +5226,7 @@ Useful files:
     for r in results:
         if r.status in {Status.ERROR, Status.SKIPPED}:
             lines.append(
-                f"- **{r.name}** — {r.status.value}: {r.note or 'see raw output'}"
+                f"- **{r.name}** — {r.status.value}: {r.note or 'see raw output'}",
             )
     lines += ["", "## Raw output", ""]
     for r in results:
@@ -5132,7 +5270,7 @@ def show_default_rules() -> int:
         )
     console.print(table)
     console.print(
-        "[dim]These are BugHunt-native defaults. Ruff ALL, type checkers, Pylint extensions, Semgrep packs, CodeQL, and other analyzers add their own rule sets on top.[/]"
+        "[dim]These are BugHunt-native defaults. Ruff ALL, type checkers, Pylint extensions, Semgrep packs, CodeQL, and other analyzers add their own rule sets on top.[/]",
     )
     return 0
 
@@ -5147,12 +5285,12 @@ def doctor(cfg: Config) -> int:
     def cli_row(label: str, *names: str, python_only: bool = False) -> None:
         if python_only and not has_python:
             engine_rows.append(
-                (label, "N/A", "no first-party Python capability detected")
+                (label, "N/A", "no first-party Python capability detected"),
             )
             return
         path = executable(*names)
         engine_rows.append(
-            (label, "READY" if path else "MISSING", path or "not on PATH")
+            (label, "READY" if path else "MISSING", path or "not on PATH"),
         )
 
     cli_row("ruff", "ruff", python_only=True)
@@ -5162,21 +5300,21 @@ def doctor(cfg: Config) -> int:
     cli_row("pyrefly", "pyrefly", python_only=True)
     cli_row("pylint", "pylint", python_only=True)
     engine_rows.append(
-        ("BugHunt policy pack", "READY", "built-in repository policy scanner")
+        ("BugHunt policy pack", "READY", "built-in repository policy scanner"),
     )
     engine_rows.append(
         (
             "BugHunt complexity",
             "READY",
             "built-in cyclomatic/LOC/ABC/asset budget scanner",
-        )
+        ),
     )
     engine_rows.append(
         (
             "BugHunt default rules",
             "READY",
             f"{len(DEFAULT_RULES)} shipped rules; inspect with `uv run bughunt rules`",
-        )
+        ),
     )
     cli_row("complexipy", "complexipy", python_only=True)
     cli_row("radon", "radon", python_only=True)
@@ -5193,7 +5331,7 @@ def doctor(cfg: Config) -> int:
     pyre = pysa_executable(cfg.root) if has_python else None
     if not has_python:
         engine_rows.append(
-            ("Pysa runner", "N/A", "no first-party Python capability detected")
+            ("Pysa runner", "N/A", "no first-party Python capability detected"),
         )
     elif pyre:
         private = str(cfg.root / ".bughunt" / "runtime" / "pysa-venv") in pyre
@@ -5216,7 +5354,7 @@ def doctor(cfg: Config) -> int:
             )
         except (OSError, subprocess.SubprocessError) as exc:
             engine_rows.append(
-                ("Pysa runner", "BROKEN", f"{pyre}: probe failed: {exc}")
+                ("Pysa runner", "BROKEN", f"{pyre}: probe failed: {exc}"),
             )
         else:
             if probe.returncode == 0:
@@ -5230,7 +5368,7 @@ def doctor(cfg: Config) -> int:
                 engine_rows.append(("Pysa runner", "BROKEN", detail))
     else:
         engine_rows.append(
-            ("Pysa runner", "MISSING", "run `uv run bughunt install --only pysa`")
+            ("Pysa runner", "MISSING", "run `uv run bughunt install --only pysa`"),
         )
 
     engine_rows.append(
@@ -5246,7 +5384,7 @@ def doctor(cfg: Config) -> int:
                 if python_module_available("deal")
                 else "Python module not importable"
             ),
-        )
+        ),
     )
     cli_row("CrossHair", "crosshair", python_only=True)
     cli_row("pytest", "pytest", python_only=True)
@@ -5263,7 +5401,7 @@ def doctor(cfg: Config) -> int:
                 if python_module_available("hypothesis")
                 else "Python module not importable"
             ),
-        )
+        ),
     )
     for label, module in (
         ("coverage.py branch coverage", "coverage"),
@@ -5290,7 +5428,7 @@ def doctor(cfg: Config) -> int:
                     if python_module_available(module)
                     else "Python module not importable"
                 ),
-            )
+            ),
         )
     engine_rows.append(
         (
@@ -5309,7 +5447,7 @@ def doctor(cfg: Config) -> int:
                 if python_module_available("hypofuzz") and executable("hypothesis")
                 else "install hypofuzz; the base Hypothesis CLI alone is not sufficient"
             ),
-        )
+        ),
     )
     for label, names in (
         ("Nox matrix", ("nox",)),
@@ -5330,7 +5468,7 @@ def doctor(cfg: Config) -> int:
             "built-in BHSEAM/BHDB/BHTIME scanner"
             if has_python
             else "no first-party Python capability detected",
-        )
+        ),
     )
     engine_rows.append(
         (
@@ -5341,7 +5479,7 @@ def doctor(cfg: Config) -> int:
             f"safe pure-function differential against {technology.git_baseline[:12]}"
             if has_python and technology.git_baseline
             else "requires first-party Python plus local Git baseline",
-        )
+        ),
     )
     cli_row("mutmut", "mutmut", python_only=True)
     cli_row("Schemathesis", "st", "schemathesis")
@@ -5361,7 +5499,7 @@ def doctor(cfg: Config) -> int:
                     else "not importable; run `uv run bughunt install --only atheris`"
                 )
             ),
-        )
+        ),
     )
 
     tech_exec_names = {
@@ -5406,11 +5544,12 @@ def doctor(cfg: Config) -> int:
             )
         elif engine == "clang-tidy":
             path = llvm_executable(cfg.root, "run-clang-tidy") or llvm_executable(
-                cfg.root, "clang-tidy"
+                cfg.root,
+                "clang-tidy",
             )
         elif engine == "pact-contracts":
             ready = python_module_available("pact") and python_module_available(
-                "uvicorn"
+                "uvicorn",
             )
             path = "pact-python + local Uvicorn verifier" if ready else None
         else:
@@ -5420,7 +5559,7 @@ def doctor(cfg: Config) -> int:
                 engine,
                 "READY" if path else "MISSING",
                 path or f"applicable ({capability}) but not installed",
-            )
+            ),
         )
 
     engines = Table(title="BugHunt Engines", box=box.ROUNDED, expand=True)
@@ -5436,12 +5575,16 @@ def doctor(cfg: Config) -> int:
     }
     for label, state, detail in engine_rows:
         engines.add_row(
-            label, f"[{styles.get(state, 'yellow')}]{state}[/]", escape(detail)
+            label,
+            f"[{styles.get(state, 'yellow')}]{state}[/]",
+            escape(detail),
         )
     console.print(engines)
 
     guarded = Table(
-        title="Guarded / Advisory Correctness Helpers", box=box.ROUNDED, expand=True
+        title="Guarded / Advisory Correctness Helpers",
+        box=box.ROUNDED,
+        expand=True,
     )
     guarded.add_column("HELPER", min_width=26)
     guarded.add_column("STATE", width=13)
@@ -5464,7 +5607,9 @@ def doctor(cfg: Config) -> int:
         if not ready and install_name:
             detail += f"; install explicitly with `bughunt install --only {install_name}` when desired"
         guarded.add_row(
-            label, "[green]READY[/]" if ready else "[yellow]OPTIONAL[/]", detail
+            label,
+            "[green]READY[/]" if ready else "[yellow]OPTIONAL[/]",
+            detail,
         )
 
     helper_module(
@@ -5560,7 +5705,9 @@ def doctor(cfg: Config) -> int:
     console.print(guarded)
 
     capability_table = Table(
-        title="Repository Capabilities", box=box.ROUNDED, expand=True
+        title="Repository Capabilities",
+        box=box.ROUNDED,
+        expand=True,
     )
     capability_table.add_column("CAPABILITY", min_width=24)
     capability_table.add_column("STATE", width=12)
@@ -5586,7 +5733,9 @@ def doctor(cfg: Config) -> int:
         try:
             manifest = json.loads(manifest_path.read_text())
             configured = Table(
-                title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True
+                title="Strict Analyzer Configuration",
+                box=box.ROUNDED,
+                expand=True,
             )
             configured.add_column("STATE", width=11)
             configured.add_column("TOOL", min_width=20)
@@ -5604,11 +5753,11 @@ def doctor(cfg: Config) -> int:
             console.print(configured)
         except (OSError, json.JSONDecodeError, TypeError):
             console.print(
-                "[yellow]Strict config manifest is unreadable; run `uv run bughunt configure --auto`.[/]"
+                "[yellow]Strict config manifest is unreadable; run `uv run bughunt configure --auto`.[/]",
             )
     else:
         console.print(
-            "[yellow]Strict analyzer overlays are not generated yet. Run `uv run bughunt configure --auto`.[/]"
+            "[yellow]Strict analyzer overlays are not generated yet. Run `uv run bughunt configure --auto`.[/]",
         )
 
     generated = load_generated_targets(cfg.root)
@@ -5854,7 +6003,7 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             ".bughunt/configs/pysa/bughunt.pysa",
             "READY",
             f"{pysa_count} high-confidence direct source/sink wrapper model(s) inferred; evidence in .bughunt/generated/pysa-models.json",
-        )
+        ),
     )
     generated_checks = []
     for target in targets:
@@ -5873,7 +6022,7 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
                     "timeout": int((target.metadata or {}).get("timeout", 3600)),
                     "generated": True,
                     "confidence": target.confidence,
-                }
+                },
             )
     existing_checks = [
         x for x in cfg.raw.get("custom", {}).get("checks", []) if not x.get("generated")
@@ -5889,11 +6038,13 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             },
             indent=2,
         )
-        + "\n"
+        + "\n",
     )
     if not quiet:
         ctable = Table(
-            title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True
+            title="Strict Analyzer Configuration",
+            box=box.ROUNDED,
+            expand=True,
         )
         ctable.add_column("STATE", width=11)
         ctable.add_column("TOOL", min_width=18)
@@ -5902,13 +6053,18 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
         for item in artifacts:
             style = "green" if item.state in {"READY", "EXISTING", "AUTO"} else "yellow"
             ctable.add_row(
-                f"[{style}]{item.state}[/]", item.name, item.path or "—", item.detail
+                f"[{style}]{item.state}[/]",
+                item.name,
+                item.path or "—",
+                item.detail,
             )
         console.print(ctable)
 
         inventory = discover_technologies(cfg.root, persist=True)
         cap_table = Table(
-            title="Repository Capability Auto-selection", box=box.ROUNDED, expand=True
+            title="Repository Capability Auto-selection",
+            box=box.ROUNDED,
+            expand=True,
         )
         cap_table.add_column("CAPABILITY", min_width=24)
         cap_table.add_column("STATE", width=12)
@@ -5930,7 +6086,9 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
         console.print(cap_table)
 
         table = Table(
-            title="Auto-discovered Targets & Campaigns", box=box.ROUNDED, expand=True
+            title="Auto-discovered Targets & Campaigns",
+            box=box.ROUNDED,
+            expand=True,
         )
         table.add_column("STATE", width=11)
         table.add_column("ENGINE", width=18)
@@ -5955,7 +6113,7 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             )
         console.print(table)
         console.print(
-            f"[dim]Registry: {cfg.root / '.bughunt' / 'generated' / 'targets.json'}[/]"
+            f"[dim]Registry: {cfg.root / '.bughunt' / 'generated' / 'targets.json'}[/]",
         )
     return targets
 
@@ -6000,7 +6158,10 @@ async def run_all(
 
     results: list[Result] = []
     with Live(
-        progress.render(), console=console, refresh_per_second=4, transient=False
+        progress.render(),
+        console=console,
+        refresh_per_second=4,
+        transient=False,
     ) as live:
         refresh_task = asyncio.create_task(refresher(live))
         try:
@@ -6035,7 +6196,7 @@ async def run_all(
         disagreement = type_disagreement_result(results)
         if disagreement is not None:
             results = [r for r in results if r.name != "type-disagreement"] + [
-                disagreement
+                disagreement,
             ]
     by_name = {result.name: result for result in results}
     pysa_result = by_name.get("pysa")
@@ -6103,7 +6264,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="skip a defense while keeping the selected profile (repeatable)",
     )
     run_p.add_argument(
-        "--skip-mutmut", action="store_true", help="skip mutation testing"
+        "--skip-mutmut",
+        action="store_true",
+        help="skip mutation testing",
     )
     run_p.add_argument(
         "--no-auto-config",
@@ -6142,17 +6305,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         target.add_argument("--no-auto-config", action="store_true")
 
     all_p = sub.add_parser(
-        "all", help="bootstrap, auto-configure, and run every available defense"
+        "all",
+        help="bootstrap, auto-configure, and run every available defense",
     )
     add_all_options(all_p)
 
     full_p = sub.add_parser(
-        "full", help="alias for `all`: bootstrap, configure, and run everything"
+        "full",
+        help="alias for `all`: bootstrap, configure, and run everything",
     )
     add_all_options(full_p)
 
     skipmutmut_p = sub.add_parser(
-        "skipmutmut", help="run the all profile but explicitly skip mutation testing"
+        "skipmutmut",
+        help="run the all profile but explicitly skip mutation testing",
     )
     add_all_options(skipmutmut_p)
 
@@ -6169,7 +6335,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     config_p = sub.add_parser(
-        "configure", help="discover and generate safe deep-analysis targets"
+        "configure",
+        help="discover and generate safe deep-analysis targets",
     )
     config_p.add_argument("--auto", action="store_true", default=True)
 
@@ -6196,7 +6363,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             Panel.fit(
                 f"[bold bright_cyan]Installing BugHunt: {escape(selected)} with uv[/]",
                 border_style="bright_cyan",
-            )
+            ),
         )
         results = install_all(
             root,
@@ -6258,7 +6425,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         inventory = discover_technologies(root, persist=True)
         detected = sum(1 for item in inventory.capabilities.values() if item.detected)
         console.print(
-            f"[bold]Detected {detected} repository capability class(es); installing only applicable analysis engines{suffix}...[/]"
+            f"[bold]Detected {detected} repository capability class(es); installing only applicable analysis engines{suffix}...[/]",
         )
         if excluded:
             install_results = install_all(
@@ -6269,11 +6436,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         else:
             install_results = install_all(
-                root, dry_run=False, emit=lambda line: console.print(f"[dim]{line}[/]")
+                root,
+                dry_run=False,
+                emit=lambda line: console.print(f"[dim]{line}[/]"),
             )
         if any(x.status == "ERROR" for x in install_results):
             console.print(
-                "[yellow]Some installers failed; continuing so the final report records the remaining blind spots.[/]"
+                "[yellow]Some installers failed; continuing so the final report records the remaining blind spots.[/]",
             )
         # Reload config/environment view after uv modified the project.
         cfg = load_config(root, args.config)
@@ -6289,11 +6458,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         Panel.fit(
             f"[bold bright_cyan]Scanning[/] [bold]{root.name}[/] with [bright_magenta]{profile_display}[/] defenses",
             border_style="bright_cyan",
-        )
+        ),
     )
     if excluded:
         scan_results, elapsed = asyncio.run(
-            run_all(cfg, profile, auto_discover=False, excluded=excluded)
+            run_all(cfg, profile, auto_discover=False, excluded=excluded),
         )
     else:
         scan_results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))

@@ -163,8 +163,8 @@ def main(argv: list[str] | None = None) -> int:
                     "findings": [],
                     "compared": 0,
                     "reason": "root baseline source paths required",
-                }
-            )
+                },
+            ),
         )
         return 0
     root = Path(args.pop(0)).resolve()
@@ -241,11 +241,11 @@ def main(argv: list[str] | None = None) -> int:
                                 "line": getattr(newf[name], "lineno", None),
                                 "severity": "warning",
                                 "message": f"public side-effect-free function {name} changed observable behavior vs {baseline[:12]} for args={case!r}: old={before_exc or before!r}, new={after_exc or after!r}",
-                            }
+                            },
                         )
                         break
     print(
-        json.dumps({"findings": findings, "compared": compared, "baseline": baseline})
+        json.dumps({"findings": findings, "compared": compared, "baseline": baseline}),
     )
     return 1 if findings else 0
 

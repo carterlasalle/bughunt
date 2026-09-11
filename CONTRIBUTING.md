@@ -1,11 +1,9 @@
 <!-- trace:v1 id=DOC-CONTRIBUTING type=document work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX -->
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 # Contributing
 
 BugHunt is a Python project managed with `uv`. Python 3.11+ required
 (see `.python-version`).
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 ## Setup
 
 ```sh
@@ -13,7 +11,6 @@ uv sync
 uv run bughunt doctor
 ```
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 ## Day-to-day
 
 ```sh
@@ -23,7 +20,6 @@ uv run mypy src             # advisory: 55 pre-existing errors (see AGENTS.md)
 uv run bughunt quick        # low-latency analyzer pass over this repo
 ```
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 ## Pull requests
 
 - Small, atomic commits; subject ~50 chars, imperative mood, no trailing

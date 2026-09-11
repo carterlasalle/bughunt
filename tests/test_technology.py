@@ -29,13 +29,13 @@ def test_detects_mixed_repository_capabilities(tmp_path: Path) -> None:
     (tmp_path / "scripts/build.sh").write_text("#!/bin/sh\necho ok\n")
     (tmp_path / ".env.example").write_text("PORT=8000\n")
     (tmp_path / "openapi.yaml").write_text(
-        "openapi: 3.1.0\ninfo: {title: x, version: '1'}\npaths: {}\n"
+        "openapi: 3.1.0\ninfo: {title: x, version: '1'}\npaths: {}\n",
     )
     (tmp_path / "proto").mkdir()
     (tmp_path / "proto/x.proto").write_text('syntax = "proto3";\npackage x;\n')
     (tmp_path / "migrations").mkdir()
     (tmp_path / "migrations/001_create.sql").write_text(
-        "CREATE TABLE x (id SERIAL PRIMARY KEY);\n"
+        "CREATE TABLE x (id SERIAL PRIMARY KEY);\n",
     )
     (tmp_path / "Dockerfile").write_text("FROM scratch\n")
     (tmp_path / "main.tf").write_text('terraform { required_version = ">= 1.0" }\n')
@@ -45,7 +45,7 @@ def test_detects_mixed_repository_capabilities(tmp_path: Path) -> None:
     (tmp_path / "main.cpp").write_text("int main(){return 0;}\n")
     (tmp_path / "composer.json").write_text("{}")
     (tmp_path / "package.json").write_text(
-        json.dumps({"dependencies": {"react": "^19"}})
+        json.dumps({"dependencies": {"react": "^19"}}),
     )
     (tmp_path / "App.tsx").write_text("export const App = () => <div/>;\n")
 
@@ -83,7 +83,7 @@ def test_ignored_trees_do_not_create_capabilities(tmp_path: Path) -> None:
 
 def test_sql_dialect_inference_detects_postgres(tmp_path: Path) -> None:
     (tmp_path / "x.sql").write_text(
-        "CREATE TABLE x (id SERIAL PRIMARY KEY, body JSONB);\n"
+        "CREATE TABLE x (id SERIAL PRIMARY KEY, body JSONB);\n",
     )
     assert infer_sql_dialect(tmp_path, ["x.sql"]) == "postgres"
 
@@ -122,7 +122,7 @@ def test_configure_generates_applicable_technology_overlays(tmp_path: Path) -> N
     (tmp_path / "queries").mkdir()
     (tmp_path / "queries/x.sql").write_text("select * from x limit 1;\n")
     (tmp_path / "package.json").write_text(
-        json.dumps({"dependencies": {"react": "19"}})
+        json.dumps({"dependencies": {"react": "19"}}),
     )
     (tmp_path / "App.jsx").write_text("export function App(){ return <div/> }\n")
     (tmp_path / "main.tf").write_text("terraform {}\n")
@@ -151,7 +151,7 @@ def test_parse_actionlint_json_lines() -> None:
             code="expression",
             message="unknown property",
             severity="error",
-        )
+        ),
     ]
 
 
@@ -165,8 +165,8 @@ def test_parse_shellcheck_json1() -> None:
                 "level": "warning",
                 "code": 2086,
                 "message": "Double quote",
-            }
-        ]
+            },
+        ],
     }
     out = parse_shellcheck(json.dumps(data), "", 1)
     assert out[0].code == "SC2086"
@@ -183,9 +183,9 @@ def test_parse_sqlfluff_json() -> None:
                     "description": "LIMIT without ORDER BY",
                     "start_line_no": 4,
                     "start_line_pos": 1,
-                }
+                },
             ],
-        }
+        },
     ]
     out = parse_sqlfluff(json.dumps(data), "", 1)
     assert out[0].code == "AM09"
@@ -203,8 +203,8 @@ def test_parse_hadolint_and_tflint() -> None:
                     "level": "warning",
                     "code": "DL3003",
                     "message": "Use WORKDIR",
-                }
-            ]
+                },
+            ],
         ),
         "",
         1,
@@ -224,9 +224,9 @@ def test_parse_hadolint_and_tflint() -> None:
                             "filename": "main.tf",
                             "start": {"line": 3, "column": 1},
                         },
-                    }
-                ]
-            }
+                    },
+                ],
+            },
         ),
         "",
         1,
@@ -247,7 +247,7 @@ def test_parse_clippy_compiler_message() -> None:
                     "file_name": "src/lib.rs",
                     "line_start": 9,
                     "column_start": 5,
-                }
+                },
             ],
         },
     }
@@ -279,3 +279,26 @@ def test_python_only_defenses_are_na_without_python(tmp_path: Path) -> None:
     assert status["pysa"] == Status.NA
     assert status["mutmut"] == Status.NA
     assert not any(c.name in {"compile", "mypy"} for c in checks)
+
+
+# trace:v1 id=test.tests-test-technology.test-oxlint-empty-scope-banner-parses-clean work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def test_oxlint_empty_scope_banner_parses_clean() -> None:
+    from bughunt.cli import OXLINT_EMPTY_SCOPE, parse_oxlint
+
+    # Ignore patterns excluding every candidate file must not become a finding:
+    # the runner maps the banner to SKIPPED ("nothing in scope").
+    stdout = (
+        f"{OXLINT_EMPTY_SCOPE}. Please check your paths and ignore patterns.\n"
+        + '{"diagnostics": []}'
+    )
+    assert parse_oxlint(stdout, "", 1) == []
+    real = '{"diagnostics": [{"message": "x", "code": "no-undef", "severity": "error", "filename": "a.js"}]}'
+    assert len(parse_oxlint(real, "", 1)) == 1
+
+
+# trace:v1 id=test.tests-test-technology.test-eslint-empty-scope-banner-parses-clean work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def test_eslint_empty_scope_banner_parses_clean() -> None:
+    from bughunt.cli import ESLINT_EMPTY_SCOPE, parse_eslint
+
+    stderr = f'You are linting ".", but {ESLINT_EMPTY_SCOPE} "." are ignored.\n'
+    assert parse_eslint("", stderr, 2) == []

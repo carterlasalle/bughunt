@@ -53,7 +53,9 @@ def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
 
 # trace:v1 id=impl.src-bughunt-runtime_plugins.write-runtime-plugins work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def write_runtime_plugins(
-    root: Path, python_versions: list[str], test_paths: list[str]
+    root: Path,
+    python_versions: list[str],
+    test_paths: list[str],
 ) -> list[Path]:
     cfg = root / ".bughunt" / "configs"
     gen = root / ".bughunt" / "generated"

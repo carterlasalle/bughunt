@@ -63,8 +63,8 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "error": f"coverage JSON parse failed: {type(exc).__name__}: {exc}",
                         "test_stderr": test.stderr[-4000:],
-                    }
-                )
+                    },
+                ),
             )
             return 2
     payload = {

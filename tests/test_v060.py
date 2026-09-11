@@ -34,7 +34,7 @@ def _python_repo(root: Path) -> None:
     (root / "tests").mkdir()
     (root / "tests/test_ok.py").write_text("def test_ok() -> None:\n    assert True\n")
     (root / "pyproject.toml").write_text(
-        '[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n'
+        '[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n',
     )
 
 
@@ -51,10 +51,10 @@ def test_coverage_parser_reports_line_and_branch_gaps(tmp_path: Path) -> None:
                     "missing_branches": 1,
                 },
                 "files": {
-                    "src/a.py": {"missing_lines": [7, 8], "missing_branches": [[6, 9]]}
+                    "src/a.py": {"missing_lines": [7, 8], "missing_branches": [[6, 9]]},
                 },
-            }
-        )
+            },
+        ),
     )
     findings, summary = parse_coverage_json(report)
     assert {f.code for f in findings} == {"BHCOV001", "BHCOV002"}
@@ -68,7 +68,7 @@ def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
         "    return {'name': 'x'}\n\n"
         "def consume() -> object:\n"
         "    payload = produce()\n"
-        "    return payload['nmae']\n"
+        "    return payload['nmae']\n",
     )
     findings = scan_seams(tmp_path, ["src"], ["tests"])
     assert any(f.code == "BHSEAM003" and "nmae" in f.message for f in findings)
@@ -77,7 +77,7 @@ def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
 def test_seam_scanner_finds_schema_model_drift(tmp_path: Path) -> None:
     _python_repo(tmp_path)
     (tmp_path / "src/pkg/models.py").write_text(
-        "class User:\n    id: int\n    name: str\n"
+        "class User:\n    id: int\n    name: str\n",
     )
     (tmp_path / "user.schema.json").write_text(
         json.dumps(
@@ -85,8 +85,8 @@ def test_seam_scanner_finds_schema_model_drift(tmp_path: Path) -> None:
                 "title": "User",
                 "type": "object",
                 "properties": {"id": {"type": "integer"}, "email": {"type": "string"}},
-            }
-        )
+            },
+        ),
     )
     findings = scan_seams(tmp_path, ["src"], ["tests"])
     assert any(f.code == "BHSEAM004" for f in findings)
@@ -96,10 +96,10 @@ def test_local_schema_pairs_refuses_remote_and_resolves_local(tmp_path: Path) ->
     (tmp_path / "schema.json").write_text('{"type":"object"}')
     (tmp_path / "local.json").write_text('{"$schema":"schema.json","x":1}')
     (tmp_path / "remote.json").write_text(
-        '{"$schema":"https://example.com/schema.json","x":1}'
+        '{"$schema":"https://example.com/schema.json","x":1}',
     )
     assert local_schema_pairs(tmp_path, ["local.json", "remote.json"]) == [
-        ("local.json", "schema.json")
+        ("local.json", "schema.json"),
     ]
 
 
@@ -111,15 +111,15 @@ def test_correctness_floors_are_not_omitted_by_old_config(tmp_path: Path) -> Non
                 "pr": {"tools": ["pytest"]},
                 "deep": {"tools": ["pytest"]},
                 "all": {"tools": ["pytest"]},
-            }
+            },
         },
     )
     assert {"coverage", "seam", "packaging", "runtime-types"} <= set(cfg.tools("pr"))
     assert {"pytest-random", "hypofuzz", "griffe", "type-disagreement"} <= set(
-        cfg.tools("deep")
+        cfg.tools("deep"),
     )
     assert {"python-matrix", "timezone-matrix", "version-diff", "pynguin"} <= set(
-        cfg.tools("all")
+        cfg.tools("all"),
     )
 
 
@@ -155,7 +155,8 @@ def test_budgeted_search_timeout_is_not_infrastructure_error(tmp_path: Path) -> 
 
 
 def test_main_pytest_seed_is_recorded_not_hard_pinned_zero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _python_repo(tmp_path)
     from bughunt import cli
@@ -199,7 +200,7 @@ def test_correlations_and_risk_map_preserve_independent_evidence(
             "coverage/branches",
             Status.FINDINGS,
             findings=[
-                Finding("coverage", "branch", path="src/a.py", line=5, code="BHCOV002")
+                Finding("coverage", "branch", path="src/a.py", line=5, code="BHCOV002"),
             ],
         ),
         Result(
@@ -207,7 +208,7 @@ def test_correlations_and_risk_map_preserve_independent_evidence(
             "types",
             Status.FINDINGS,
             findings=[
-                Finding("mypy", "type", path="src/a.py", line=5, code="arg-type")
+                Finding("mypy", "type", path="src/a.py", line=5, code="arg-type"),
             ],
         ),
         Result(
@@ -239,7 +240,8 @@ def test_managed_mutmut_uses_covered_lines(tmp_path: Path) -> None:
 
 
 def test_version_differential_finds_observable_change(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     if shutil.which("git") is None:
         pytest.skip("git unavailable")
@@ -256,7 +258,9 @@ def test_version_differential_finds_observable_change(
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "base"], cwd=tmp_path, check=True)
     base = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        text=True,
     ).strip()
     file.write_text("def score(x: int) -> int:\n    return x + 2\n")
     from bughunt.version_diff_runner import main
@@ -273,7 +277,7 @@ def test_logical_dedup_preserves_raw_evidence() -> None:
             "types",
             Status.FINDINGS,
             findings=[
-                Finding("mypy", "bad type", path="src/a.py", line=9, code="arg-type")
+                Finding("mypy", "bad type", path="src/a.py", line=9, code="arg-type"),
             ],
         ),
         Result(
@@ -287,7 +291,7 @@ def test_logical_dedup_preserves_raw_evidence() -> None:
                     path="src/a.py",
                     line=9,
                     code="reportArgumentType",
-                )
+                ),
             ],
         ),
     ]
@@ -349,7 +353,7 @@ def test_typescript_eslint_config_is_type_aware(tmp_path: Path) -> None:
     (tmp_path / "package.json").write_text('{"devDependencies":{"typescript":"*"}}')
     (tmp_path / "tsconfig.json").write_text('{"compilerOptions":{"strict":true}}')
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname="mixed"\nversion="0"\nrequires-python=">=3.11"\n'
+        '[project]\nname="mixed"\nversion="0"\nrequires-python=">=3.11"\n',
     )
     configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
     eslint = (tmp_path / ".bughunt/configs/eslint.config.mjs").read_text()
@@ -362,7 +366,7 @@ def test_odoo_capability_detected(tmp_path: Path) -> None:
     from bughunt.technology import discover_technologies
 
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname="odoo-addon"\nversion="0"\ndependencies=["odoo>=18"]\n'
+        '[project]\nname="odoo-addon"\nversion="0"\ndependencies=["odoo>=18"]\n',
     )
     inventory = discover_technologies(tmp_path, persist=False)
     assert inventory.has("odoo")

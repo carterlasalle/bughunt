@@ -171,7 +171,7 @@ class _FunctionCollector(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if isinstance(node.target, ast.Name) and isinstance(node.value, ast.Dict):
             self._state(node.target.id, node.lineno).writes.update(
-                _dict_literal_keys(node.value)
+                _dict_literal_keys(node.value),
             )
         self.generic_visit(node)
 
@@ -187,7 +187,8 @@ class _FunctionCollector(ast.NodeVisitor):
         call = _call_name(node.func)
         leaf = call.rsplit(".", 1)[-1]
         if isinstance(node.func, ast.Attribute) and isinstance(
-            node.func.value, ast.Name
+            node.func.value,
+            ast.Name,
         ):
             obj = node.func.value.id
             if node.func.attr in {"get", "pop", "setdefault"} and node.args:
@@ -304,7 +305,7 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                         rel,
                         line,
                         "error",
-                    )
+                    ),
                 )
     return findings
 
@@ -330,7 +331,7 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                         rel,
                         state.line,
                         "error",
-                    )
+                    ),
                 )
             if unused and state.reads:
                 findings.append(
@@ -340,7 +341,7 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                         rel,
                         state.line,
                         "warning",
-                    )
+                    ),
                 )
         # An HTTP .json() result that is directly indexed without any explicit
         # validation in the function is a strong seam-risk signal. We avoid
@@ -359,7 +360,7 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                         rel,
                         state.line,
                         "warning",
-                    )
+                    ),
                 )
         for line, call in collector.db_in_loop:
             findings.append(
@@ -369,14 +370,16 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                     rel,
                     line,
                     "warning",
-                )
+                ),
             )
     return findings
 
 
 # trace:v1 id=impl.src-bughunt-seam_scan.-recorded-payload-gap work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _recorded_payload_gap(
-    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
+    test_paths: Iterable[str],
 ) -> list[SeamFinding]:
     http_sites: list[tuple[str, int]] = []
     for path in _iter_python(root, source_paths):
@@ -418,13 +421,15 @@ def _recorded_payload_gap(
             site_path,
             site_line,
             "warning",
-        )
+        ),
     ]
 
 
 # trace:v1 id=impl.src-bughunt-seam_scan.-time-boundary-gap work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _time_boundary_gap(
-    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
+    test_paths: Iterable[str],
 ) -> list[SeamFinding]:
     sites: list[tuple[str, int]] = []
     for path in _iter_python(root, source_paths):
@@ -469,7 +474,7 @@ def _time_boundary_gap(
             site_path,
             site_line,
             "warning",
-        )
+        ),
     ]
 
 
@@ -538,7 +543,7 @@ def _producer_consumer_key_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                         rel,
                         line,
                         "error",
-                    )
+                    ),
                 )
     return findings
 
@@ -650,14 +655,16 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
                         model_path,
                         1,
                         "warning",
-                    )
+                    ),
                 )
     return findings
 
 
 # trace:v1 id=impl.src-bughunt-seam_scan.scan-seams work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def scan_seams(
-    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
+    test_paths: Iterable[str],
 ) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
     for path in _iter_python(root, source_paths):
@@ -702,9 +709,9 @@ def main(argv: list[str] | None = None) -> int:
                         "severity": f.severity,
                     }
                     for f in findings
-                ]
-            }
-        )
+                ],
+            },
+        ),
     )
     return 1 if findings else 0
 

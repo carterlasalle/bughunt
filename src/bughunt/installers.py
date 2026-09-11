@@ -133,7 +133,10 @@ def _run(
 
 # trace:v1 id=impl.src-bughunt-installers.-python-importable work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _python_importable(
-    root: Path, module: str, *, extra_path: Path | None = None
+    root: Path,
+    module: str,
+    *,
+    extra_path: Path | None = None,
 ) -> bool:
     env = dict(os.environ)
     if extra_path is not None:
@@ -190,14 +193,20 @@ def _install_atheris(
     if _python_importable(root, "atheris"):
         return [
             InstallResult(
-                "atheris", "PASS", [], "already importable in the project environment"
-            )
+                "atheris",
+                "PASS",
+                [],
+                "already importable in the project environment",
+            ),
         ]
     if _python_importable(root, "atheris", extra_path=runtime):
         return [
             InstallResult(
-                "atheris", "PASS", [], f"BugHunt-private runtime ready at {runtime}"
-            )
+                "atheris",
+                "PASS",
+                [],
+                f"BugHunt-private runtime ready at {runtime}",
+            ),
         ]
 
     runtime.parent.mkdir(parents=True, exist_ok=True)
@@ -223,12 +232,14 @@ def _install_atheris(
                     "DRY-RUN",
                     cmd,
                     f"would install private Atheris runtime at {runtime}",
-                )
+                ),
             ]
         result = _run(cmd, root, emit)
         result.name = "atheris"
         if result.status == "PASS" and not _python_importable(
-            root, "atheris", extra_path=runtime
+            root,
+            "atheris",
+            extra_path=runtime,
         ):
             result.status = "ERROR"
             result.note = (
@@ -251,7 +262,7 @@ def _install_atheris(
                 "ERROR",
                 [],
                 "macOS Atheris needs LLVM/libFuzzer for a source build, but Homebrew is not available",
-            )
+            ),
         ]
 
     prefix = _brew_prefix(brew, "llvm", root)
@@ -264,7 +275,7 @@ def _install_atheris(
                     "DRY-RUN",
                     cmd,
                     "would install non-Apple LLVM/libFuzzer required by Atheris on macOS",
-                )
+                ),
             )
             prefix = str(Path(brew).parent.parent / "opt" / "llvm")
         else:
@@ -278,7 +289,7 @@ def _install_atheris(
                         "ERROR",
                         [],
                         "cannot build Atheris until non-Apple LLVM/libFuzzer is available",
-                    )
+                    ),
                 )
                 return results
             prefix = _brew_prefix(brew, "llvm", root)
@@ -286,8 +297,11 @@ def _install_atheris(
     if not prefix:
         results.append(
             InstallResult(
-                "atheris", "ERROR", [], "could not resolve Homebrew LLVM prefix"
-            )
+                "atheris",
+                "ERROR",
+                [],
+                "could not resolve Homebrew LLVM prefix",
+            ),
         )
         return results
 
@@ -295,8 +309,11 @@ def _install_atheris(
     if not dry_run and not clang.exists():
         results.append(
             InstallResult(
-                "atheris", "ERROR", [], f"Homebrew LLVM clang not found at {clang}"
-            )
+                "atheris",
+                "ERROR",
+                [],
+                f"Homebrew LLVM clang not found at {clang}",
+            ),
         )
         return results
 
@@ -319,7 +336,7 @@ def _install_atheris(
                 "DRY-RUN",
                 cmd,
                 f"would source-build private Atheris runtime with CLANG_BIN={clang}",
-            )
+            ),
         )
         return results
 
@@ -378,7 +395,7 @@ def _install_pysa_runtime(
                     "PASS",
                     [],
                     f"private Pysa runtime already exists at {runtime}",
-                )
+                ),
             ]
         check = _run(verify_cmd, root, lambda _line: None)
         if check.status == "PASS":
@@ -388,7 +405,7 @@ def _install_pysa_runtime(
                     "PASS",
                     [],
                     f"private compatibility runtime ready at {runtime}",
-                )
+                ),
             ]
 
     runtime.parent.mkdir(parents=True, exist_ok=True)
@@ -636,7 +653,7 @@ def _install_technology_tools(
                     dry_run=dry_run,
                     emit=emit,
                     note=f"would install {name} via Homebrew",
-                )
+                ),
             )
         else:
             results.append(
@@ -645,7 +662,7 @@ def _install_technology_tools(
                     "SKIPPED",
                     [],
                     f"{name} is applicable but automatic installation is currently supported on macOS/Homebrew only",
-                )
+                ),
             )
 
     for name, package in (
@@ -671,13 +688,15 @@ def _install_technology_tools(
                 dry_run=dry_run,
                 emit=emit,
                 note=f"would install {package} with uv",
-            )
+            ),
         )
 
     if "clippy" in selected:
         if _clippy_ready(root):
             results.append(
-                InstallResult("clippy", "PASS", [], "cargo clippy is already available")
+                InstallResult(
+                    "clippy", "PASS", [], "cargo clippy is already available"
+                ),
             )
         elif shutil.which("rustup"):
             results.append(
@@ -688,7 +707,7 @@ def _install_technology_tools(
                     dry_run=dry_run,
                     emit=emit,
                     note="would install the Clippy rustup component",
-                )
+                ),
             )
         elif platform.system() == "Darwin" and brew:
             results.append(
@@ -699,7 +718,7 @@ def _install_technology_tools(
                     dry_run=dry_run,
                     emit=emit,
                     note="would install Rust/Clippy via Homebrew",
-                )
+                ),
             )
         else:
             results.append(
@@ -708,15 +727,18 @@ def _install_technology_tools(
                     "SKIPPED",
                     [],
                     "Rust detected but no rustup/Homebrew Clippy installer is available",
-                )
+                ),
             )
 
     if "clang-tidy" in selected:
         if project_executable(root, "clang-tidy", "run-clang-tidy"):
             results.append(
                 InstallResult(
-                    "clang-tidy", "PASS", [], "clang-tidy tooling already installed"
-                )
+                    "clang-tidy",
+                    "PASS",
+                    [],
+                    "clang-tidy tooling already installed",
+                ),
             )
         elif platform.system() == "Darwin" and brew:
             results.append(
@@ -727,7 +749,7 @@ def _install_technology_tools(
                     dry_run=dry_run,
                     emit=emit,
                     note="would install LLVM clang-tidy/run-clang-tidy via Homebrew",
-                )
+                ),
             )
         else:
             results.append(
@@ -736,13 +758,13 @@ def _install_technology_tools(
                     "SKIPPED",
                     [],
                     "C/C++ compilation database detected but automatic LLVM installation is unavailable",
-                )
+                ),
             )
 
     if "infer" in selected:
         if project_executable(root, "infer"):
             results.append(
-                InstallResult("infer", "PASS", [], "Infer already installed")
+                InstallResult("infer", "PASS", [], "Infer already installed"),
             )
         else:
             # Don't invent an unofficial installer. Infer remains useful when
@@ -753,7 +775,7 @@ def _install_technology_tools(
                     "SKIPPED",
                     [],
                     "Infer is applicable but BugHunt has no verified portable automatic installer; install Infer separately",
-                )
+                ),
             )
 
     js_selected = selected & {
@@ -808,7 +830,7 @@ def _install_technology_tools(
                 # A zero exit does not prove the binaries landed (partial
                 # installs, wrong prefix); say exactly what is still missing.
                 still = sorted(
-                    {name for name in missing_js if not project_executable(root, name)}
+                    {name for name in missing_js if not project_executable(root, name)},
                 )
                 if still:
                     result.status = "ERROR"
@@ -823,17 +845,17 @@ def _install_technology_tools(
                         "SKIPPED",
                         [],
                         "JavaScript/TypeScript detected but no npm/pnpm/yarn/bun package manager is available",
-                    )
+                    ),
                 )
     for name in js_selected - set(missing_js):
         results.append(
-            InstallResult(name, "PASS", [], "already installed in project/ PATH")
+            InstallResult(name, "PASS", [], "already installed in project/ PATH"),
         )
 
     if "phpstan" in selected:
         if project_executable(root, "phpstan"):
             results.append(
-                InstallResult("phpstan", "PASS", [], "PHPStan already installed")
+                InstallResult("phpstan", "PASS", [], "PHPStan already installed"),
             )
         elif shutil.which("composer"):
             results.append(
@@ -849,13 +871,16 @@ def _install_technology_tools(
                     dry_run=dry_run,
                     emit=emit,
                     note="would install PHPStan as a Composer dev dependency",
-                )
+                ),
             )
         else:
             results.append(
                 InstallResult(
-                    "phpstan", "SKIPPED", [], "PHP detected but Composer is unavailable"
-                )
+                    "phpstan",
+                    "SKIPPED",
+                    [],
+                    "PHP detected but Composer is unavailable",
+                ),
             )
     return results
 
@@ -877,7 +902,7 @@ def install_all(
                 "ERROR",
                 [],
                 "uv is required; BugHunt does not fall back to pip/Poetry",
-            )
+            ),
         ]
 
     results: list[InstallResult] = []
@@ -907,15 +932,18 @@ def install_all(
                         "PASS",
                         [],
                         "already available in the target project's uv environment",
-                    )
+                    ),
                 )
                 continue
             cmd = [uv, "add", "--dev", package_spec]
             if dry_run:
                 results.append(
                     InstallResult(
-                        name, "DRY-RUN", cmd, "would add as a project dev dependency"
-                    )
+                        name,
+                        "DRY-RUN",
+                        cmd,
+                        "would add as a project dev dependency",
+                    ),
                 )
             else:
                 result = _run(cmd, root, emit)
@@ -937,8 +965,11 @@ def install_all(
             if dry_run:
                 results.append(
                     InstallResult(
-                        name, "DRY-RUN", cmd, "would install isolated uv tool"
-                    )
+                        name,
+                        "DRY-RUN",
+                        cmd,
+                        "would install isolated uv tool",
+                    ),
                 )
             else:
                 result = _run(cmd, root, emit)
@@ -955,7 +986,7 @@ def install_all(
                     "SKIPPED",
                     [],
                     "automatic Atheris harness execution needs a uv project environment; initialize/add BugHunt to the target project first",
-                )
+                ),
             )
 
     # Guarded/advisory Python helpers install only on an explicit --only
@@ -972,7 +1003,7 @@ def install_all(
                         "PASS",
                         [],
                         "already available in the target project environment",
-                    )
+                    ),
                 )
                 continue
             cmd = (
@@ -987,7 +1018,7 @@ def install_all(
                         "DRY-RUN",
                         cmd,
                         "guarded/advisory helper; explicit installation requested",
-                    )
+                    ),
                 )
             else:
                 result = _run(cmd, root, emit)
@@ -1001,7 +1032,7 @@ def install_all(
         framework_plugins: list[tuple[str, str, str]] = []
         if inventory.has("django"):
             framework_plugins.append(
-                ("pylint-django", "pylint-django", "pylint_django")
+                ("pylint-django", "pylint-django", "pylint_django"),
             )
         if inventory.has("odoo"):
             framework_plugins.append(("pylint-odoo", "pylint-odoo", "pylint_odoo"))
@@ -1015,15 +1046,18 @@ def install_all(
                         "PASS",
                         [],
                         "framework-aware Pylint plugin already importable",
-                    )
+                    ),
                 )
                 continue
             cmd = [uv, "add", "--dev", package_spec]
             if dry_run:
                 results.append(
                     InstallResult(
-                        name, "DRY-RUN", cmd, "would add framework-aware Pylint plugin"
-                    )
+                        name,
+                        "DRY-RUN",
+                        cmd,
+                        "would add framework-aware Pylint plugin",
+                    ),
                 )
             else:
                 result = _run(cmd, root, emit)
@@ -1062,7 +1096,7 @@ def install_all(
                     "DRY-RUN",
                     cmd,
                     "would install GitHub CodeQL CLI via Homebrew cask",
-                )
+                ),
             )
         else:
             result = _run(cmd, root, emit)
@@ -1075,7 +1109,7 @@ def install_all(
                 "SKIPPED",
                 [],
                 "external CodeQL installer is only automated on macOS/Homebrew in v1; Python defenses still install automatically",
-            )
+            ),
         )
 
     # Pyre/Pysa benefits from Watchman for some workflows. Batch Pysa can run
@@ -1091,8 +1125,11 @@ def install_all(
         if dry_run:
             results.append(
                 InstallResult(
-                    "watchman", "DRY-RUN", cmd, "optional Pyre/Pysa support dependency"
-                )
+                    "watchman",
+                    "DRY-RUN",
+                    cmd,
+                    "optional Pyre/Pysa support dependency",
+                ),
             )
         else:
             result = _run(cmd, root, emit)
@@ -1107,6 +1144,6 @@ def install_all(
             emit=emit,
             only=only,
             exclude=exclude,
-        )
+        ),
     )
     return results

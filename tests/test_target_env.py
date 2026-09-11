@@ -32,13 +32,14 @@ def test_target_executable_prefers_venv(tmp_path, monkeypatch):
     _make_venv(tmp_path, "pytest")
     monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name)
     assert target_executable(tmp_path, "pytest") == str(
-        tmp_path / ".venv" / "bin" / "pytest"
+        tmp_path / ".venv" / "bin" / "pytest",
     )
 
 
 def test_target_executable_falls_back(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "shutil.which", lambda name: "/usr/bin/" + name if name == "pytest" else None
+        "shutil.which",
+        lambda name: "/usr/bin/" + name if name == "pytest" else None,
     )
     assert target_executable(tmp_path, "pytest") == "/usr/bin/pytest"
     assert target_executable(tmp_path, "nope") is None

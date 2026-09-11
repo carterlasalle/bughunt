@@ -169,7 +169,10 @@ max-statements = 50
 
 # trace:v1 id=impl.src-bughunt-configurator.-basedpyright-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _basedpyright_config(
-    config_dir: Path, root: Path, python_paths: list[str], python_version: str
+    config_dir: Path,
+    root: Path,
+    python_paths: list[str],
+    python_version: str,
 ) -> str:
     includes = [_rel(config_dir, root / p) for p in _existing(root, python_paths)]
     excludes = [_rel(config_dir, root / p) + "/**" for p in EXCLUDE_DIRS]
@@ -315,7 +318,7 @@ def _pyrefly_config(
     ]
     if interpreter.exists():
         lines.append(
-            f"python-interpreter-path = {json.dumps(_rel(config_dir, interpreter))}"
+            f"python-interpreter-path = {json.dumps(_rel(config_dir, interpreter))}",
         )
     return "\n".join(lines) + "\n"
 
@@ -652,7 +655,9 @@ def _import_linter_config(package_roots: list[str]) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-configurator.-pysa-files work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _pysa_files(
-    root: Path, source_paths: list[str], python_version: str
+    root: Path,
+    source_paths: list[str],
+    python_version: str,
 ) -> tuple[str, str, str]:
     sources = _existing(root, source_paths)
     pyre = {
@@ -678,13 +683,13 @@ def _pysa_files(
             {
                 "name": "BugHuntUserControlled",
                 "comment": "Project-specific user-controlled input; add models only when semantics are established.",
-            }
+            },
         ],
         "sinks": [
             {
                 "name": "BugHuntSensitiveOperation",
                 "comment": "Project-specific sensitive operation; add models only when semantics are established.",
-            }
+            },
         ],
         "features": [],
         "rules": [
@@ -694,7 +699,7 @@ def _pysa_files(
                 "sources": ["BugHuntUserControlled"],
                 "sinks": ["BugHuntSensitiveOperation"],
                 "message_format": "BugHunt: user-controlled data reaches a sensitive operation",
-            }
+            },
         ],
     }
     models = """# Auto-generated starter model file for BugHunt.
@@ -847,7 +852,9 @@ def _path_covered(configured: list[str], required: str) -> bool:
 
 # trace:v1 id=impl.src-bughunt-configurator.-ensure-mutmut-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _ensure_mutmut_config(
-    root: Path, source_paths: list[str], test_paths: list[str]
+    root: Path,
+    source_paths: list[str],
+    test_paths: list[str],
 ) -> ConfigArtifact:
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():
@@ -885,20 +892,20 @@ def _ensure_mutmut_config(
     if isinstance(existing, dict):
         configured_sources = _normalized_paths(existing.get("source_paths"))
         configured_tests = _normalized_paths(
-            existing.get("pytest_add_cli_args_test_selection")
+            existing.get("pytest_add_cli_args_test_selection"),
         )
         gaps: list[str] = []
         if "paths_to_mutate" in existing:
             gaps.append(
-                "obsolete `paths_to_mutate` key; current mutmut uses `source_paths`"
+                "obsolete `paths_to_mutate` key; current mutmut uses `source_paths`",
             )
         if "tests_dir" in existing:
             gaps.append(
-                "obsolete `tests_dir` key; current mutmut uses `pytest_add_cli_args_test_selection`"
+                "obsolete `tests_dir` key; current mutmut uses `pytest_add_cli_args_test_selection`",
             )
         if existing.get("mutate_only_covered_lines") is False:
             gaps.append(
-                "`mutate_only_covered_lines=false` wastes mutation budget on code the suite never reaches; BugHunt reports uncovered code separately and recommends true"
+                "`mutate_only_covered_lines=false` wastes mutation budget on code the suite never reaches; BugHunt reports uncovered code separately and recommends true",
             )
         missing_sources = [
             item
@@ -978,7 +985,7 @@ def configure_custom_checks(root: Path, targets: Iterable[object]) -> ConfigArti
                 "timeout": int(metadata.get("timeout", 3600)),
                 "generated": True,
                 "confidence": confidence,
-            }
+            },
         )
 
     begin = "# BEGIN BUGHUNT MANAGED CUSTOM CHECKS"
@@ -1001,7 +1008,7 @@ def configure_custom_checks(root: Path, targets: Iterable[object]) -> ConfigArti
                 f"timeout = {check['timeout']}",
                 "generated = true",
                 f"confidence = {json.dumps(check['confidence'])}",
-            ]
+            ],
         )
     lines.extend(["", end, ""])
     block = "\n".join(lines)
@@ -1026,9 +1033,10 @@ def _manifest(artifacts: list[ConfigArtifact], root: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
-            {"schema_version": 2, "artifacts": [asdict(a) for a in artifacts]}, indent=2
+            {"schema_version": 2, "artifacts": [asdict(a) for a in artifacts]},
+            indent=2,
         )
-        + "\n"
+        + "\n",
     )
 
 
@@ -1046,6 +1054,62 @@ max_line_length = 0
 [sqlfluff:rules:aliasing.unique.table]
 force_enable = True
 """
+
+
+# Directories that never hold first-party JS/TS product source: virtualenvs
+# (which vendor minified third-party bundles), VCS metadata, analyzer caches,
+# BugHunt's own output, and agent/harness runtime tooling. JS linters run
+# cwd-wide, so every entry here prevents thousands of third-party findings
+# from drowning the product's own signal.
+#
+# Ignore patterns are root-relative. With `--config`, ESLint matches `ignores`
+# against the invocation working directory (verified empirically: config-file-
+# relative and absolute forms both fail to match, and oxlint rejects `..`
+# outright), so the generated config lists them verbatim and oxlint receives
+# the same list as cwd-relative `--ignore-pattern` flags.
+_JS_TOOL_IGNORES = [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    ".next/**",
+    ".bughunt/**",
+    ".venv/**",
+    "venv/**",
+    "env/**",
+    ".direnv/**",
+    ".git/**",
+    ".hg/**",
+    ".svn/**",
+    ".tox/**",
+    ".nox/**",
+    ".mypy_cache/**",
+    ".pytest_cache/**",
+    ".ruff_cache/**",
+    ".pyre/**",
+    ".coverage/**",
+    "htmlcov/**",
+    "mutants/**",
+    "__pypackages__/**",
+    "site-packages/**",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".pi/**",
+    ".omp/**",
+    ".hermes/**",
+    ".trace/**",
+    ".benchmarks/**",
+    ".complexipy_cache/**",
+    ".import_linter_cache/**",
+]
+# Rendered inline into the ESLint templates. Patterns are matched against
+# cwd-relative paths (verified: with `--config`, ESLint resolves `ignores`
+# against the invocation working directory, and rejects nothing), so the
+# generated config lists them verbatim.
+_JS_IGNORES_CLAUSE = (
+    "{ ignores: [" + ", ".join(f'"{p}"' for p in _JS_TOOL_IGNORES) + "] }"
+)
+_JS_IGNORES_LINE_OLD = '  { ignores: ["node_modules/**", "dist/**", "build/**", ".next/**", ".bughunt/**"] },'
 
 
 # trace:v1 id=impl.src-bughunt-configurator.-oxlint-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -1074,13 +1138,6 @@ def _oxlint_config(react: bool) -> str:
             "typescript/no-misused-promises": "error",
             "typescript/switch-exhaustiveness-check": "error",
         },
-        "ignorePatterns": [
-            "node_modules/**",
-            "dist/**",
-            "build/**",
-            ".next/**",
-            ".bughunt/**",
-        ],
     }
     return json.dumps(data, indent=2)
 
@@ -1138,10 +1195,9 @@ export default defineConfig(
     }
   }
 );
-"""
+""".replace(_JS_IGNORES_LINE_OLD, "  " + _JS_IGNORES_CLAUSE + ",")
     return r"""// Auto-generated by BugHunt. Correctness-first JS fallback.
 import js from "@eslint/js";
-
 export default [
   { ignores: ["node_modules/**", "dist/**", "build/**", ".next/**", ".bughunt/**"] },
   js.configs.recommended,
@@ -1161,7 +1217,7 @@ export default [
     }
   }
 ];
-"""
+""".replace(_JS_IGNORES_LINE_OLD, "  " + _JS_IGNORES_CLAUSE + ",")
 
 
 def _buf_config() -> str:
@@ -1220,7 +1276,8 @@ parameters:
 
 # trace:v1 id=impl.src-bughunt-configurator.-configure-technology-overlays work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _configure_technology_overlays(
-    root: Path, config_dir: Path
+    root: Path,
+    config_dir: Path,
 ) -> list[ConfigArtifact]:
     inv = discover_technologies(root, persist=True)
     out: list[ConfigArtifact] = [
@@ -1229,7 +1286,7 @@ def _configure_technology_overlays(
             ".bughunt/generated/capabilities.json",
             "READY",
             f"{sum(1 for c in inv.capabilities.values() if c.detected)} technology capability class(es) detected; non-applicable engines are N/A, not blind spots",
-        )
+        ),
     ]
 
     def put(name: str, relative: str, content: str, detail: str) -> None:
@@ -1300,7 +1357,7 @@ def _configure_technology_overlays(
                 "history baseline",
                 "READY" if inv.git_baseline else "REVIEW",
                 f"validate current specs; breaking-change baseline={inv.git_baseline or 'unavailable'}",
-            )
+            ),
         )
     if inv.has("protobuf"):
         out.append(
@@ -1309,7 +1366,7 @@ def _configure_technology_overlays(
                 "history baseline",
                 "READY" if inv.git_baseline else "REVIEW",
                 f"breaking-change baseline={inv.git_baseline or 'unavailable'}",
-            )
+            ),
         )
     return out
 
@@ -1370,7 +1427,7 @@ def configure_all(
         path = config_dir / relative
         _write(path, content)
         artifacts.append(
-            ConfigArtifact(name, str(path.relative_to(root)), "READY", detail)
+            ConfigArtifact(name, str(path.relative_to(root)), "READY", detail),
         )
         return path
 
@@ -1448,7 +1505,7 @@ def configure_all(
                 str(env_path.relative_to(root)),
                 "READY",
                 f"{len(env_uses)} statically discovered environment variable(s) documented with required/optional/default/type/unit/range/example evidence",
-            )
+            ),
         )
     else:
         artifacts.append(
@@ -1457,7 +1514,7 @@ def configure_all(
                 ".env.example",
                 "N/A",
                 "no static environment-variable use detected; no .env.example generated",
-            )
+            ),
         )
 
     sgconfig, rules = _astgrep_config()
@@ -1534,7 +1591,7 @@ invalid:
                 "",
                 "REVIEW",
                 "could not safely infer an importable first-party package root",
-            )
+            ),
         )
 
     pyre_text, taint_text, models_text = _pysa_files(root, source_paths, python_version)
@@ -1547,7 +1604,7 @@ invalid:
                 ".pyre_configuration",
                 "READY",
                 "base Pyre/Pysa source + model path generated",
-            )
+            ),
         )
     else:
         artifacts.append(
@@ -1556,7 +1613,7 @@ invalid:
                 ".pyre_configuration",
                 "EXISTING",
                 "existing project Pyre configuration preserved",
-            )
+            ),
         )
     put(
         "Pysa taint config",
@@ -1584,7 +1641,9 @@ invalid:
         "branch=true; missing lines/branches become first-class findings and feed risk/mutation prioritization",
     )
     runtime_paths = write_runtime_plugins(
-        root, _python_matrix_versions(root), _existing(root, test_paths)
+        root,
+        _python_matrix_versions(root),
+        _existing(root, test_paths),
     )
     artifacts.append(
         ConfigArtifact(
@@ -1592,7 +1651,7 @@ invalid:
             str(runtime_paths[0].relative_to(root)),
             "READY",
             "autouse asyncio blocking-call detector for the runtime verification pass",
-        )
+        ),
     )
     artifacts.append(
         ConfigArtifact(
@@ -1600,7 +1659,7 @@ invalid:
             str(runtime_paths[1].relative_to(root)),
             "READY",
             "CPython 3.11-3.14 plus 3.14t when supported; deterministic Nox definition generated",
-        )
+        ),
     )
     put(
         "Schemathesis",
@@ -1619,7 +1678,7 @@ invalid:
             str(semgrep_rules.relative_to(root)),
             "READY",
             "7 bundled correctness-first rules + local/generated rules; p/default runs as registry baseline; security-audit/secrets are opt-in",
-        )
+        ),
     )
 
     codeql_queries = config_dir / "codeql" / "queries"
@@ -1630,7 +1689,7 @@ invalid:
             str(codeql_queries.relative_to(root)),
             "READY",
             "upstream security-and-quality suite plus local query directory",
-        )
+        ),
     )
 
     artifacts.append(_ensure_mutmut_config(root, source_paths, test_paths))
@@ -1678,7 +1737,7 @@ invalid:
                 "AUTO",
                 "safe parser/decoder harness discovery follows config generation",
             ),
-        ]
+        ],
     )
 
     artifacts.extend(_configure_technology_overlays(root, config_dir))

@@ -208,10 +208,11 @@ def _metric_for_function(
     for stmt in node.body:
         visitor.visit(stmt)
     abc = math.sqrt(
-        visitor.assignments**2 + visitor.branches**2 + visitor.conditions**2
+        visitor.assignments**2 + visitor.branches**2 + visitor.conditions**2,
     )
     loc = max(
-        1, (getattr(node, "end_lineno", node.lineno) or node.lineno) - node.lineno + 1
+        1,
+        (getattr(node, "end_lineno", node.lineno) or node.lineno) - node.lineno + 1,
     )
     return (
         visitor.cyclomatic,
@@ -233,7 +234,9 @@ def _severity(value: float, warn: float, error: float) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-metrics_scan.scan-python work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def scan_python(
-    root: Path, source_paths: Iterable[str], budget: dict[str, float]
+    root: Path,
+    source_paths: Iterable[str],
+    budget: dict[str, float],
 ) -> list[MetricFinding]:
     out: list[MetricFinding] = []
     for path in _files(root, source_paths):
@@ -254,7 +257,7 @@ def scan_python(
                     "BHCX003",
                     f"file has {physical_loc} LOC; budget is {int(budget['file_loc_warn'])} warning / {int(budget['file_loc_error'])} error. Split only at real subsystem/cohesion boundaries, never into nonsense fragments just to satisfy LOC.",
                     sev,
-                )
+                ),
             )
         for fn in _iter_functions(tree):
             cc, a, b, c, abc, loc = _metric_for_function(fn)
@@ -268,10 +271,12 @@ def scan_python(
                         "BHCX001",
                         f"`{fn.name}` cyclomatic complexity is {cc}; budget is {int(budget['cyclomatic_warn'])} warning / {int(budget['cyclomatic_error'])} error",
                         sev,
-                    )
+                    ),
                 )
             sev = _severity(
-                loc, budget["function_loc_warn"], budget["function_loc_error"]
+                loc,
+                budget["function_loc_warn"],
+                budget["function_loc_error"],
             )
             if sev:
                 out.append(
@@ -282,7 +287,7 @@ def scan_python(
                         "BHCX002",
                         f"`{fn.name}` spans {loc} lines; budget is {int(budget['function_loc_warn'])} warning / {int(budget['function_loc_error'])} error",
                         sev,
-                    )
+                    ),
                 )
             sev = _severity(abc, budget["abc_warn"], budget["abc_error"])
             if sev:
@@ -294,7 +299,7 @@ def scan_python(
                         "BHCX004",
                         f"`{fn.name}` ABC magnitude is {abc:.1f} (A={a}, B={b}, C={c}); budget is {budget['abc_warn']:.0f} warning / {budget['abc_error']:.0f} error",
                         sev,
-                    )
+                    ),
                 )
     return out
 
@@ -341,7 +346,7 @@ def scan_assets(root: Path, budget: dict[str, float]) -> list[MetricFinding]:
                         "BHCX005",
                         f"built asset is {kb:.1f} KiB; default {path.suffix.lower()} per-file budget is {limit:.0f} KiB",
                         "warning",
-                    )
+                    ),
                 )
         total_kb = total / 1024.0
         if total_kb > budget["bundle_kb_warn"]:
@@ -353,7 +358,7 @@ def scan_assets(root: Path, budget: dict[str, float]) -> list[MetricFinding]:
                     "BHCX006",
                     f"built JS/CSS/WASM asset set totals {total_kb:.1f} KiB; default bundle budget is {budget['bundle_kb_warn']:.0f} KiB",
                     "warning",
-                )
+                ),
             )
     return out
 

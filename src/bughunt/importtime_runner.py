@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
                     "tool": "importtime",
                     "code": "BHPERF001",
                     "message": f"import {module} failed during startup profiling: {proc.stderr[-1000:]}",
-                }
+                },
             )
         elif ms > threshold_ms:
             findings.append(
@@ -47,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
                     "code": "BHPERF001",
                     "message": f"import {module} cumulative startup time {ms:.1f}ms exceeds {threshold_ms:.1f}ms budget",
                     "severity": "warning",
-                }
+                },
             )
     print(json.dumps({"findings": findings, "samples": samples}))
     return 1 if findings else 0

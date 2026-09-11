@@ -80,7 +80,8 @@ def _is_broad(annotation: str) -> bool:
 
 # trace:v1 id=impl.src-bughunt-evidence_scan.-function-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _function_findings(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, rel: str
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    rel: str,
 ) -> list[EvidenceFinding]:
     out: list[EvidenceFinding] = []
     known: dict[str, str] = {}
@@ -121,7 +122,7 @@ def _function_findings(
                         rel,
                         child.lineno,
                         "warning",
-                    )
+                    ),
                 )
             if isinstance(value, ast.Name) and value.id in widened_from:
                 src, src_ann, _line = widened_from[value.id]
@@ -132,7 +133,7 @@ def _function_findings(
                         rel,
                         child.lineno,
                         "error",
-                    )
+                    ),
                 )
 
     # Growing accumulator copies are often accidental quadratic work. Require a
@@ -181,7 +182,7 @@ def _function_findings(
                         rel,
                         child.lineno,
                         "warning",
-                    )
+                    ),
                 )
     return out
 
@@ -226,9 +227,9 @@ def main(argv: list[str] | None = None) -> int:
                         "severity": f.severity,
                     }
                     for f in findings
-                ]
-            }
-        )
+                ],
+            },
+        ),
     )
     return 1 if findings else 0
 

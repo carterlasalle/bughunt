@@ -1,8 +1,6 @@
 <!-- trace:v1 id=DOC-SECURITY type=document work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX -->
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 # Security Policy
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 ## Supported versions
 
 | Version | Supported          |
@@ -10,7 +8,6 @@
 | 0.6.x   | :white_check_mark: |
 | < 0.6   | :x:                |
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 ## Reporting a vulnerability
 
 BugHunt has no private reporting channel configured yet. Until one is

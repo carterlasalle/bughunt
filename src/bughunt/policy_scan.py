@@ -292,10 +292,11 @@ def discover_env_uses(root: Path, source_paths: Iterable[str]) -> list[EnvUse]:
                     inferred_type=inferred,
                     unit=_unit_for(key),
                     accepted_range=_range_for_variable(
-                        tree, _assigned_name(node, parents) or ""
+                        tree,
+                        _assigned_name(node, parents) or "",
                     ),
                     secret_like=bool(SECRET_NAME.search(key)),
-                )
+                ),
             )
     # Keep the strongest requirement and first evidence for each key.
     merged: dict[str, EnvUse] = {}
@@ -338,20 +339,22 @@ def _looks_real_secret(name: str, value: str) -> bool:
         return True
     # Known high-signal token shapes.
     if re.match(
-        r"^(?:sk-|ghp_|github_pat_|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{12,}$", value
+        r"^(?:sk-|ghp_|github_pat_|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{12,}$",
+        value,
     ):
         return True
     # Secret-named variables should not ship plausible long credentials.
     return bool(
         SECRET_NAME.search(name)
         and len(value) >= 16
-        and re.fullmatch(r"[A-Za-z0-9_./+=:@\-]+", value)
+        and re.fullmatch(r"[A-Za-z0-9_./+=:@\-]+", value),
     )
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.ensure-env-example work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def ensure_env_example(
-    root: Path, source_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
 ) -> tuple[Path | None, list[EnvUse]]:
     uses = discover_env_uses(root, source_paths)
     if not uses:
@@ -373,7 +376,9 @@ def ensure_env_example(
     ]
     for item in uses:
         if item.name in existing_values and item.name not in _parse_managed_keys(
-            existing_text, begin, end
+            existing_text,
+            begin,
+            end,
         ):
             continue
         status = "REQUIRED" if item.required else "OPTIONAL"
@@ -406,9 +411,10 @@ def ensure_env_example(
     inventory.parent.mkdir(parents=True, exist_ok=True)
     inventory.write_text(
         json.dumps(
-            {"schema_version": 1, "variables": [asdict(x) for x in uses]}, indent=2
+            {"schema_version": 1, "variables": [asdict(x) for x in uses]},
+            indent=2,
         )
-        + "\n"
+        + "\n",
     )
     return path, uses
 
@@ -524,7 +530,8 @@ def _signature_annotations(
 
 # trace:v1 id=impl.src-bughunt-policy_scan.-scan-source-policies work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _scan_source_policies(
-    root: Path, source_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
 ) -> list[PolicyFinding]:
     findings: list[PolicyFinding] = []
     for path in _files(root, source_paths):
@@ -545,7 +552,7 @@ def _scan_source_policies(
                     "BHCTRL001",
                     f"`{type(jump).__name__.lower()}` inside `finally` can suppress an active exception or override control flow; move the jump outside the finally block",
                     "error",
-                )
+                ),
             )
 
         importer_tokens = _module_tokens(path, root)
@@ -557,7 +564,7 @@ def _scan_source_policies(
                         x.lower() for x in re.split(r"[._\-]", alias.name)
                     } & PERSIST_IMPL:
                         persistence_aliases.add(
-                            alias.asname or alias.name.split(".")[0]
+                            alias.asname or alias.name.split(".")[0],
                         )
             elif (
                 isinstance(import_node, ast.ImportFrom)
@@ -585,7 +592,7 @@ def _scan_source_policies(
                             "BHPERS001",
                             f"higher-layer module imports persistence implementation detail `{name}`; expose a deliberate repository/protocol contract instead of coupling the layer to the storage implementation",
                             "warning",
-                        )
+                        ),
                     )
                 if any(
                     part.startswith("_") and not part.startswith("__")
@@ -599,7 +606,7 @@ def _scan_source_policies(
                             "BHARCH001",
                             f"module imports internal implementation module `{name}` across a source boundary; use a public subsystem contract unless this dependency is intentional",
                             "warning",
-                        )
+                        ),
                     )
             if isinstance(node, ast.ImportFrom):
                 for alias in node.names:
@@ -612,12 +619,13 @@ def _scan_source_policies(
                                 "BHARCH002",
                                 f"module imports private implementation symbol `{alias.name}` from `{node.module or '.'}`; do not couple subsystems through private implementation details",
                                 "warning",
-                            )
+                            ),
                         )
         if importer_tokens & UPPER_LAYER and persistence_aliases:
             for fn in tree.body:
                 if not isinstance(
-                    fn, (ast.FunctionDef, ast.AsyncFunctionDef)
+                    fn,
+                    (ast.FunctionDef, ast.AsyncFunctionDef),
                 ) or fn.name.startswith("_"):
                     continue
                 for ann_node, annotation in _signature_annotations(fn):
@@ -634,7 +642,7 @@ def _scan_source_policies(
                                 "BHPERS002",
                                 f"public higher-layer function `{fn.name}` exposes persistence-specific type `{annotation}` in its signature; expose a domain/protocol abstraction unless persistence is intentionally part of the contract",
                                 "warning",
-                            )
+                            ),
                         )
 
         # Operational knobs hard-coded outside an obvious configuration mechanism.
@@ -660,7 +668,7 @@ def _scan_source_policies(
                                 "BHCFG004",
                                 f"operational configuration-like value `{name}` is hard-coded outside an obvious config/settings/constants mechanism; make it typed/configurable or promote it to an uppercase invariant constant",
                                 "note",
-                            )
+                            ),
                         )
         if not CONFIG_MODULE.search(rel):
             for keyword, op_name, op_value in _literal_operational_kwargs(tree):
@@ -675,7 +683,7 @@ def _scan_source_policies(
                         "BHCFG005",
                         f"operational keyword `{op_name}={op_value!r}` is hard-coded at a call site; prefer typed/config-file/env/CLI/generated configuration unless this value is a genuine invariant",
                         "note",
-                    )
+                    ),
                 )
     return findings
 
@@ -710,11 +718,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                                 "BHTEST001",
                                 f"test imports private implementation symbol `{alias.name}` directly; prefer asserting public behavior unless the private API is intentionally contractual",
                                 "warning",
-                            )
+                            ),
                         )
         for fn in ast.walk(tree):
             if not isinstance(
-                fn, (ast.FunctionDef, ast.AsyncFunctionDef)
+                fn,
+                (ast.FunctionDef, ast.AsyncFunctionDef),
             ) or not fn.name.startswith("test"):
                 continue
             calls = _test_calls(fn)
@@ -738,13 +747,13 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                         "BHTEST002",
                         f"test `{fn.name}` asserts collaborator call sequence/internal mock history; verify behavior/results unless call ordering is part of the contract",
                         "warning",
-                    )
+                    ),
                 )
             patch_count = sum(
                 1
                 for c in calls
                 if c.endswith(
-                    ("patch", "patch.object", "mocker.patch", "monkeypatch.setattr")
+                    ("patch", "patch.object", "mocker.patch", "monkeypatch.setattr"),
                 )
                 or "patch" in c.split(".")[-1].lower()
             )
@@ -757,11 +766,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                         "BHTEST004",
                         f"test `{fn.name}` heavily mocks collaborators ({patch_count} patch operations) and asserts orchestration details; this is brittle and can mirror implementation rather than behavior",
                         "warning",
-                    )
+                    ),
                 )
             for inner in ast.walk(fn):
                 if not isinstance(inner, ast.Assert) or not isinstance(
-                    inner.test, ast.Compare
+                    inner.test,
+                    ast.Compare,
                 ):
                     continue
                 operands = [inner.test.left, *inner.test.comparators]
@@ -784,7 +794,7 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                             "BHTEST003",
                             f"test `{fn.name}` asserts an enormous literal/snapshot ({len(long_literal)} characters); prefer semantic assertions over generated source/text snapshots",
                             "warning",
-                        )
+                        ),
                     )
                 string_literals = [
                     x.value
@@ -810,7 +820,7 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                             "BHTEST005",
                             f"test `{fn.name}` compares generated/source-like output to a large exact string; prefer semantic assertions unless exact source text is itself the public contract",
                             "warning",
-                        )
+                        ),
                     )
     return findings
 
@@ -866,7 +876,8 @@ def _looks_like_user_format_operation(
 
 # trace:v1 id=impl.src-bughunt-policy_scan.-roundtrip-inventory work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _roundtrip_inventory(
-    root: Path, source_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
 ) -> tuple[list[tuple[str, str, str, int]], list[tuple[str, str, str, int]]]:
     """Return matched inverse pairs and one-sided export/import-like operations."""
     pairs: list[tuple[str, str, str, int]] = []
@@ -898,13 +909,13 @@ def _roundtrip_inventory(
                         idx = parts.index(left_token)
                         matched_token = left_token
                         counterpart = "_".join(
-                            parts[:idx] + [right_token] + parts[idx + 1 :]
+                            parts[:idx] + [right_token] + parts[idx + 1 :],
                         )
                     elif right_token in parts:
                         idx = parts.index(right_token)
                         matched_token = right_token
                         counterpart = "_".join(
-                            parts[:idx] + [left_token] + parts[idx + 1 :]
+                            parts[:idx] + [left_token] + parts[idx + 1 :],
                         )
                     if counterpart is None:
                         continue
@@ -916,7 +927,7 @@ def _roundtrip_inventory(
                         # Record each pair exactly once from the outward/export side.
                         if matched_token == left_token:
                             pairs.append(
-                                (qualified, qualified_counterpart, rel, node.lineno)
+                                (qualified, qualified_counterpart, rel, node.lineno),
                             )
                     elif _looks_like_user_format_operation(node):
                         subject_tokens = {
@@ -938,21 +949,24 @@ def _roundtrip_inventory(
                         }
                         if not (subject_tokens & infrastructure_words):
                             orphans.append(
-                                (qualified, qualified_counterpart, rel, node.lineno)
+                                (qualified, qualified_counterpart, rel, node.lineno),
                             )
     return pairs, orphans
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.-roundtrip-pairs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _roundtrip_pairs(
-    root: Path, source_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
 ) -> list[tuple[str, str, str, int]]:
     return _roundtrip_inventory(root, source_paths)[0]
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.-scan-roundtrip-coverage work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _scan_roundtrip_coverage(
-    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
+    test_paths: Iterable[str],
 ) -> list[PolicyFinding]:
     tests: list[set[str]] = []
     for path in _files(root, test_paths):
@@ -962,7 +976,8 @@ def _scan_roundtrip_coverage(
             continue
         for fn in ast.walk(tree):
             if isinstance(
-                fn, (ast.FunctionDef, ast.AsyncFunctionDef)
+                fn,
+                (ast.FunctionDef, ast.AsyncFunctionDef),
             ) and fn.name.startswith("test"):
                 tests.append({x.split(".")[-1] for x in _test_calls(fn)})
     out: list[PolicyFinding] = []
@@ -980,7 +995,7 @@ def _scan_roundtrip_coverage(
                 "BHRT001",
                 f"supported export/import pair `{export_name}` -> `{import_name}` has no detected round-trip test; everything exported should come home without silent semantic loss",
                 "warning",
-            )
+            ),
         )
     for operation, expected, rel, line in orphans:
         leaf = operation.split(".")[-1]
@@ -996,14 +1011,16 @@ def _scan_roundtrip_coverage(
                 "BHRT002",
                 f"`{operation}` looks like a supported {token} operation but no inverse `{expected}` exists alongside it; if this is a user-owned format, provide the reverse path or explicitly document the one-way contract",
                 "warning",
-            )
+            ),
         )
     return out
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.scan work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def scan(
-    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+    root: Path,
+    source_paths: Iterable[str],
+    test_paths: Iterable[str],
 ) -> list[PolicyFinding]:
     findings: list[PolicyFinding] = []
     uses = discover_env_uses(root, source_paths)
@@ -1019,7 +1036,7 @@ def scan(
                 "BHCFG001",
                 "environment-driven configuration detected but `.env.example` is missing",
                 "warning",
-            )
+            ),
         )
     elif uses:
         for item in uses:
@@ -1032,7 +1049,7 @@ def scan(
                         "BHCFG002",
                         f"environment variable `{item.name}` is used in code but missing from `.env.example`",
                         "warning",
-                    )
+                    ),
                 )
     if env_file.exists():
         for key, value in env_values.items():
@@ -1045,7 +1062,7 @@ def scan(
                         "BHCFG003",
                         f"`.env.example` contains a value for secret-like variable `{key}` that looks like a real credential; examples must never contain real secrets",
                         "error",
-                    )
+                    ),
                 )
     findings.extend(_scan_source_policies(root, source_paths))
     findings.extend(_scan_test_policies(root, test_paths))

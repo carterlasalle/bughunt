@@ -1,5 +1,4 @@
 <!-- trace:v1 id=DOC-CONTEXT type=document work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX -->
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 # Context
 
 Domain vocabulary for BugHunt. Use these terms exactly.

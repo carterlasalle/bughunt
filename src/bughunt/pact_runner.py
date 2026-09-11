@@ -79,7 +79,11 @@ def main(argv: list[str] | None = None) -> int:
         "warning",
     ]
     proc = subprocess.Popen(
-        cmd, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd,
+        cwd=root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     findings: list[dict[str, object]] = []
     try:
@@ -94,14 +98,14 @@ def main(argv: list[str] | None = None) -> int:
                         "command": cmd,
                         "stdout": out[-4000:],
                         "stderr": err[-4000:],
-                    }
-                )
+                    },
+                ),
             )
             return 2
         for pact_file, provider_name in providers:
             try:
                 Verifier(provider_name).add_source(str(pact_file)).add_transport(
-                    url=url
+                    url=url,
                 ).verify()
             except Exception as exc:  # noqa: BLE001 - third-party verify(): failure modes are the finding
                 findings.append(
@@ -111,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
                         "path": str(pact_file.relative_to(root)),
                         "severity": "error",
                         "message": f"provider {provider_name!r} does not satisfy Pact contract: {type(exc).__name__}: {exc}",
-                    }
+                    },
                 )
     finally:
         proc.terminate()
@@ -126,8 +130,8 @@ def main(argv: list[str] | None = None) -> int:
                 "findings": findings,
                 "provider_url": url,
                 "pacts": [str(p.relative_to(root)) for p, _ in providers],
-            }
-        )
+            },
+        ),
     )
     return 1 if findings else 0
 

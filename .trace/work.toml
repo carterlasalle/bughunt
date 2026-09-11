@@ -9,3 +9,6 @@ origin.session = "default"
 
 [work."WORK-BUG-JZ02ASSD"]
 title = "Make default ruff/format/mypy gates pass"
+
+[work."WORK-BUG-06107X2Q"]
+title = "BugHunt skipmutmut compliance sweep"

@@ -20,7 +20,12 @@ class _CmdResult(TypedDict):
 def _run(cmd: list[str], root: Path) -> _CmdResult:
     try:
         p = subprocess.run(
-            cmd, cwd=root, text=True, capture_output=True, timeout=600, check=False
+            cmd,
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=600,
+            check=False,
         )
         return {
             "command": cmd,
@@ -70,10 +75,12 @@ def main(argv: list[str] | None = None) -> int:
                     "code": "BHPKG001",
                     "message": (
                         str(
-                            item.get("stderr") or item.get("stdout") or f"{tool} failed"
+                            item.get("stderr")
+                            or item.get("stdout")
+                            or f"{tool} failed",
                         )
                     ).strip()[-4000:],
-                }
+                },
             )
     print(json.dumps({"findings": findings, "runs": results}))
     return 1 if findings else 0

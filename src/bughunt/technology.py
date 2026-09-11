@@ -405,7 +405,8 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         ):
             text = _read_small(path, 32768).lower()
             if re.search(
-                r"(?:^|[\n{,])\s*[\"']?(?:openapi|swagger)[\"']?\s*[:=]", text
+                r"(?:^|[\n{,])\s*[\"']?(?:openapi|swagger)[\"']?\s*[:=]",
+                text,
             ):
                 buckets["openapi"].append(rel)
 
@@ -486,7 +487,8 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
     # PostgreSQL-specific, so do not run it on every random SQL file.
     if sql_paths:
         dialect = infer_sql_dialect(
-            root, [p.relative_to(root).as_posix() for p in sql_paths]
+            root,
+            [p.relative_to(root).as_posix() for p in sql_paths],
         )
         if dialect == "postgres":
             for path in sql_paths:
@@ -498,7 +500,9 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
                     "versions",
                     "alembic",
                 } or re.search(
-                    r"(?:^|/)(?:v?\d{4,}|\d+[_-].*)\.sql$", rel, re.IGNORECASE
+                    r"(?:^|/)(?:v?\d{4,}|\d+[_-].*)\.sql$",
+                    rel,
+                    re.IGNORECASE,
                 ):
                     buckets["postgres-migrations"].append(rel)
 
@@ -517,13 +521,13 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         buckets["django"] = [
             "pyproject.toml"
             if (root / "pyproject.toml").exists()
-            else "requirements.txt"
+            else "requirements.txt",
         ]
     if "alembic" in pydeps and not buckets["alembic"]:
         buckets["alembic"] = [
             "pyproject.toml"
             if (root / "pyproject.toml").exists()
-            else "requirements.txt"
+            else "requirements.txt",
         ]
     if "pact-python" in pydeps and not buckets["pact"]:
         buckets["pact"] = ["pyproject.toml"]
@@ -534,7 +538,7 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         buckets["odoo"] = [
             "pyproject.toml"
             if (root / "pyproject.toml").exists()
-            else "requirements.txt"
+            else "requirements.txt",
         ]
 
     details = {
@@ -568,7 +572,10 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
     }
     capabilities = {
         key: Capability(
-            key, bool(value), sorted(dict.fromkeys(value))[:100], details[key]
+            key,
+            bool(value),
+            sorted(dict.fromkeys(value))[:100],
+            details[key],
         )
         for key, value in buckets.items()
     }
@@ -605,7 +612,10 @@ def load_technology_inventory(root: Path) -> TechnologyInventory:
             str(k): [str(x) for x in v] for k, v in dict(data.get("files", {})).items()
         }
         return TechnologyInventory(
-            root.resolve(), caps, files, data.get("git_baseline")
+            root.resolve(),
+            caps,
+            files,
+            data.get("git_baseline"),
         )
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
         return discover_technologies(root)
@@ -626,7 +636,7 @@ def project_executable(root: Path, *names: str) -> str | None:
                 root / ".venv" / "bin" / name,
                 root / "node_modules" / ".bin" / name,
                 root / "vendor" / "bin" / name,
-            ]
+            ],
         )
     for candidate in candidates:
         if candidate.exists() and os.access(candidate, os.X_OK):

@@ -267,7 +267,9 @@ def _annotation_name(node: ast.AST | None) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-discovery.-required-positional-count work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _required_positional_count(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef, *, method: bool = False
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    method: bool = False,
 ) -> int:
     total = len(fn.args.posonlyargs) + len(fn.args.args)
     required = total - len(fn.args.defaults)
@@ -300,7 +302,9 @@ def _explicit_raises(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
 
 # trace:v1 id=impl.src-bughunt-discovery.-literal-seeds work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _literal_seeds(
-    root: Path, function_name: str, limit: int = 64
+    root: Path,
+    function_name: str,
+    limit: int = 64,
 ) -> list[tuple[bytes, str]]:
     seeds: list[tuple[bytes, str]] = []
     for path in _test_python_files(root):
@@ -359,7 +363,7 @@ def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
                     called = _call_name(inner.func)
                     if _is_boundary_call(called):
                         boundaries.append(
-                            (called, getattr(inner, "lineno", node.lineno))
+                            (called, getattr(inner, "lineno", node.lineno)),
                         )
             infos.append(
                 FunctionInfo(
@@ -375,7 +379,7 @@ def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
                     is_async=isinstance(node, ast.AsyncFunctionDef),
                     has_raise=any(isinstance(x, ast.Raise) for x in ast.walk(node)),
                     boundary_calls=boundaries,
-                )
+                ),
             )
     return infos
 
@@ -467,6 +471,7 @@ def _equivalence_helper() -> str:
 """
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-write-property-harness work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _write_property_harness(path: Path, body: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -477,13 +482,14 @@ def _write_property_harness(path: Path, body: str) -> None:
         "from hypothesis import given, settings, strategies as st\n\n"
         + _equivalence_helper()
         + "\n"
-        + body
+        + body,
     )
 
 
 # trace:v1 id=impl.src-bughunt-discovery.discover-custom-campaigns work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def discover_custom_campaigns(
-    root: Path, source_paths: list[str]
+    root: Path,
+    source_paths: list[str],
 ) -> list[DiscoveredTarget]:
     infos = _function_infos(root, source_paths)
     by_module: dict[str, list[FunctionInfo]] = {}
@@ -532,7 +538,9 @@ def discover_custom_campaigns(
             decorators = ", ".join(
                 f"{name}={strategy}"
                 for (name, _), strategy in zip(
-                    reference.params, strategies, strict=True
+                    reference.params,
+                    strategies,
+                    strict=True,
                 )
             )
             body = f"""_module = importlib.import_module({module!r})
@@ -581,7 +589,7 @@ def test_bughunt_differential({arguments}):
                         "generated_harness": str(harness.relative_to(root)),
                         "evidence": "reference/optimized naming + equal typed signature + no detected I/O boundary",
                     },
-                )
+                ),
             )
 
     # Round-trip pairs such as encode/decode and serialize/deserialize.
@@ -594,7 +602,7 @@ def test_bughunt_differential({arguments}):
                     continue
                 idx = parts.index(encoder_token)
                 decoder_name = "_".join(
-                    parts[:idx] + [decoder_token] + parts[idx + 1 :]
+                    parts[:idx] + [decoder_token] + parts[idx + 1 :],
                 )
                 decoder = names.get(decoder_name)
                 if decoder is None:
@@ -657,7 +665,7 @@ def test_bughunt_roundtrip({arg_name}):
                             "generated_harness": str(harness.relative_to(root)),
                             "strategy": strategy,
                         },
-                    )
+                    ),
                 )
 
     # Idempotence properties for functions whose name and type signature strongly imply it.
@@ -710,7 +718,7 @@ def test_bughunt_idempotence({arg_name}):
                     "generated_harness": str(harness.relative_to(root)),
                     "strategy": strategy,
                 },
-            )
+            ),
         )
 
     # Fault-injection *coverage* campaign. This does not guess desired failure
@@ -726,7 +734,8 @@ def test_bughunt_idempotence({arg_name}):
             continue
         for node in ast.walk(tree):
             if isinstance(
-                node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef),
             ) and node.name.startswith("test"):
                 segment = ast.get_source_segment(source, node) or ""
                 test_texts.append((node.name, segment.lower()))
@@ -746,11 +755,11 @@ def test_bughunt_idempotence({arg_name}):
                         "line": line,
                         "function": info.qualname,
                         "boundary": call,
-                    }
+                    },
                 )
     inventory = generated / "fault_boundaries.json"
     inventory.write_text(
-        json.dumps({"schema_version": 1, "uncovered": fault_rows}, indent=2) + "\n"
+        json.dumps({"schema_version": 1, "uncovered": fault_rows}, indent=2) + "\n",
     )
     checker = generated / "check_fault_boundaries.py"
     checker.write_text(
@@ -767,7 +776,7 @@ rows = data.get("uncovered", [])
 for row in rows:
     print(f"{row['path']}:{row['line']}:1: warning: external boundary {row['boundary']} in {row['function']} has no detected fault-injection test [BHFAULT001]")
 sys.exit(1 if rows else 0)
-"""
+""",
     )
     if fault_rows:
         out.append(
@@ -784,7 +793,7 @@ sys.exit(1 if rows else 0)
                     "inventory": str(inventory.relative_to(root)),
                     "uncovered_boundaries": len(fault_rows),
                 },
-            )
+            ),
         )
 
     return out
@@ -820,7 +829,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                             text = _call_name(
                                 returned
                                 if isinstance(returned, ast.Attribute)
-                                else returned.value
+                                else returned.value,
                             )
                             if text.startswith(
                                 (
@@ -828,7 +837,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                                     "request.form",
                                     "request.values",
                                     "request.json",
-                                )
+                                ),
                             ):
                                 source_evidence = f"returns value from {text}"
                 if isinstance(inner, ast.Call):
@@ -855,7 +864,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                         evidence=source_evidence,
                         source=rel,
                         line=node.lineno,
-                    )
+                    ),
                 )
             if sink_params:
                 models.append(
@@ -869,7 +878,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                         ),
                         source=rel,
                         line=node.lineno,
-                    )
+                    ),
                 )
     # Stable unique models.
     dedup: dict[str, PysaModel] = {}
@@ -893,9 +902,10 @@ def write_pysa_models(root: Path, models: list[PysaModel]) -> Path:
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text(
         json.dumps(
-            {"schema_version": 1, "models": [asdict(m) for m in models]}, indent=2
+            {"schema_version": 1, "models": [asdict(m) for m in models]},
+            indent=2,
         )
-        + "\n"
+        + "\n",
     )
     return path
 
@@ -923,7 +933,9 @@ def _inferred_rejection_exceptions(fn: ast.FunctionDef) -> list[str]:
 
 # trace:v1 id=impl.src-bughunt-discovery.discover-atheris work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def discover_atheris(
-    root: Path, source_paths: list[str], run_count: int = 250_000
+    root: Path,
+    source_paths: list[str],
+    run_count: int = 250_000,
 ) -> list[DiscoveredTarget]:
     out: list[DiscoveredTarget] = []
     generated = root / ".bughunt" / "generated" / "atheris"
@@ -949,7 +961,7 @@ def discover_atheris(
                     decorators = {_call_name(x) for x in child.decorator_list}
                     if "staticmethod" in decorators or "classmethod" in decorators:
                         candidates.append(
-                            (child, f"{node.name}.{child.name}", node.name)
+                            (child, f"{node.name}.{child.name}", node.name),
                         )
 
         for node, callable_name, class_name in candidates:
@@ -1019,7 +1031,7 @@ def discover_atheris(
                 else f"getattr(getattr(_module, {class_name!r}), {leaf!r})"
             )
             harness.write_text(
-                f"""# Auto-generated by BugHunt from a high/medium confidence parser boundary.\nfrom __future__ import annotations\n\nimport builtins\nimport importlib\nfrom pathlib import Path\nimport sys\n\n_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\nif _ATHERIS_RUNTIME.exists():\n    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n\nimport atheris\n\nMODULE = {module!r}\nEXPLICIT_RAISES = {exc_literals}\n\nwith atheris.instrument_imports():\n    _module = importlib.import_module(MODULE)\n\n_target = {target_access}\n\ndef _expected_exceptions():\n    found = []\n    for dotted in EXPLICIT_RAISES:\n        candidate = None\n        if hasattr(_module, dotted):\n            candidate = getattr(_module, dotted)\n        elif hasattr(builtins, dotted.split(".")[-1]):\n            candidate = getattr(builtins, dotted.split(".")[-1])\n        elif "." in dotted:\n            try:\n                owner, attr = dotted.rsplit(".", 1)\n                candidate = getattr(importlib.import_module(owner), attr)\n            except (ImportError, AttributeError):\n                candidate = None\n        if isinstance(candidate, type) and issubclass(candidate, Exception):\n            found.append(candidate)\n    return tuple(found)\n\n_EXPECTED = _expected_exceptions()\n\n@atheris.instrument_func\ndef TestOneInput(data: bytes) -> None:\n    value = {converter}\n    try:\n        _target(value)\n    except _EXPECTED:\n        return\n\natheris.Setup(sys.argv, TestOneInput)\natheris.Fuzz()\n"""
+                f"""# Auto-generated by BugHunt from a high/medium confidence parser boundary.\nfrom __future__ import annotations\n\nimport builtins\nimport importlib\nfrom pathlib import Path\nimport sys\n\n_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\nif _ATHERIS_RUNTIME.exists():\n    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n\nimport atheris\n\nMODULE = {module!r}\nEXPLICIT_RAISES = {exc_literals}\n\nwith atheris.instrument_imports():\n    _module = importlib.import_module(MODULE)\n\n_target = {target_access}\n\ndef _expected_exceptions():\n    found = []\n    for dotted in EXPLICIT_RAISES:\n        candidate = None\n        if hasattr(_module, dotted):\n            candidate = getattr(_module, dotted)\n        elif hasattr(builtins, dotted.split(".")[-1]):\n            candidate = getattr(builtins, dotted.split(".")[-1])\n        elif "." in dotted:\n            try:\n                owner, attr = dotted.rsplit(".", 1)\n                candidate = getattr(importlib.import_module(owner), attr)\n            except (ImportError, AttributeError):\n                candidate = None\n        if isinstance(candidate, type) and issubclass(candidate, Exception):\n            found.append(candidate)\n    return tuple(found)\n\n_EXPECTED = _expected_exceptions()\n\n@atheris.instrument_func\ndef TestOneInput(data: bytes) -> None:\n    value = {converter}\n    try:\n        _target(value)\n    except _EXPECTED:\n        return\n\natheris.Setup(sys.argv, TestOneInput)\natheris.Fuzz()\n""",
             )
             confidence = (
                 "high"
@@ -1056,7 +1068,7 @@ def discover_atheris(
                         "seed_corpus": str(corpus_dir.relative_to(root)),
                         "seed_count": len(list(corpus_dir.iterdir())),
                     },
-                )
+                ),
             )
     return out
 
@@ -1068,7 +1080,7 @@ def _local_url(url: str) -> bool:
             r"^https?://(127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\])(?::\d+)?(?:/|$)",
             url.strip(),
             re.IGNORECASE,
-        )
+        ),
     )
 
 
@@ -1108,13 +1120,15 @@ def _looks_openapi(path: Path) -> bool:
     return bool(
         re.search(r"""(?m)^\s*(openapi|swagger)\s*[:"]""", head)
         or '"openapi"' in head
-        or '"swagger"' in head
+        or '"swagger"' in head,
     )
 
 
 # trace:v1 id=impl.src-bughunt-discovery.discover-schemathesis work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def discover_schemathesis(
-    root: Path, source_paths: list[str], max_examples: int = 500
+    root: Path,
+    source_paths: list[str],
+    max_examples: int = 500,
 ) -> list[DiscoveredTarget]:
     out: list[DiscoveredTarget] = []
     generated = root / ".bughunt" / "generated" / "schemathesis"
@@ -1162,7 +1176,7 @@ def discover_schemathesis(
                 target_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{module}.{app_name}")
                 harness = generated / f"test_{target_id.replace('.', '_')}.py"
                 harness.write_text(
-                    f"""# Auto-generated by BugHunt for in-process Schemathesis fuzzing.\nfrom __future__ import annotations\n\nimport importlib\nimport schemathesis\nfrom hypothesis import settings\n\n_module = importlib.import_module({module!r})\n_app = getattr(_module, {app_name!r})\nschema = schemathesis.openapi.from_asgi("/openapi.json", _app)\n\n@schema.parametrize()\n@settings(max_examples={max_examples}, deadline=None)\ndef test_bughunt_api(case):\n    case.call_and_validate()\n\nStateMachine = schema.as_state_machine()\nTestCase = StateMachine.TestCase\nTestCase.settings = settings(\n    max_examples=min({max_examples}, 200),\n    stateful_step_count=10,\n    deadline=None,\n)\n"""
+                    f"""# Auto-generated by BugHunt for in-process Schemathesis fuzzing.\nfrom __future__ import annotations\n\nimport importlib\nimport schemathesis\nfrom hypothesis import settings\n\n_module = importlib.import_module({module!r})\n_app = getattr(_module, {app_name!r})\nschema = schemathesis.openapi.from_asgi("/openapi.json", _app)\n\n@schema.parametrize()\n@settings(max_examples={max_examples}, deadline=None)\ndef test_bughunt_api(case):\n    case.call_and_validate()\n\nStateMachine = schema.as_state_machine()\nTestCase = StateMachine.TestCase\nTestCase.settings = settings(\n    max_examples=min({max_examples}, 200),\n    stateful_step_count=10,\n    deadline=None,\n)\n""",
                 )
                 out.append(
                     DiscoveredTarget(
@@ -1186,7 +1200,7 @@ def discover_schemathesis(
                             "generated_harness": str(harness.relative_to(root)),
                             "max_examples_hint": max_examples,
                         },
-                    )
+                    ),
                 )
 
     # Flask/Werkzeug apps are safe to fuzz in-process only when this module also
@@ -1248,7 +1262,7 @@ def discover_schemathesis(
                 "@schema.parametrize()\n"
                 f"@settings(max_examples={max_examples}, deadline=None)\n"
                 "def test_bughunt_api(case):\n"
-                "    case.call_and_validate()\n"
+                "    case.call_and_validate()\n",
             )
             out.append(
                 DiscoveredTarget(
@@ -1271,7 +1285,7 @@ def discover_schemathesis(
                         "schema_path": schema_path,
                         "generated_harness": str(harness.relative_to(root)),
                     },
-                )
+                ),
             )
 
     # Schema files are safe to auto-run only when their server points at localhost.
@@ -1279,7 +1293,7 @@ def discover_schemathesis(
         if not path.is_file() or any(part in EXCLUDED for part in path.parts):
             continue
         if path.suffix.lower() not in {".json", ".yaml", ".yml"} or not _looks_openapi(
-            path
+            path,
         ):
             continue
         rel = str(path.relative_to(root))
@@ -1312,7 +1326,7 @@ def discover_schemathesis(
                         "false",
                     ],
                     metadata={"transport": "http-local", "url": url},
-                )
+                ),
             )
         else:
             out.append(
@@ -1324,9 +1338,9 @@ def discover_schemathesis(
                     reason="OpenAPI schema detected but no localhost base URL; refusing to auto-run against an unknown/remote server",
                     source=rel,
                     metadata={
-                        "needs": "explicit local base URL or importable ASGI app"
+                        "needs": "explicit local base URL or importable ASGI app",
                     },
-                )
+                ),
             )
 
     dedup: dict[tuple[str, str], DiscoveredTarget] = {}
@@ -1338,6 +1352,7 @@ def discover_schemathesis(
     return list(dedup.values())
 
 
+# trace:v1 id=impl.src-bughunt-discovery.discover-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def discover_all(
     root: Path,
     source_paths: list[str],
@@ -1361,7 +1376,7 @@ def discover_all(
             },
             indent=2,
         )
-        + "\n"
+        + "\n",
     )
     return targets
 

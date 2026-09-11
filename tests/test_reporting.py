@@ -11,13 +11,21 @@ def test_signal_groups_repeated_rule():
             Status.FINDINGS,
             findings=[
                 Finding(
-                    "ruff", "Undefined name `foo`", path="a.py", line=1, code="F821"
+                    "ruff",
+                    "Undefined name `foo`",
+                    path="a.py",
+                    line=1,
+                    code="F821",
                 ),
                 Finding(
-                    "ruff", "Undefined name `bar`", path="b.py", line=9, code="F821"
+                    "ruff",
+                    "Undefined name `bar`",
+                    path="b.py",
+                    line=9,
+                    code="F821",
                 ),
             ],
-        )
+        ),
     ]
     groups = signal_groups(results)
     assert groups[0]["count"] == 2
@@ -33,8 +41,12 @@ def test_agent_report_artifacts(tmp_path: Path):
         command=["ruff", "check", "."],
         findings=[
             Finding(
-                "ruff", "Undefined name `foo`", path="src/a.py", line=7, code="F821"
-            )
+                "ruff",
+                "Undefined name `foo`",
+                path="src/a.py",
+                line=7,
+                code="F821",
+            ),
         ],
     )
     md, js = write_reports(cfg, [result], "all", 1.2)
@@ -74,7 +86,7 @@ def test_report_counts_autofixes(tmp_path: Path):
                     fix_safety="unsafe",
                 ),
             ],
-        )
+        ),
     ]
     summary = autofix_summary(results)
     assert summary["total"] == 2

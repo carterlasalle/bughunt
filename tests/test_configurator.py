@@ -16,7 +16,7 @@ def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
             reason="test",
             command=["uv", "run", "pytest", "-q", "generated.py"],
             metadata={"timeout": 123},
-        )
+        ),
     ]
     configure_custom_checks(tmp_path, targets)
     text = (tmp_path / "bughunt.toml").read_text()
@@ -28,7 +28,7 @@ def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
 
     configure_custom_checks(tmp_path, targets)
     assert (tmp_path / "bughunt.toml").read_text().count(
-        "BEGIN BUGHUNT MANAGED CUSTOM CHECKS"
+        "BEGIN BUGHUNT MANAGED CUSTOM CHECKS",
     ) == 1
 
 
@@ -91,7 +91,7 @@ def test_existing_user_mutmut_config_is_coverage_checked(tmp_path: Path) -> None
     (tmp_path / "src/pkg/__init__.py").write_text("")
     (tmp_path / "tests").mkdir()
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname="pkg"\nversion="0"\n\n[tool.mutmut]\nsource_paths=["other/"]\npytest_add_cli_args_test_selection=["tests/"]\n'
+        '[project]\nname="pkg"\nversion="0"\n\n[tool.mutmut]\nsource_paths=["other/"]\npytest_add_cli_args_test_selection=["tests/"]\n',
     )
     artifacts = configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
     mm = next(item for item in artifacts if item.name == "mutmut")
@@ -116,3 +116,22 @@ def test_managed_mutmut_config_refreshes_inferred_paths(tmp_path: Path) -> None:
     mm = next(item for item in artifacts if item.name == "mutmut")
     assert mm.state == "READY"
     assert "refreshed and verified" in mm.detail
+
+
+# trace:v1 id=test.tests-test-configurator.test-js-tool-configs-ignore-venvs-and-harness-dirs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
+    import json
+
+    from bughunt.configurator import _JS_TOOL_IGNORES, _eslint_config, _oxlint_config
+
+    # Neither tool resolves config-file patterns outside the generated
+    # config's own directory, so the ESLint template inlines root-relative
+    # ignores verbatim and oxlint takes the same list as CLI flags.
+    assert ".venv/**" in _JS_TOOL_IGNORES
+    assert ".omp/**" in _JS_TOOL_IGNORES
+    for text in (_eslint_config(True), _eslint_config(False)):
+        assert "__BUGHUNT" not in text
+        assert "import.meta.url" not in text
+        for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
+            assert f'"{ignored}"' in text
+    assert "ignorePatterns" not in json.loads(_oxlint_config(False))

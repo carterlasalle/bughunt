@@ -13,10 +13,13 @@ def test_discovers_fastapi_and_parser(tmp_path: Path):
         "def parse_packet(data: bytes):\n"
         "    if not data:\n"
         '        raise ValueError("empty")\n'
-        "    return data[0]\n"
+        "    return data[0]\n",
     )
     targets = discover_all(
-        tmp_path, ["src"], atheris_runs=123, schemathesis_examples=321
+        tmp_path,
+        ["src"],
+        atheris_runs=123,
+        schemathesis_examples=321,
     )
     assert any(
         t.kind == "schemathesis" and t.runnable and t.name == "demo.api.app"
@@ -43,7 +46,7 @@ def test_discovers_fastapi_and_parser(tmp_path: Path):
 def test_remote_openapi_is_not_auto_run(tmp_path: Path):
     schema = tmp_path / "openapi.json"
     schema.write_text(
-        '{"openapi":"3.1.0","info":{"title":"x","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{}}'
+        '{"openapi":"3.1.0","info":{"title":"x","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{}}',
     )
     targets = discover_schemathesis(tmp_path, ["src"])
     match = next(t for t in targets if t.name == "openapi.json")
@@ -74,10 +77,13 @@ def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
         "    subprocess.run(cmd)\n"
         "def save_file(path: str, data: str) -> None:\n"
         "    with open(path, 'w') as handle:\n"
-        "        handle.write(data)\n"
+        "        handle.write(data)\n",
     )
     targets = discover_all(
-        tmp_path, ["src"], atheris_runs=100, schemathesis_examples=100
+        tmp_path,
+        ["src"],
+        atheris_runs=100,
+        schemathesis_examples=100,
     )
     kinds = {target.kind for target in targets}
     assert "custom-differential" in kinds
@@ -86,7 +92,7 @@ def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
     assert "custom-fault-coverage" in kinds
 
     registry = __import__("json").loads(
-        (tmp_path / ".bughunt/generated/targets.json").read_text()
+        (tmp_path / ".bughunt/generated/targets.json").read_text(),
     )
     models = registry["pysa_models"]
     assert any(
@@ -110,7 +116,7 @@ def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path):
         "        return handle.read()\n"
         "def save_fast(path: str) -> str:\n"
         "    with open(path) as handle:\n"
-        "        return handle.read()\n"
+        "        return handle.read()\n",
     )
     targets = discover_all(tmp_path, ["src"])
     assert not any(target.kind == "custom-differential" for target in targets)
@@ -125,7 +131,7 @@ def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path):
         "app = Flask(__name__)\n"
         "@app.route('/openapi.json')\n"
         "def schema():\n"
-        "    return {}\n"
+        "    return {}\n",
     )
     targets = discover_schemathesis(tmp_path, ["src"])
     target = next(t for t in targets if t.name == "demo.api.app")
@@ -138,7 +144,7 @@ def test_atheris_infers_expected_parser_rejections(tmp_path: Path):
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")
     (src / "parser.py").write_text(
-        "def decode(data: str) -> bytes:\n    return bytes.fromhex(data)\n"
+        "def decode(data: str) -> bytes:\n    return bytes.fromhex(data)\n",
     )
     targets = discover_all(tmp_path, ["src"])
     target = next(
@@ -157,7 +163,7 @@ def test_export_import_names_generate_real_roundtrip_property_when_pure(
     (src / "__init__.py").write_text("")
     (src / "formats.py").write_text(
         "def export_project(value: str) -> bytes:\n    return value.encode()\n\n"
-        "def import_project(value: bytes) -> str:\n    return value.decode()\n"
+        "def import_project(value: bytes) -> str:\n    return value.decode()\n",
     )
     targets = discover_all(tmp_path, ["src"])
     target = next(

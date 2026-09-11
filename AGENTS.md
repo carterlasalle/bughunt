@@ -2964,7 +2964,30 @@ Record exact traps, for example:
   method breaks `ruff format --check` AND fails to attach. Script-inserted
   markers need a re-indent pass to the following boundary's level.
 - A file-level `trace:v1` op marker does NOT satisfy per-boundary TL013s
-  (tested 2026-09-11); each boundary needs its own adjacent marker.
+- JS-linter scope is a generator bug with receipts, not config drift:
+  ESLint flat-config `ignores` match against the invocation cwd with
+  `--config` (config-relative AND absolute forms both fail to match;
+  probed 2026-09-11), and oxlint `ignorePatterns` cannot leave the config
+  file's directory (`..` rejected outright). Fix: root-relative `_JS_TOOL_IGNORES`
+  in `configurator.py`, inlined verbatim into generated eslint configs,
+  passed as bare-dir `--ignore-pattern` flags for oxlint (`/**` suffix
+  misbehaves on tracked dot-dirs; verified `.omp` vs `.omp/**`). Killed
+  ~17.6k vendored-`.venv` findings.
+- `Check.empty_scope_markers`: banner substrings proving a tool ran with
+  nothing in scope (oxlint `No files found to lint`, eslint `all of the
+  files matching the glob pattern`). Parser returns [], mapping reports
+  SKIPPED instead of synthetic FINDINGS. Parse the banner in the tool parser
+  AND register the marker; one without the other still yields FINDINGS.
+- TraceLayer marker lines are exempt from BugHunt findings centrally
+  (`canonicalize_findings` drops findings pointing at `# trace:v1` /
+  `<!-- trace:v1` / `# trace:exempt` lines). Do NOT append `noqa` to marker
+  lines (TL004 corruption, observed) and do NOT strip edges to dodge E501.
+- `<!-- trace:exempt reason=repo-scaffolding-... -->` comments were
+  auto-removed from root md docs ~01:36 (likely TraceLayer TL015 cleanup,
+  not a repo edit); gate stays clean without them. Kept the new state.
+- `WORK-BUG-06107X2Q` / `REQ-BUG-5XJWASR4` (spec `docs/specs/repo-compliance.md`):
+  the skipmutmut-compliance program. New markers use these, not the closed
+  CI-green IDs.
 - Hook obligation notices can go stale for gitignored generated files
   (observed: `.bughunt/configs/blockbuster_plugin.py`). Authoritative checks
   are `trace verify --changed` and `trace summary`; when both are clean, do

@@ -64,7 +64,7 @@ def test_install_only_cli_is_wired(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
     rc = cli.main(
-        ["--root", str(tmp_path), "install", "--only", "atheris", "--dry-run"]
+        ["--root", str(tmp_path), "install", "--only", "atheris", "--dry-run"],
     )
     assert rc == 0
     assert seen["dry_run"] is True
@@ -75,7 +75,10 @@ def test_text_findings_extracts_mypy_error_code():
     from bughunt.cli import text_findings
 
     got = text_findings(
-        "mypy", 'src/a.py:7: error: Name "x" is not defined  [name-defined]\n', "", 1
+        "mypy",
+        'src/a.py:7: error: Name "x" is not defined  [name-defined]\n',
+        "",
+        1,
     )
     assert len(got) == 1
     assert got[0].code == "name-defined"
@@ -112,7 +115,7 @@ def test_configure_all_generates_paranoid_configs_and_is_idempotent(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests/test_smoke.py").write_text("def test_ok(): assert True\n")
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname="pkg"\nversion="0.0.0"\nrequires-python=">=3.11"\n'
+        '[project]\nname="pkg"\nversion="0.0.0"\nrequires-python=">=3.11"\n',
     )
 
     configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
@@ -190,7 +193,9 @@ def test_deep_profile_is_not_downgraded_to_pr(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
@@ -211,7 +216,9 @@ def test_quick_alias_routes_fast(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
@@ -244,9 +251,9 @@ def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code(
                     "code": -2,
                     "name": "bad-assignment",
                     "message": "incompatible assignment",
-                }
-            ]
-        }
+                },
+            ],
+        },
     )
     got = parse_pyrefly(raw, "", 1)
     assert got[0].code == "bad-assignment"
@@ -275,14 +282,53 @@ def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(tmp_pa
     target.write_text("x = 1\n")
     results = [
         Result(
-            "a", "x", Status.FINDINGS, findings=[Finding("a", "m", path=str(target))]
+            "a",
+            "x",
+            Status.FINDINGS,
+            findings=[Finding("a", "m", path=str(target))],
         ),
         Result(
-            "b", "x", Status.FINDINGS, findings=[Finding("b", "m", path="src/a.py")]
+            "b",
+            "x",
+            Status.FINDINGS,
+            findings=[Finding("b", "m", path="src/a.py")],
         ),
     ]
     canonicalize_findings(tmp_path, results)
     assert hotspot_files(results)[0] == ("src/a.py", 2)
+
+
+# trace:v1 id=test.tests-test-core.test-canonicalize-findings-exempts-trace-marker-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path):
+    from bughunt.cli import (
+        Finding,
+        Result,
+        Status,
+        canonicalize_findings,
+    )
+
+    target = tmp_path / "a.py"
+    target.write_text(
+        "# trace:v1 id=impl.x work=W satisfies=R\n"
+        "<!-- trace:v1 id=doc.y work=W documents=R -->\n"
+        "x = 1\n"
+    )
+    results = [
+        Result(
+            "ruff",
+            "lint",
+            Status.FINDINGS,
+            findings=[
+                Finding("ruff", "line too long", path="a.py", line=1),
+                Finding("ruff", "line too long", path="a.py", line=2),
+                Finding("ruff", "line too long", path="a.py", line=3),
+                Finding("ruff", "no line", path="a.py"),
+            ],
+        ),
+    ]
+    canonicalize_findings(tmp_path, results)
+    surviving = [(f.line) for f in results[0].findings]
+    assert surviving == [3, None]
 
 
 def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path):
@@ -292,7 +338,7 @@ def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path):
     (tmp_path / "src/pkg/__init__.py").write_text("")
     (tmp_path / "tests").mkdir()
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n'
+        '[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n',
     )
     configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
     text = (tmp_path / ".bughunt/configs/pylintrc").read_text()
@@ -359,10 +405,15 @@ def test_pysa_is_installed_into_private_compatibility_runtime(monkeypatch, tmp_p
 
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
     monkeypatch.setattr(
-        installers.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None
+        installers.shutil,
+        "which",
+        lambda name: "/usr/bin/uv" if name == "uv" else None,
     )
     got = installers.install_all(
-        tmp_path, dry_run=True, emit=lambda _: None, only={"pysa"}
+        tmp_path,
+        dry_run=True,
+        emit=lambda _: None,
+        only={"pysa"},
     )
     commands = [" ".join(x.command) for x in got]
     assert any("uv venv --python 3.12" in cmd for cmd in commands)
@@ -440,7 +491,9 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(monkeypatch, tmp_pat
     monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
@@ -484,7 +537,9 @@ def test_full_alias_accepts_no_install_missing(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
@@ -499,7 +554,9 @@ def test_rules_command_lists_native_pack(monkeypatch, tmp_path):
 
     seen = {"called": False}
     monkeypatch.setattr(
-        cli, "show_default_rules", lambda: seen.__setitem__("called", True) or 0
+        cli,
+        "show_default_rules",
+        lambda: seen.__setitem__("called", True) or 0,
     )
     rc = cli.main(["--root", str(tmp_path), "rules"])
     assert rc == 0
@@ -535,7 +592,9 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(monkeypatch, tmp_p
     monkeypatch.setattr(cli, "install_all", fake_install_all)
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
     rc = cli.main(["--root", str(tmp_path), "skipmutmut"])
@@ -557,7 +616,9 @@ def test_run_accepts_positional_all_profile(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
-        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+        cli,
+        "write_reports",
+        lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"),
     )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
     rc = cli.main(["--root", str(tmp_path), "run", "all", "--skip-mutmut"])
