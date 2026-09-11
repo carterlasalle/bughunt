@@ -301,7 +301,11 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                 findings.append(
                     SeamFinding(
                         "BHSEAM002",
-                        f"**kwargs forwarding chain {root_name} -> {current} can forward key(s) not accepted by terminal signature: {', '.join(unexpected)}",
+                        (
+                            f"**kwargs forwarding chain {root_name} -> {current} can "
+                            f"forward key(s) not accepted by terminal signature: "
+                            f"{', '.join(unexpected)}"
+                        ),
                         rel,
                         line,
                         "error",
@@ -327,7 +331,12 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                 findings.append(
                     SeamFinding(
                         "BHSEAM001",
-                        f"serialized/seam dictionary `{name}` reads key(s) never written in the same producer scope: {', '.join(missing)}; possible producer/consumer key drift",
+                        (
+                            f"serialized/seam dictionary `{name}` reads key(s) never "
+                            f"written in the same producer scope: "
+                            f"{', '.join(missing)}; possible producer/consumer "
+                            "key drift"
+                        ),
                         rel,
                         state.line,
                         "error",
@@ -337,7 +346,11 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                 findings.append(
                     SeamFinding(
                         "BHSEAM001",
-                        f"serialized/seam dictionary `{name}` writes key(s) never consumed in the same scope: {', '.join(unused)}; possible dead or renamed contract fields",
+                        (
+                            f"serialized/seam dictionary `{name}` writes key(s) never "
+                            f"consumed in the same scope: {', '.join(unused)}; "
+                            "possible dead or renamed contract fields"
+                        ),
                         rel,
                         state.line,
                         "warning",
@@ -356,7 +369,10 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                 findings.append(
                     SeamFinding(
                         "BHSEAM005",
-                        f"external HTTP JSON enters `{name}` and is consumed by key without runtime schema/model validation",
+                        (
+                            f"external HTTP JSON enters `{name}` and is consumed by "
+                            "key without runtime schema/model validation"
+                        ),
                         rel,
                         state.line,
                         "warning",
@@ -366,7 +382,11 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
             findings.append(
                 SeamFinding(
                     "BHDB001",
-                    f"database/query-like call `{call}` occurs inside a loop; inspect for N+1/query explosion or move to a batched operation",
+                    (
+                        f"database/query-like call `{call}` occurs inside a loop; "
+                        "inspect for N+1/query explosion or move to a batched "
+                        "operation"
+                    ),
                     rel,
                     line,
                     "warning",
@@ -417,7 +437,11 @@ def _recorded_payload_gap(
     return [
         SeamFinding(
             "BHSEAM006",
-            f"{len(http_sites)} external HTTP call site(s) detected but no recorded-response/cassette payload regression corpus was found in tests",
+            (
+                f"{len(http_sites)} external HTTP call site(s) detected but no "
+                "recorded-response/cassette payload regression corpus was found "
+                "in tests"
+            ),
             site_path,
             site_line,
             "warning",
@@ -470,7 +494,10 @@ def _time_boundary_gap(
     return [
         SeamFinding(
             "BHTIME001",
-            f"{len(sites)} wall-clock/time boundary call(s) detected but no DST/leap/year-rollover time-control test evidence was found",
+            (
+                f"{len(sites)} wall-clock/time boundary call(s) detected but no "
+                "DST/leap/year-rollover time-control test evidence was found"
+            ),
             site_path,
             site_line,
             "warning",
@@ -539,7 +566,11 @@ def _producer_consumer_key_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                 findings.append(
                     SeamFinding(
                         "BHSEAM003",
-                        f"consumer of `{producer}()` reads key(s) absent from the producer's statically-known return shape: {', '.join(unexpected)}",
+                        (
+                            f"consumer of `{producer}()` reads key(s) absent from the "
+                            f"producer's statically-known return shape: "
+                            f"{', '.join(unexpected)}"
+                        ),
                         rel,
                         line,
                         "error",
@@ -651,7 +682,11 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
                 findings.append(
                     SeamFinding(
                         "BHSEAM004",
-                        f"schema `{name}` and Python class `{name}` have drifted ({'; '.join(detail)}); synchronize schema/model or declare intentional translation",
+                        (
+                            f"schema `{name}` and Python class `{name}` have drifted "
+                            f"({'; '.join(detail)}); synchronize schema/model or "
+                            "declare intentional translation"
+                        ),
                         model_path,
                         1,
                         "warning",

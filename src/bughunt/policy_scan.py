@@ -372,7 +372,10 @@ def ensure_env_example(
     existing_values = _parse_env_example(path) if path.exists() else {}
     lines = [
         begin,
-        "# Generated from static environment-variable use. Never contains real secrets.",
+        (
+            "# Generated from static environment-variable use. "
+            "Never contains real secrets."
+        ),
     ]
     for item in uses:
         if item.name in existing_values and item.name not in _parse_managed_keys(
@@ -550,7 +553,11 @@ def _scan_source_policies(
                     getattr(jump, "lineno", 1),
                     getattr(jump, "col_offset", 0) + 1,
                     "BHCTRL001",
-                    f"`{type(jump).__name__.lower()}` inside `finally` can suppress an active exception or override control flow; move the jump outside the finally block",
+                    (
+                        f"`{type(jump).__name__.lower()}` inside `finally` "
+                        "can suppress an active exception or override control "
+                        "flow; move the jump outside the finally block"
+                    ),
                     "error",
                 ),
             )
@@ -590,7 +597,12 @@ def _scan_source_policies(
                             getattr(node, "lineno", 1),
                             1,
                             "BHPERS001",
-                            f"higher-layer module imports persistence implementation detail `{name}`; expose a deliberate repository/protocol contract instead of coupling the layer to the storage implementation",
+                            (
+                                f"higher-layer module imports persistence "
+                                f"implementation detail `{name}`; expose a deliberate "
+                                "repository/protocol contract instead of coupling the "
+                                "layer to the storage implementation"
+                            ),
                             "warning",
                         ),
                     )
@@ -604,7 +616,12 @@ def _scan_source_policies(
                             getattr(node, "lineno", 1),
                             1,
                             "BHARCH001",
-                            f"module imports internal implementation module `{name}` across a source boundary; use a public subsystem contract unless this dependency is intentional",
+                            (
+                                f"module imports internal implementation "
+                                f"module `{name}` across a source boundary; use a "
+                                "public subsystem contract unless this dependency "
+                                "is intentional"
+                            ),
                             "warning",
                         ),
                     )
@@ -617,7 +634,12 @@ def _scan_source_policies(
                                 getattr(node, "lineno", 1),
                                 1,
                                 "BHARCH002",
-                                f"module imports private implementation symbol `{alias.name}` from `{node.module or '.'}`; do not couple subsystems through private implementation details",
+                                (
+                                    f"module imports private implementation symbol "
+                                    f"`{alias.name}` from `{node.module or '.'}`; "
+                                    "do not couple subsystems through private "
+                                    "implementation details"
+                                ),
                                 "warning",
                             ),
                         )
@@ -640,7 +662,13 @@ def _scan_source_policies(
                                 getattr(ann_node, "lineno", fn.lineno),
                                 1,
                                 "BHPERS002",
-                                f"public higher-layer function `{fn.name}` exposes persistence-specific type `{annotation}` in its signature; expose a domain/protocol abstraction unless persistence is intentionally part of the contract",
+                                (
+                                    f"public higher-layer function `{fn.name}` exposes "
+                                    f"persistence-specific type `{annotation}` in its "
+                                    "signature; expose a domain/protocol abstraction "
+                                    "unless persistence is intentionally part of the "
+                                    "contract"
+                                ),
                                 "warning",
                             ),
                         )
@@ -666,7 +694,13 @@ def _scan_source_policies(
                                 getattr(node, "lineno", 1),
                                 1,
                                 "BHCFG004",
-                                f"operational configuration-like value `{name}` is hard-coded outside an obvious config/settings/constants mechanism; make it typed/configurable or promote it to an uppercase invariant constant",
+                                (
+                                    f"operational configuration-like value `{name}` is "
+                                    "hard-coded outside an obvious "
+                                    "config/settings/constants mechanism; make it "
+                                    "typed/configurable or promote it to an uppercase "
+                                    "invariant constant"
+                                ),
                                 "note",
                             ),
                         )
@@ -681,7 +715,12 @@ def _scan_source_policies(
                         getattr(keyword, "lineno", 1),
                         getattr(keyword, "col_offset", 0) + 1,
                         "BHCFG005",
-                        f"operational keyword `{op_name}={op_value!r}` is hard-coded at a call site; prefer typed/config-file/env/CLI/generated configuration unless this value is a genuine invariant",
+                        (
+                            f"operational keyword `{op_name}={op_value!r}` "
+                            "is hard-coded at a call site; prefer "
+                            "typed/config-file/env/CLI/generated configuration "
+                            "unless this value is a genuine invariant"
+                        ),
                         "note",
                     ),
                 )
@@ -716,7 +755,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                                 node.lineno,
                                 1,
                                 "BHTEST001",
-                                f"test imports private implementation symbol `{alias.name}` directly; prefer asserting public behavior unless the private API is intentionally contractual",
+                                (
+                                    f"test imports private implementation symbol "
+                                    f"`{alias.name}` directly; prefer asserting public "
+                                    "behavior unless the private API is intentionally "
+                                    "contractual"
+                                ),
                                 "warning",
                             ),
                         )
@@ -745,7 +789,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                         fn.lineno,
                         1,
                         "BHTEST002",
-                        f"test `{fn.name}` asserts collaborator call sequence/internal mock history; verify behavior/results unless call ordering is part of the contract",
+                        (
+                            f"test `{fn.name}` asserts collaborator "
+                            "call sequence/internal mock history; verify "
+                            "behavior/results unless call ordering is part of "
+                            "the contract"
+                        ),
                         "warning",
                     ),
                 )
@@ -764,7 +813,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                         fn.lineno,
                         1,
                         "BHTEST004",
-                        f"test `{fn.name}` heavily mocks collaborators ({patch_count} patch operations) and asserts orchestration details; this is brittle and can mirror implementation rather than behavior",
+                        (
+                            f"test `{fn.name}` heavily mocks collaborators "
+                            f"({patch_count} patch operations) and asserts "
+                            "orchestration details; this is brittle and can "
+                            "mirror implementation rather than behavior"
+                        ),
                         "warning",
                     ),
                 )
@@ -792,7 +846,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                             inner.lineno,
                             1,
                             "BHTEST003",
-                            f"test `{fn.name}` asserts an enormous literal/snapshot ({len(long_literal)} characters); prefer semantic assertions over generated source/text snapshots",
+                            (
+                                f"test `{fn.name}` asserts an enormous "
+                                f"literal/snapshot ({len(long_literal)} characters); "
+                                "prefer semantic assertions over generated "
+                                "source/text snapshots"
+                            ),
                             "warning",
                         ),
                     )
@@ -818,7 +877,12 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                             inner.lineno,
                             1,
                             "BHTEST005",
-                            f"test `{fn.name}` compares generated/source-like output to a large exact string; prefer semantic assertions unless exact source text is itself the public contract",
+                            (
+                                f"test `{fn.name}` compares generated/source-like "
+                                "output to a large exact string; prefer semantic "
+                                "assertions unless exact source text is itself the "
+                                "public contract"
+                            ),
                             "warning",
                         ),
                     )
@@ -993,7 +1057,11 @@ def _scan_roundtrip_coverage(
                 line,
                 1,
                 "BHRT001",
-                f"supported export/import pair `{export_name}` -> `{import_name}` has no detected round-trip test; everything exported should come home without silent semantic loss",
+                (
+                    f"supported export/import pair `{export_name}` -> `{import_name}` "
+                    "has no detected round-trip test; everything exported should "
+                    "come home without silent semantic loss"
+                ),
                 "warning",
             ),
         )
@@ -1009,7 +1077,12 @@ def _scan_roundtrip_coverage(
                 line,
                 1,
                 "BHRT002",
-                f"`{operation}` looks like a supported {token} operation but no inverse `{expected}` exists alongside it; if this is a user-owned format, provide the reverse path or explicitly document the one-way contract",
+                (
+                    f"`{operation}` looks like a supported {token} operation but no "
+                    f"inverse `{expected}` exists alongside it; if this is a "
+                    "user-owned format, provide the reverse path or explicitly "
+                    "document the one-way contract"
+                ),
                 "warning",
             ),
         )
@@ -1034,7 +1107,10 @@ def scan(
                 first.line,
                 1,
                 "BHCFG001",
-                "environment-driven configuration detected but `.env.example` is missing",
+                (
+                    "environment-driven configuration detected "
+                    "but `.env.example` is missing"
+                ),
                 "warning",
             ),
         )
@@ -1047,7 +1123,10 @@ def scan(
                         item.line,
                         1,
                         "BHCFG002",
-                        f"environment variable `{item.name}` is used in code but missing from `.env.example`",
+                        (
+                            f"environment variable `{item.name}` is used in code but "
+                            "missing from `.env.example`"
+                        ),
                         "warning",
                     ),
                 )
@@ -1060,7 +1139,11 @@ def scan(
                         1,
                         1,
                         "BHCFG003",
-                        f"`.env.example` contains a value for secret-like variable `{key}` that looks like a real credential; examples must never contain real secrets",
+                        (
+                            f"`.env.example` contains a value for secret-like variable "
+                            f"`{key}` that looks like a real credential; examples must "
+                            "never contain real secrets"
+                        ),
                         "error",
                     ),
                 )

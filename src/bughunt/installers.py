@@ -261,7 +261,10 @@ def _install_atheris(
                 "atheris",
                 "ERROR",
                 [],
-                "macOS Atheris needs LLVM/libFuzzer for a source build, but Homebrew is not available",
+                (
+                    "macOS Atheris needs LLVM/libFuzzer for a source "
+                    "build, but Homebrew is not available"
+                ),
             ),
         ]
 
@@ -274,7 +277,10 @@ def _install_atheris(
                     "llvm-for-atheris",
                     "DRY-RUN",
                     cmd,
-                    "would install non-Apple LLVM/libFuzzer required by Atheris on macOS",
+                    (
+                        "would install non-Apple LLVM/libFuzzer "
+                        "required by Atheris on macOS"
+                    ),
                 ),
             )
             prefix = str(Path(brew).parent.parent / "opt" / "llvm")
@@ -288,7 +294,10 @@ def _install_atheris(
                         "atheris",
                         "ERROR",
                         [],
-                        "cannot build Atheris until non-Apple LLVM/libFuzzer is available",
+                        (
+                            "cannot build Atheris until non-Apple "
+                            "LLVM/libFuzzer is available"
+                        ),
                     ),
                 )
                 return results
@@ -344,7 +353,10 @@ def _install_atheris(
     result.name = "atheris"
     if result.status == "PASS":
         if _python_importable(root, "atheris", extra_path=runtime):
-            result.note = f"source build succeeded with {clang}; private runtime import verification passed"
+            result.note = (
+                f"source build succeeded with {clang}; private runtime import "
+                "verification passed"
+            )
         else:
             result.status = "ERROR"
             result.note = (
@@ -661,7 +673,8 @@ def _install_technology_tools(
                     name,
                     "SKIPPED",
                     [],
-                    f"{name} is applicable but automatic installation is currently supported on macOS/Homebrew only",
+                    f"{name} is applicable but automatic installation is currently "
+                    "supported on macOS/Homebrew only",
                 ),
             )
 
@@ -726,7 +739,10 @@ def _install_technology_tools(
                     "clippy",
                     "SKIPPED",
                     [],
-                    "Rust detected but no rustup/Homebrew Clippy installer is available",
+                    (
+                        "Rust detected but no rustup/Homebrew Clippy "
+                        "installer is available"
+                    ),
                 ),
             )
 
@@ -757,7 +773,10 @@ def _install_technology_tools(
                     "clang-tidy",
                     "SKIPPED",
                     [],
-                    "C/C++ compilation database detected but automatic LLVM installation is unavailable",
+                    (
+                        "C/C++ compilation database detected but "
+                        "automatic LLVM installation is unavailable"
+                    ),
                 ),
             )
 
@@ -774,7 +793,11 @@ def _install_technology_tools(
                     "infer",
                     "SKIPPED",
                     [],
-                    "Infer is applicable but BugHunt has no verified portable automatic installer; install Infer separately",
+                    (
+                        "Infer is applicable but BugHunt has no "
+                        "verified portable automatic installer; "
+                        "install Infer separately"
+                    ),
                 ),
             )
 
@@ -823,7 +846,10 @@ def _install_technology_tools(
                 root,
                 dry_run=dry_run,
                 emit=emit,
-                note="would install applicable JavaScript/TypeScript correctness tools as dev dependencies",
+                note=(
+                    "would install applicable JavaScript/TypeScript "
+                    "correctness tools as dev dependencies"
+                ),
             )
             results.append(result)
             if not dry_run and result.status == "PASS":
@@ -844,7 +870,11 @@ def _install_technology_tools(
                         name,
                         "SKIPPED",
                         [],
-                        "JavaScript/TypeScript detected but no npm/pnpm/yarn/bun package manager is available",
+                        (
+                            "JavaScript/TypeScript detected but "
+                            "no npm/pnpm/yarn/bun package manager "
+                            "is available"
+                        ),
                     ),
                 )
     for name in js_selected - set(missing_js):
@@ -985,7 +1015,11 @@ def install_all(
                     "atheris",
                     "SKIPPED",
                     [],
-                    "automatic Atheris harness execution needs a uv project environment; initialize/add BugHunt to the target project first",
+                    (
+                        "automatic Atheris harness execution needs "
+                        "a uv project environment; initialize/add "
+                        "BugHunt to the target project first"
+                    ),
                 ),
             )
 
@@ -1108,7 +1142,11 @@ def install_all(
                 "codeql",
                 "SKIPPED",
                 [],
-                "external CodeQL installer is only automated on macOS/Homebrew in v1; Python defenses still install automatically",
+                (
+                    "external CodeQL installer is only automated "
+                    "on macOS/Homebrew in v1; Python defenses still "
+                    "install automatically"
+                ),
             ),
         )
 

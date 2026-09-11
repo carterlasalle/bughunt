@@ -18,7 +18,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHCTRL001",
         "error",
         "control-flow",
-        "return/break/continue inside finally can suppress exceptions or override control flow",
+        (
+            "return/break/continue inside finally can suppress "
+            "exceptions or override control flow"
+        ),
         "Ruff B012 + ast-grep",
     ),
     DefaultRule(
@@ -68,7 +71,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHARCH001",
         "warning",
         "architecture",
-        "source module imports an internal/private implementation module across a boundary",
+        (
+            "source module imports an internal/private implementation "
+            "module across a boundary"
+        ),
     ),
     DefaultRule(
         "BHARCH002",
@@ -80,7 +86,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHTEST001",
         "warning",
         "test-quality",
-        "test imports a private implementation symbol instead of exercising a public contract",
+        (
+            "test imports a private implementation symbol instead "
+            "of exercising a public contract"
+        ),
     ),
     DefaultRule(
         "BHTEST002",
@@ -116,7 +125,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHRT002",
         "warning",
         "round-trip",
-        "export/import or backup/restore operation has no inverse operation alongside it",
+        (
+            "export/import or backup/restore operation has no inverse "
+            "operation alongside it"
+        ),
     ),
     DefaultRule(
         "BHCX001",
@@ -180,7 +192,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHSEAM002",
         "error",
         "contract-drift",
-        "**kwargs forwarding chain can deliver keys the terminal signature does not accept",
+        (
+            "**kwargs forwarding chain can deliver keys the terminal "
+            "signature does not accept"
+        ),
     ),
     DefaultRule(
         "BHSEAM003",
@@ -192,13 +207,19 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHSEAM004",
         "warning",
         "schema-drift",
-        "machine-readable schema and implementation contract need synchronization evidence",
+        (
+            "machine-readable schema and implementation contract "
+            "need synchronization evidence"
+        ),
     ),
     DefaultRule(
         "BHSEAM005",
         "warning",
         "runtime-validation",
-        "external HTTP JSON is consumed without explicit runtime model/schema validation",
+        (
+            "external HTTP JSON is consumed without explicit runtime "
+            "model/schema validation"
+        ),
         "Typeguard/Pydantic/OpenAPI validation can close the seam",
     ),
     DefaultRule(
@@ -223,13 +244,19 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHEVID002",
         "warning",
         "evidence-preservation",
-        "chained casts reconstruct type evidence through assertions instead of preserving/narrowing it",
+        (
+            "chained casts reconstruct type evidence through assertions "
+            "instead of preserving/narrowing it"
+        ),
     ),
     DefaultRule(
         "BHEVID003",
         "warning",
         "performance",
-        "loop repeatedly copies a growing accumulator, risking accidental quadratic work",
+        (
+            "loop repeatedly copies a growing accumulator, risking "
+            "accidental quadratic work"
+        ),
     ),
     DefaultRule(
         "BHDB001",
@@ -259,7 +286,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHDIS001",
         "warning",
         "type-disagreement",
-        "strict type engines disagree at the same source location; inspect erased/dynamic type evidence",
+        (
+            "strict type engines disagree at the same source location; "
+            "inspect erased/dynamic type evidence"
+        ),
     ),
     DefaultRule(
         "BHPKG001",
@@ -292,7 +322,10 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "bughunt.unconsumed-threadpool-map",
         "error",
         "semgrep",
-        "ThreadPoolExecutor.map result is never consumed so worker exceptions can be lost",
+        (
+            "ThreadPoolExecutor.map result is never consumed so "
+            "worker exceptions can be lost"
+        ),
     ),
     DefaultRule(
         "bughunt.dict-delete-during-iteration",

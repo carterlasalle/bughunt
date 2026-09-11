@@ -255,7 +255,13 @@ def scan_python(
                     1,
                     1,
                     "BHCX003",
-                    f"file has {physical_loc} LOC; budget is {int(budget['file_loc_warn'])} warning / {int(budget['file_loc_error'])} error. Split only at real subsystem/cohesion boundaries, never into nonsense fragments just to satisfy LOC.",
+                    (
+                        f"file has {physical_loc} LOC; budget is "
+                        f"{int(budget['file_loc_warn'])} warning / "
+                        f"{int(budget['file_loc_error'])} error. Split only at real "
+                        "subsystem/cohesion boundaries, never into nonsense fragments "
+                        "just to satisfy LOC."
+                    ),
                     sev,
                 ),
             )
@@ -269,7 +275,11 @@ def scan_python(
                         fn.lineno,
                         1,
                         "BHCX001",
-                        f"`{fn.name}` cyclomatic complexity is {cc}; budget is {int(budget['cyclomatic_warn'])} warning / {int(budget['cyclomatic_error'])} error",
+                        (
+                            f"`{fn.name}` cyclomatic complexity is {cc}; budget is "
+                            f"{int(budget['cyclomatic_warn'])} warning / "
+                            f"{int(budget['cyclomatic_error'])} error"
+                        ),
                         sev,
                     ),
                 )
@@ -285,7 +295,11 @@ def scan_python(
                         fn.lineno,
                         1,
                         "BHCX002",
-                        f"`{fn.name}` spans {loc} lines; budget is {int(budget['function_loc_warn'])} warning / {int(budget['function_loc_error'])} error",
+                        (
+                            f"`{fn.name}` spans {loc} lines; budget is "
+                            f"{int(budget['function_loc_warn'])} warning / "
+                            f"{int(budget['function_loc_error'])} error"
+                        ),
                         sev,
                     ),
                 )
@@ -297,7 +311,11 @@ def scan_python(
                         fn.lineno,
                         1,
                         "BHCX004",
-                        f"`{fn.name}` ABC magnitude is {abc:.1f} (A={a}, B={b}, C={c}); budget is {budget['abc_warn']:.0f} warning / {budget['abc_error']:.0f} error",
+                        (
+                            f"`{fn.name}` ABC magnitude is {abc:.1f} (A={a}, B={b}, "
+                            f"C={c}); budget is {budget['abc_warn']:.0f} warning / "
+                            f"{budget['abc_error']:.0f} error"
+                        ),
                         sev,
                     ),
                 )
@@ -344,7 +362,11 @@ def scan_assets(root: Path, budget: dict[str, float]) -> list[MetricFinding]:
                         1,
                         1,
                         "BHCX005",
-                        f"built asset is {kb:.1f} KiB; default {path.suffix.lower()} per-file budget is {limit:.0f} KiB",
+                        (
+                            f"built asset is {kb:.1f} KiB; default "
+                            f"{path.suffix.lower()} per-file budget is {limit:.0f} "
+                            "KiB"
+                        ),
                         "warning",
                     ),
                 )
@@ -356,7 +378,11 @@ def scan_assets(root: Path, budget: dict[str, float]) -> list[MetricFinding]:
                     1,
                     1,
                     "BHCX006",
-                    f"built JS/CSS/WASM asset set totals {total_kb:.1f} KiB; default bundle budget is {budget['bundle_kb_warn']:.0f} KiB",
+                    (
+                        f"built JS/CSS/WASM asset set totals {total_kb:.1f} KiB; "
+                        f"default bundle budget is {budget['bundle_kb_warn']:.0f} "
+                        "KiB"
+                    ),
                     "warning",
                 ),
             )

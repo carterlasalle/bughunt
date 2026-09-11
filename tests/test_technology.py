@@ -138,7 +138,8 @@ def test_configure_generates_applicable_technology_overlays(tmp_path: Path) -> N
 
 def test_parse_actionlint_json_lines() -> None:
     out = parse_actionlint(
-        '{"filepath":".github/workflows/ci.yml","line":7,"column":3,"kind":"expression","message":"unknown property"}\n',
+        '{"filepath":".github/workflows/ci.yml","line":7,"column":3,'
+        '"kind":"expression","message":"unknown property"}\n',
         "",
         1,
     )
@@ -289,10 +290,13 @@ def test_oxlint_empty_scope_banner_parses_clean() -> None:
     # the runner maps the banner to SKIPPED ("nothing in scope").
     stdout = (
         f"{OXLINT_EMPTY_SCOPE}. Please check your paths and ignore patterns.\n"
-        + '{"diagnostics": []}'
+        '{"diagnostics": []}'
     )
     assert parse_oxlint(stdout, "", 1) == []
-    real = '{"diagnostics": [{"message": "x", "code": "no-undef", "severity": "error", "filename": "a.js"}]}'
+    real = (
+        '{"diagnostics": [{"message": "x", "code": "no-undef", '
+        '"severity": "error", "filename": "a.js"}]}'
+    )
     assert len(parse_oxlint(real, "", 1)) == 1
 
 

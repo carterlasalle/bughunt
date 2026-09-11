@@ -219,9 +219,10 @@ class Finding:
         )
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
+    # trace:v1 id=impl.src-bughunt-cli.finding.signal-key work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
     def signal_key(self) -> str:
-        """Group repeated manifestations without collapsing unrelated generic diagnostics."""
+        """Group repeated manifestations without merging unrelated diagnostics."""
         msg = self.message.lower()
         if self.tool == "mutmut":
             # Mutation IDs encode a specific mutant number. Group survivors by
@@ -508,7 +509,9 @@ def _default_config_raw() -> dict[str, Any]:
         },
         "codeql": {
             "languages": ["python"],
-            "python_suite": "codeql/python-queries:codeql-suites/python-security-and-quality.qls",
+            "python_suite": (
+                "codeql/python-queries:codeql-suites/python-security-and-quality.qls"
+            ),
         },
         "pysa": {"no_verify": False},
         "mutmut": {"enabled": True},
@@ -903,7 +906,7 @@ def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
 
 # trace:v1 id=impl.src-bughunt-cli.parse-pylint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    """Parse Pylint JSON2 and rank convention/refactor/info below bug-oriented diagnostics."""
+    """Parse Pylint JSON2, ranking convention/refactor/info below bug diagnostics."""
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:
@@ -1093,7 +1096,10 @@ def parse_complexipy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 tool="complexipy",
                 path=match.group("path"),
                 code="COG001",
-                message=f"`{match.group('name')}` cognitive complexity is {score} (budget 10)",
+                message=(
+                    f"`{match.group('name')}` cognitive complexity is {score} "
+                    "(budget 10)"
+                ),
                 severity="warning" if score <= 20 else "error",
             ),
         )
@@ -1740,7 +1746,11 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
                 path=path,
                 line=line,
                 severity="warning",
-                message=f"type-checker disagreement: {', '.join(loud)} reports a problem here while {', '.join(silent)} does not; inspect erased/dynamic typing at this seam",
+                message=(
+                    f"type-checker disagreement: {', '.join(loud)} reports a problem "
+                    f"here while {', '.join(silent)} does not; inspect erased/dynamic "
+                    "typing at this seam"
+                ),
             ),
         )
     if not findings:
@@ -1761,7 +1771,7 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
 
 # trace:v1 id=impl.src-bughunt-cli.correlated-issue-groups work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def correlated_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
-    """Correlate independent tools at the same source location without deleting raw evidence."""
+    """Correlate independent tools per source location; keep raw evidence."""
     buckets: dict[tuple[str, int], list[Finding]] = {}
     for r in results:
         for f in r.findings:
@@ -1929,7 +1939,9 @@ def build_checks(
                         name,
                         category,
                         Status.NA,
-                        note="not applicable: no first-party Python capability detected",
+                        note=(
+                            "not applicable: no first-party Python capability detected"
+                        ),
                     ),
                 )
     for name in sorted(excluded & set(profile_tools)):
@@ -2660,7 +2672,8 @@ def build_checks(
             baseline = technology.git_baseline
             packages = python_package_names(root, cfg.source_paths)
             if griffe and baseline and packages:
-                # One aggregate command keeps the defense readable; Griffe accepts repeated packages.
+                # One aggregate command keeps the defense readable; Griffe accepts
+                # repeated packages.
                 cmd = [griffe, "check", *packages, "--against", baseline]
                 for sp in cfg.source_paths:
                     cmd += ["--search", sp]
@@ -2714,7 +2727,8 @@ def build_checks(
             )
 
         if "timezone-matrix" in wanted:
-            # Two hostile timezone passes; locale variation is only added when a matching locale exists.
+            # Two hostile timezone passes; locale variation is only added when a
+            # matching locale exists.
             for tz in ("UTC", "Pacific/Kiritimati"):
                 name = f"timezone-matrix:{tz}"
                 checks.append(
@@ -2733,7 +2747,8 @@ def build_checks(
                         findings_exit_codes={1},
                     ),
                 ) if pytest else None
-            # macOS commonly exposes Turkish as tr_TR.UTF-8/tr_TR.UTF-8-like names; only run it if installed.
+            # macOS commonly exposes Turkish as tr_TR.UTF-8/tr_TR.UTF-8-like names;
+            # only run it if installed.
             try:
                 locale_lines = subprocess.run(
                     ["locale", "-a"],
@@ -2833,7 +2848,11 @@ def build_checks(
                 "runtime-informed-static",
                 [pa, *src] if pa and allowed else None,
                 reason=(
-                    "installed but disabled: pyanalyze imports modules; set execution_imports.allow_importing_analyzers=true only in a sandbox"
+                    (
+                        "installed but disabled: pyanalyze imports "
+                        "modules; set execution_imports.allow_importing_analyzers=true "
+                        "only in a sandbox"
+                    )
                     if pa
                     else "pyanalyze not installed"
                 ),
@@ -2866,7 +2885,14 @@ def build_checks(
                     "ghostwriter",
                     "test-generation",
                     Status.NA,
-                    note="GUARDED: Hypothesis ghostwriter generates candidate tests and may import project callables; BugHunt property discovery runs automatically, while ghostwriter remains an explicit review/generation helper",
+                    note=(
+                        "GUARDED: Hypothesis ghostwriter generates "
+                        "candidate tests and may import project "
+                        "callables; BugHunt property discovery "
+                        "runs automatically, while ghostwriter "
+                        "remains an explicit review/generation "
+                        "helper"
+                    ),
                 ),
             )
         if "pynguin" in wanted:
@@ -2875,7 +2901,12 @@ def build_checks(
                     "pynguin",
                     "search-based-test-generation",
                     Status.NA,
-                    note="GUARDED: Pynguin executes modules under test; only run in a throwaway or OS-sandboxed environment, so this candidate does not reduce correctness health",
+                    note=(
+                        "GUARDED: Pynguin executes modules under "
+                        "test; only run in a throwaway or OS-sandboxed "
+                        "environment, so this candidate does not "
+                        "reduce correctness health"
+                    ),
                 ),
             )
 
@@ -2888,7 +2919,10 @@ def build_checks(
                 "bugcorpus",
                 "historical/custom-static",
                 Status.SKIPPED,
-                note="integrated Bug Corpus execution is a V2 feature; see docs/V2_SPEC.md",
+                note=(
+                    "integrated Bug Corpus execution is a V2 feature; "
+                    "see docs/V2_SPEC.md"
+                ),
             ),
         )
 
@@ -3015,9 +3049,15 @@ def build_checks(
             added += 1
         if not added:
             if auto and not atheris_ready:
-                reason = "Atheris target discovered, but the Atheris engine is not importable"
+                reason = (
+                    "Atheris target discovered, but the Atheris "
+                    "engine is not importable"
+                )
             else:
-                reason = "no safe one-argument parser/decoder fuzz target discovered/configured"
+                reason = (
+                    "no safe one-argument parser/decoder fuzz target "
+                    "discovered/configured"
+                )
             skipped.append(
                 Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason),
             )
@@ -3055,7 +3095,10 @@ def build_checks(
                     "custom",
                     "custom",
                     Status.SKIPPED,
-                    note="no high-confidence repository-specific semantic campaign could be inferred",
+                    note=(
+                        "no high-confidence repository-specific "
+                        "semantic campaign could be inferred"
+                    ),
                 ),
             )
         else:
@@ -3605,7 +3648,10 @@ def build_checks(
     add_technology(
         "publint",
         [publint, str(package_json)] if publint and package_json.exists() else None,
-        reason="JavaScript package detected but publint is not installed/package.json missing",
+        reason=(
+            "JavaScript package detected but publint is not installed/package.json "
+            "missing"
+        ),
         findings_exit_codes={1},
     )
 
@@ -3625,7 +3671,10 @@ def build_checks(
         [
             yamllint,
             "-d",
-            "{extends: default, rules: {line-length: disable, truthy: disable, document-start: disable}}",
+            (
+                "{extends: default, rules: {line-length: disable, truthy: disable, "
+                "document-start: disable}}"
+            ),
             *yaml_files,
         ]
         if yamllint and yaml_files
@@ -3665,7 +3714,10 @@ def build_checks(
                 add_technology(
                     "check-jsonschema",
                     None,
-                    reason="local schema reference detected but check-jsonschema is not installed",
+                    reason=(
+                        "local schema reference detected but check-jsonschema "
+                        "is not installed"
+                    ),
                 )
             else:
                 skipped.append(
@@ -3673,7 +3725,12 @@ def build_checks(
                         "check-jsonschema",
                         ENGINE_CATEGORY["check-jsonschema"],
                         Status.SKIPPED,
-                        note="schema references exist, but none resolve to a repository-local schema; BugHunt refuses to fetch arbitrary remote schemas",
+                        note=(
+                            "schema references exist, but none "
+                            "resolve to a repository-local schema; "
+                            "BugHunt refuses to fetch arbitrary "
+                            "remote schemas"
+                        ),
                     ),
                 )
 
@@ -3732,7 +3789,8 @@ def build_checks(
                     reasons.append("no concrete local Pact JSON files")
                 if len(asgi) != 1:
                     reasons.append(
-                        f"need exactly one high-confidence local ASGI provider target (found {len(asgi)})",
+                        f"need exactly one high-confidence local ASGI provider target "
+                        f"(found {len(asgi)})",
                     )
                 if not pact_ready:
                     reasons.append("pact-python/uvicorn not installed")
@@ -3741,7 +3799,10 @@ def build_checks(
                         "pact-contracts",
                         ENGINE_CATEGORY["pact-contracts"],
                         Status.SKIPPED,
-                        note="Pact capability detected but auto-verification is guarded: "
+                        note=(
+                            "Pact capability detected but auto-verification "
+                            "is guarded: "
+                        )
                         + "; ".join(reasons),
                     ),
                 )
@@ -3846,7 +3907,10 @@ class LiveRunState:
 
         completed = len(self.completed)
         queued = max(0, self.total - completed - len(self.running))
-        table.caption = f"completed {completed}/{self.total}  •  running {len(self.running)}  •  queued {queued}"
+        table.caption = (
+            f"completed {completed}/{self.total}  •  running {len(self.running)}  •  "
+            f"queued {queued}"
+        )
         return table
 
 
@@ -4531,11 +4595,17 @@ def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
                     "verification_command": verify,
                     "workflow": [
                         "inspect the finding and surrounding code",
-                        "determine whether it is a true defect, duplicate, or analyzer false positive",
+                        (
+                            "determine whether it is a true defect, "
+                            "duplicate, or analyzer false positive"
+                        ),
                         "fix the root cause rather than suppressing the symptom",
                         "run verification_command",
                         "run the narrowest relevant tests",
-                        "if this is a real escaped bug, teach Bug Corpus the bug family/detector",
+                        (
+                            "if this is a real escaped bug, teach "
+                            "Bug Corpus the bug family/detector"
+                        ),
                     ],
                 },
             )
@@ -4661,9 +4731,12 @@ def render_terminal(
         f"[cyan]{counts[Status.NA]} not applicable[/]\n"
         f"[bold]{findings_total}[/] raw normalized findings  •  "
         f"[bold]{len(logical)}[/] logical issue clusters  •  "
-        f"[bold]{len(groups)}[/] distinct signals  •  [bold]{len(correlations)}[/] cross-tool correlated locations  •  {elapsed:.1f}s\n"
+        f"[bold]{len(groups)}[/] distinct signals  •  "
+        f"[bold]{len(correlations)}[/] cross-tool correlated locations  •  "
+        f"{elapsed:.1f}s\n"
         f"[bold green]{fixes['safe']} safe auto-fixable[/]  •  "
-        f"[yellow]{fixes['unsafe'] + fixes['review']} review/unsafe auto-fixable[/]  •  "
+        f"[yellow]{fixes['unsafe'] + fixes['review']} review/unsafe "
+        "auto-fixable[/]  •  "
         f"[bold]{fixes['total']} total deterministic fixes[/]"
         + (
             f" [dim]({fixes['total'] / findings_total * 100:.1f}% of findings)[/]"
@@ -4671,7 +4744,8 @@ def render_terminal(
             else ""
         )
         + (
-            f"\n[bold]Coverage[/] {float(coverage_summary.get('percent_covered', 0.0)):.1f}%"
+            f"\n[bold]Coverage[/] "
+            f"{float(coverage_summary.get('percent_covered', 0.0)):.1f}%"
             f"  •  {coverage_summary.get('missing_lines', '?')} missing lines"
             f"  •  {coverage_summary.get('missing_branches', '?')} missing branch edges"
             if coverage_summary.get("percent_covered") is not None
@@ -4756,8 +4830,10 @@ def render_terminal(
             f"{count}× {tool}" for tool, count in list(fixes["by_tool"].items())[:6]
         )
         fix_text = (
-            f"[bold green]{fixes['safe']} safe[/] can be applied by deterministic tool fixes  •  "
-            f"[yellow]{fixes['unsafe']} unsafe[/]  •  [yellow]{fixes['review']} rule/review[/]\n"
+            f"[bold green]{fixes['safe']} safe[/] can be applied by deterministic "
+            "tool fixes  •  "
+            f"[yellow]{fixes['unsafe']} unsafe[/]  •  [yellow]{fixes['review']} "
+            "rule/review[/]\n"
             f"[dim]{tool_bits}[/]"
         )
         console.print(
@@ -4823,7 +4899,10 @@ def render_terminal(
             )
         console.print(errors)
         console.print(
-            "[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] skill before weakening or disabling the defense.",
+            "[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, "
+            "environment-dependent, or failing for unclear infrastructure reasons, "
+            "use the [bold]ci-fix-dont-freeze[/] skill before weakening or "
+            "disabling the defense.",
         )
 
     verdict = "CLEAN ACROSS EXECUTED DEFENSES"
@@ -4848,9 +4927,12 @@ def render_terminal(
     )
     console.print(Panel(footer, border_style="bright_magenta", padding=(1, 2)))
     console.print(
-        "[dim]Debugging protocol:[/] if a defense is hanging, flaky, environment-dependent, "
-        "or failing for unclear CI/infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] "
-        "skill before weakening, skipping, quarantining, or disabling it.",
+        (
+            "[dim]Debugging protocol:[/] if a defense is hanging, flaky, "
+            "environment-dependent, or failing for unclear CI/infrastructure "
+            "reasons, use the [bold]ci-fix-dont-freeze[/] skill before "
+            "weakening, skipping, quarantining, or disabling it."
+        ),
     )
     console.print()
 
@@ -4950,41 +5032,62 @@ def write_reports(
     risk_lines = [
         "# BugHunt Coverage-weighted Risk Map",
         "",
-        "This is a prioritization score, not a probability of bugs. Coverage/branch gaps, complexity and independent-tool agreement raise priority.",
+        (
+            "This is a prioritization score, not a probability "
+            "of bugs. Coverage/branch gaps, complexity and independent-tool "
+            "agreement raise priority."
+        ),
         "",
         "| Rank | Score | File | Tools | Findings | Coverage | Branch |",
         "|---:|---:|---|---:|---:|---:|---:|",
     ]
     for i, item in enumerate(risks[:200], 1):
         risk_lines.append(
-            f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | {item['findings']} | {item['coverage_gaps']} | {item['branch_gaps']} |",
+            (
+                f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | "
+                f"{item['findings']} | {item['coverage_gaps']} | "
+                f"{item['branch_gaps']} |"
+            ),
         )
     (agent_dir / "RISK_MAP.md").write_text("\n".join(risk_lines) + "\n")
 
     agent_instructions = """# BugHunt Agent Instructions
 
-You are fixing a BugHunt report. Treat `queue.json` as the machine-readable source of truth.
+You are fixing a BugHunt report. Treat `queue.json` as the machine-readable source of
+truth.
 
 Work in this order:
 
 1. Start with execution errors because an analyzer that did not run leaves a blind spot.
-2. Then process `queue.json` in order. Fix one finding or coherent repeated-signal cluster at a time.
+2. Then process `queue.json` in order. Fix one finding or coherent repeated-signal
+cluster at a time.
 3. Inspect the surrounding code before editing. Do not blindly obey analyzer text.
-4. Fix root causes. Do not add `noqa`, type ignores, Semgrep suppressions, or broad exclusions unless the finding is proven false-positive and the suppression is narrowly justified.
-5. Run each item's `verification_command` after the fix, then the narrowest relevant tests.
-6. Re-run BugHunt after a cluster is cleared; line movement can make stale report locations inaccurate.
-7. If a finding reveals a genuine bug that escaped existing defenses, add it to Bug Corpus / create a permanent detector or property test.
+4. Fix root causes. Do not add `noqa`, type ignores, Semgrep suppressions, or
+broad exclusions unless the finding is proven false-positive and the suppression
+is narrowly justified.
+5. Run each item's `verification_command` after the fix, then the narrowest
+relevant tests.
+6. Re-run BugHunt after a cluster is cleared; line movement can make stale
+report locations inaccurate.
+7. If a finding reveals a genuine bug that escaped existing defenses, add it
+to Bug Corpus / create a permanent detector or property test.
 8. Never interpret a missing/crashed analyzer as clean.
-9. If CI, a tool, or a test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the `ci-fix-dont-freeze` skill before weakening, skipping, quarantining, or disabling that defense. Preserve the failure evidence and root-cause it.
-10. Use `RISK_MAP.md` and cross-tool correlations to prioritize code with uncovered branches plus independent analyzer agreement.
+9. If CI, a tool, or a test is hanging, flaky, environment-dependent, or failing
+infrastructure reasons, use the `ci-fix-dont-freeze` skill before weakening, skipping,
+quarantining, or disabling that defense. Preserve the failure evidence and
+root-cause it.
+10. Use `RISK_MAP.md` and cross-tool correlations to prioritize code with
+uncovered branches plus independent analyzer agreement.
 
 Useful files:
 
-- `queue.json`: one item per finding, sorted for repair, including deterministic autofix metadata.
+- `queue.json`: one item per finding, sorted for repair, including deterministic autofix
+metadata.
 - `AUTOFIX.md`: exactly which findings have safe or review-required deterministic fixes.
 - `FIX_QUEUE.md`: human/agent readable queue.
 - `BLIND_SPOTS.md`: analyzers that errored or never ran.
-- `RISK_MAP.md` / `risk-map.json`: coverage-weighted file priority for repair and V2 exploration.
+- `RISK_MAP.md` / `risk-map.json`: coverage-weighted file priority for repair and V2
+exploration.
 - `tasks/`: repeated-signal clusters with all known locations.
 - `../findings.jsonl`: streaming-friendly one-record-per-finding representation.
 - `../report.json`: full scan facts, commands, raw outputs, and statuses.
@@ -4999,7 +5102,12 @@ Useful files:
         f"- Rule/review: **{fixes['review']}**",
         f"- Total: **{fixes['total']}**",
         "",
-        "BugHunt does not apply these automatically during a scan. Safe Ruff fixes are the strongest auto-apply candidates; unsafe Ruff fixes and Semgrep rule fixes require review.",
+        (
+            "BugHunt does not apply these automatically during "
+            "a scan. Safe Ruff fixes are the strongest auto-apply "
+            "candidates; unsafe Ruff fixes and Semgrep rule fixes "
+            "require review."
+        ),
         "",
         "## Findings",
         "",
@@ -5007,13 +5115,22 @@ Useful files:
     for item in queue:
         if not item.get("fixable"):
             continue
-        loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
+        loc = (
+            f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:"
+            f"{item['column'] or '?'}"
+        )
         autofix_lines.append(
-            f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — `{loc}` — safety `{item.get('fix_safety') or 'review'}`",
+            (
+                f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — "
+                f"`{loc}` — safety `{item.get('fix_safety') or 'review'}`"
+            ),
         )
         if item.get("fix_preview"):
             autofix_lines.append(
-                f"  - Preview: `{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`",
+                (
+                    f"  - Preview: "
+                    f"`{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`"
+                ),
             )
     (agent_dir / "AUTOFIX.md").write_text("\n".join(autofix_lines) + "\n")
 
@@ -5021,9 +5138,18 @@ Useful files:
     blind_lines = [
         "# BugHunt Blind Spots",
         "",
-        "These defenses did not provide a trusted clean result. Fix execution errors first; configure/install skipped defenses when they are relevant to this repository.",
+        (
+            "These defenses did not provide a trusted clean result. "
+            "Fix execution errors first; configure/install skipped "
+            "defenses when they are relevant to this repository."
+        ),
         "",
-        "If a defense is hanging, flaky, environment-dependent, or failing for unclear CI/infrastructure reasons, use the `ci-fix-dont-freeze` skill before weakening or disabling it.",
+        (
+            "If a defense is hanging, flaky, environment-dependent, "
+            "or failing for unclear CI/infrastructure reasons, "
+            "use the `ci-fix-dont-freeze` skill before weakening "
+            "or disabling it."
+        ),
         "",
     ]
     for r in blindspots:
@@ -5045,14 +5171,39 @@ Useful files:
         "",
         "Use this checklist before weakening any defense.",
         "",
-        "- [ ] Read `RISK_MAP.md` and start with uncovered/complex/high-agreement code.",
-        "- [ ] Read `DEDUPLICATED_QUEUE.md`; fix one logical issue rather than independently chasing duplicate analyzer messages.",
-        "- [ ] Apply only deterministic **safe** autofixes first; review unsafe/review fixes.",
+        (
+            "- [ ] Read `RISK_MAP.md` and start with uncovered/complex/high-agreement "
+            "code."
+        ),
+        (
+            "- [ ] Read `DEDUPLICATED_QUEUE.md`; fix one logical "
+            "issue rather than independently chasing duplicate "
+            "analyzer messages."
+        ),
+        (
+            "- [ ] Apply only deterministic **safe** autofixes "
+            "first; review unsafe/review fixes."
+        ),
         "- [ ] Re-run the narrow verification command after each root-cause fix.",
-        "- [ ] Re-run relevant tests under the canonical seed and at least one randomized seed.",
-        "- [ ] Treat branch coverage gaps, seam drift, migration/API drift, and mutation survivors as different bug classes.",
-        "- [ ] If CI, an analyzer, fuzzing, concurrency, or environment-matrix execution hangs or behaves inconsistently, use the `ci-fix-dont-freeze` skill before weakening, skipping, quarantining, or disabling it.",
-        "- [ ] If a real escaped bug is confirmed, add a regression/property/detector and teach Bug Corpus when available.",
+        (
+            "- [ ] Re-run relevant tests under the canonical seed "
+            "and at least one randomized seed."
+        ),
+        (
+            "- [ ] Treat branch coverage gaps, seam drift, migration/API "
+            "drift, and mutation survivors as different bug classes."
+        ),
+        (
+            "- [ ] If CI, an analyzer, fuzzing, concurrency, or "
+            "environment-matrix execution hangs or behaves inconsistently, "
+            "use the `ci-fix-dont-freeze` skill before weakening, "
+            "skipping, quarantining, or disabling it."
+        ),
+        (
+            "- [ ] If a real escaped bug is confirmed, add a "
+            "regression/property/detector and teach Bug Corpus when "
+            "available."
+        ),
         "",
     ]
     (agent_dir / "CHECKLIST.md").write_text("\n".join(checklist_lines))
@@ -5060,13 +5211,21 @@ Useful files:
     dedup_lines = [
         "# Deduplicated Logical Issue Queue",
         "",
-        f"Raw analyzer findings are preserved elsewhere. These {len(logical_issues)} clusters group same-location/same-defect-class evidence for repair.",
+        (
+            f"Raw analyzer findings are preserved elsewhere. "
+            f"These {len(logical_issues)} clusters group "
+            "same-location/same-defect-class evidence for repair."
+        ),
         "",
     ]
     for index, issue in enumerate(logical_issues[:2000], 1):
         loc = f"{issue.get('path') or '<unknown>'}:{issue.get('line') or '?'}"
         dedup_lines += [
-            f"- [ ] **{index}. `{issue['id']}`** — `{loc}` — **{issue['tool_count']} tool(s), {issue['finding_count']} raw finding(s)** — `{issue['odc_class']}`",
+            (
+                f"- [ ] **{index}. `{issue['id']}`** — `{loc}` — "
+                f"**{issue['tool_count']} tool(s), "
+                f"{issue['finding_count']} raw finding(s)** — `{issue['odc_class']}`"
+            ),
             f"  - Tools: {', '.join(issue['tools'])}",
             f"  - Codes: {', '.join(issue['codes']) or '—'}",
             f"  - Representative: {issue['primary_message']}",
@@ -5099,13 +5258,20 @@ Useful files:
         ]
         for item in relevant:
             lines.append(
-                f"- `{item['id']}` — `{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}`",
+                (
+                    f"- `{item['id']}` — `{item['path'] or '<unknown>'}:"
+                    f"{item['line'] or '?'}:{item['column'] or '?'}:`"
+                ),
             )
         lines += [
             "",
             "## Repair protocol",
             "",
-            "Fix the root cause, run the verification command for the affected analyzer, then re-run BugHunt to refresh the queue.",
+            (
+                "Fix the root cause, run the verification command "
+                "for the affected analyzer, then re-run BugHunt "
+                "to refresh the queue."
+            ),
             "",
         ]
         if relevant and relevant[0]["verification_command"]:
@@ -5123,14 +5289,34 @@ Useful files:
         f"Generated `{now.isoformat()}` from profile `{profile}`.",
         "",
         f"**{len(queue)} findings** across **{len(groups)} repeated-signal groups**.",
-        f"**{fixes['total']} deterministic auto-fixes available**: {fixes['safe']} safe, {fixes['unsafe']} unsafe, {fixes['review']} review-required.",
+        (
+            f"**{fixes['total']} deterministic auto-fixes available**: {fixes['safe']} "
+            "safe, "
+            f"{fixes['unsafe']} unsafe, {fixes['review']} review-required."
+        ),
         "",
-        "Read `AGENT_INSTRUCTIONS.md` and `CHECKLIST.md` first. `queue.json` is authoritative.",
-        "`DEDUPLICATED_QUEUE.md` is the preferred repair view; raw findings remain available for evidence.",
+        (
+            "Read `AGENT_INSTRUCTIONS.md` and `CHECKLIST.md` first. "
+            "`queue.json` is authoritative."
+        ),
+        (
+            "`DEDUPLICATED_QUEUE.md` is the preferred repair view; "
+            "raw findings remain available for evidence."
+        ),
         "",
-        "Also inspect `BLIND_SPOTS.md`; analyzer execution errors should be repaired before claiming coverage.",
-        "Prioritize `RISK_MAP.md`, especially files combining uncovered branches, complexity, and cross-tool agreement.",
-        "If debugging a hanging/flaky/CI-dependent defense, use the `ci-fix-dont-freeze` skill before weakening it.",
+        (
+            "Also inspect `BLIND_SPOTS.md`; analyzer execution "
+            "errors should be repaired before claiming coverage."
+        ),
+        (
+            "Prioritize `RISK_MAP.md`, especially files combining "
+            "uncovered branches, complexity, and cross-tool agreement."
+        ),
+        (
+            "If debugging a hanging/flaky/CI-dependent defense, "
+            "use the `ci-fix-dont-freeze` skill before weakening "
+            "it."
+        ),
         "",
         "## Highest-priority repeated signals",
         "",
@@ -5143,15 +5329,22 @@ Useful files:
         fix_lines.append(f"| {i} | {g['count']} | `{label}` | {msg[:180]} |")
     fix_lines += ["", "## One-by-one queue", ""]
     for i, item in enumerate(queue[:2000], 1):
-        loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
+        loc = (
+            f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:"
+            f"{item['column'] or '?'}"
+        )
         code = f"/{item['code']}" if item["code"] else ""
         fix_lines.append(
-            f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — {item['message']}",
+            f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — "
+            f"{item['message']}",
         )
     if len(queue) > 2000:
         fix_lines += [
             "",
-            f"_Queue truncated in Markdown at 2000 items; all {len(queue)} items remain in `queue.json` and `../findings.jsonl`._",
+            (
+                f"_Queue truncated in Markdown at 2000 items; all {len(queue)} items "
+                "remain in `queue.json` and `../findings.jsonl`._"
+            ),
         ]
     (agent_dir / "FIX_QUEUE.md").write_text("\n".join(fix_lines) + "\n")
 
@@ -5161,17 +5354,30 @@ Useful files:
         "",
         f"- Generated: `{now.isoformat()}`",
         f"- Profile: `{profile}`",
-        f"- Defense health: **{payload['defense_health']}/100** (execution/defense health, not probability of bug-freedom)",
+        (
+            f"- Defense health: **{payload['defense_health']}/100** (execution/defense "
+            "health, not probability of bug-freedom)"
+        ),
         f"- Elapsed: **{elapsed:.1f}s**",
         f"- Raw normalized findings: **{payload['summary']['findings']}**",
-        f"- Logical issue clusters: **{len(logical_issues)}** (non-destructive dedup view)",
+        (
+            f"- Logical issue clusters: **{len(logical_issues)}** "
+            "(non-destructive dedup view)"
+        ),
         f"- Distinct repeated signals: **{len(groups)}**",
         f"- Cross-tool correlated locations: **{len(correlations)}**",
-        f"- Deterministic auto-fixes: **{fixes['total']}** total (**{fixes['safe']} safe**, {fixes['unsafe']} unsafe, {fixes['review']} review-required)",
+        (
+            f"- Deterministic auto-fixes: **{fixes['total']}** total "
+            f"(**{fixes['safe']} safe**, "
+            f"{fixes['unsafe']} unsafe, {fixes['review']} review-required)"
+        ),
         "- Agent repair queue: [`agent/FIX_QUEUE.md`](agent/FIX_QUEUE.md)",
         "- Auto-fix inventory: [`agent/AUTOFIX.md`](agent/AUTOFIX.md)",
         "- Coverage-weighted risk map: [`agent/RISK_MAP.md`](agent/RISK_MAP.md)",
-        "- Deduplicated repair queue: [`agent/DEDUPLICATED_QUEUE.md`](agent/DEDUPLICATED_QUEUE.md)",
+        (
+            "- Deduplicated repair queue: "
+            "[`agent/DEDUPLICATED_QUEUE.md`](agent/DEDUPLICATED_QUEUE.md)"
+        ),
         "- Repair checklist: [`agent/CHECKLIST.md`](agent/CHECKLIST.md)",
         "",
         "## ODC-style defect taxonomy",
@@ -5200,14 +5406,23 @@ Useful files:
     for r in results:
         note = (r.note or "").replace("|", "\\|").replace("\n", " ")
         lines.append(
-            f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | {r.duration:.1f}s | {note} |",
+            (
+                f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | "
+                f"{r.duration:.1f}s | {note} |"
+            ),
         )
     lines += ["", "## Findings", ""]
     if queue:
         for item in queue:
-            loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
+            loc = (
+                f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:"
+                f"{item['column'] or '?'}"
+            )
             lines += [
-                f"### {item['id']} — {item['tool']}{' / ' + item['code'] if item['code'] else ''}",
+                (
+                    f"### {item['id']} — {item['tool']}"
+                    f"{' / ' + item['code'] if item['code'] else ''}"
+                ),
                 "",
                 f"- Location: `{loc}`",
                 f"- Severity: `{item['severity']}`",
@@ -5270,7 +5485,11 @@ def show_default_rules() -> int:
         )
     console.print(table)
     console.print(
-        "[dim]These are BugHunt-native defaults. Ruff ALL, type checkers, Pylint extensions, Semgrep packs, CodeQL, and other analyzers add their own rule sets on top.[/]",
+        (
+            "[dim]These are BugHunt-native defaults. Ruff ALL, "
+            "type checkers, Pylint extensions, Semgrep packs, CodeQL, "
+            "and other analyzers add their own rule sets on top.[/]"
+        ),
     )
     return 0
 
@@ -5358,7 +5577,10 @@ def doctor(cfg: Config) -> int:
             )
         else:
             if probe.returncode == 0:
-                detail = f"{'private compatibility runtime' if private else 'project runtime'}: {pyre}"
+                runtime_kind = (
+                    "private compatibility runtime" if private else "project runtime"
+                )
+                detail = f"{runtime_kind}: {pyre}"
                 engine_rows.append(("Pysa runner", "READY", detail))
             else:
                 tail = (probe.stderr or probe.stdout).strip().splitlines()
@@ -5605,7 +5827,10 @@ def doctor(cfg: Config) -> int:
         ready = python_module_available(module)
         detail = role
         if not ready and install_name:
-            detail += f"; install explicitly with `bughunt install --only {install_name}` when desired"
+            detail += (
+                f"; install explicitly with `bughunt install --only {install_name}` "
+                "when desired"
+            )
         guarded.add_row(
             label,
             "[green]READY[/]" if ready else "[yellow]OPTIONAL[/]",
@@ -5615,13 +5840,20 @@ def doctor(cfg: Config) -> int:
     helper_module(
         "time-machine",
         "time_machine",
-        "time-boundary test helper; BHTIME001 detects missing boundary evidence rather than inventing expected clock behavior",
+        (
+            "time-boundary test helper; BHTIME001 detects missing "
+            "boundary evidence rather than inventing expected clock "
+            "behavior"
+        ),
         install_name="time-machine",
     )
     helper_module(
         "freezegun",
         "freezegun",
-        "alternative time-control helper; not required when time-machine or equivalent evidence exists",
+        (
+            "alternative time-control helper; not required when "
+            "time-machine or equivalent evidence exists"
+        ),
         install_name="freezegun",
     )
     helper_module(
@@ -5633,7 +5865,11 @@ def doctor(cfg: Config) -> int:
     helper_module(
         "openapi-core",
         "openapi_core",
-        "client/server OpenAPI response/request runtime validation library; seam rule recommends validation rather than auto-rewriting application code",
+        (
+            "client/server OpenAPI response/request runtime validation "
+            "library; seam rule recommends validation rather than "
+            "auto-rewriting application code"
+        ),
         install_name="openapi-core",
     )
     helper_module(
@@ -5645,56 +5881,85 @@ def doctor(cfg: Config) -> int:
     helper_module(
         "icontract-hypothesis",
         "icontract_hypothesis",
-        "contract-derived property generation; guarded because compatibility varies with current Hypothesis/Python",
+        (
+            "contract-derived property generation; guarded because "
+            "compatibility varies with current Hypothesis/Python"
+        ),
         install_name="icontract-hypothesis",
     )
     helper_module(
         "Slipcover",
         "slipcover",
-        "optional fast coverage engine; coverage.py branch coverage remains the canonical portable baseline",
+        (
+            "optional fast coverage engine; coverage.py branch "
+            "coverage remains the canonical portable baseline"
+        ),
         install_name="slipcover",
     )
     helper_module(
         "beartype",
         "beartype",
-        "alternative runtime type checker; Typeguard is the canonical pytest verification layer",
+        (
+            "alternative runtime type checker; Typeguard is the "
+            "canonical pytest verification layer"
+        ),
         install_name="beartype",
     )
     helper_module(
         "sqlglot",
         "sqlglot",
-        "optional SQL parser second opinion; SQLFluff is the configured correctness scanner",
+        (
+            "optional SQL parser second opinion; SQLFluff is the "
+            "configured correctness scanner"
+        ),
         install_name="sqlglot",
     )
     pynguin = executable("pynguin")
     guarded.add_row(
         "Pynguin",
         "[green]READY[/]" if pynguin else "[yellow]GUARDED[/]",
-        "search-based test generation executes modules under test; only enable in a throwaway/OS-sandboxed environment",
+        (
+            "search-based test generation executes modules under "
+            "test; only enable in a throwaway/OS-sandboxed environment"
+        ),
     )
     wemake = python_module_available("wemake_python_styleguide")
     guarded.add_row(
         "wemake-python-styleguide",
         "[green]READY[/]" if wemake else "[yellow]ADVISORY[/]",
-        "Ruff companion with additional Python rules; deliberately outside correctness-health because many WPS rules are opinionated/style-heavy",
+        (
+            "Ruff companion with additional Python rules; deliberately "
+            "outside correctness-health because many WPS rules "
+            "are opinionated/style-heavy"
+        ),
     )
     joern = executable("joern", "joern-parse")
     guarded.add_row(
         "Joern",
         "[green]READY[/]" if joern else "[yellow]MANUAL[/]",
-        "optional CodeQL-style CPG/dataflow second opinion; not auto-installed because it is a heavyweight external platform",
+        (
+            "optional CodeQL-style CPG/dataflow second opinion; "
+            "not auto-installed because it is a heavyweight external "
+            "platform"
+        ),
     )
     shfmt = executable("shfmt")
     guarded.add_row(
         "shfmt",
         "[green]READY[/]" if shfmt else "[dim]QUALITY[/]",
-        "shell formatter only; ShellCheck owns shell correctness and shfmt does not affect correctness health",
+        (
+            "shell formatter only; ShellCheck owns shell correctness "
+            "and shfmt does not affect correctness health"
+        ),
     )
     asv = executable("asv")
     guarded.add_row(
         "asv",
         "[green]READY[/]" if asv else "[dim]ALTERNATIVE[/]",
-        "long-horizon performance benchmark alternative; pytest-benchmark is the default regression ring",
+        (
+            "long-horizon performance benchmark alternative; pytest-benchmark "
+            "is the default regression ring"
+        ),
     )
     xdoc = executable("xdoctest")
     guarded.add_row(
@@ -5753,11 +6018,17 @@ def doctor(cfg: Config) -> int:
             console.print(configured)
         except (OSError, json.JSONDecodeError, TypeError):
             console.print(
-                "[yellow]Strict config manifest is unreadable; run `uv run bughunt configure --auto`.[/]",
+                (
+                    "[yellow]Strict config manifest is unreadable; "
+                    "run `uv run bughunt configure --auto`.[/]"
+                ),
             )
     else:
         console.print(
-            "[yellow]Strict analyzer overlays are not generated yet. Run `uv run bughunt configure --auto`.[/]",
+            (
+                "[yellow]Strict analyzer overlays are not generated "
+                "yet. Run `uv run bughunt configure --auto`.[/]"
+            ),
         )
 
     generated = load_generated_targets(cfg.root)
@@ -5778,13 +6049,19 @@ def doctor(cfg: Config) -> int:
         "[green]READY[/]" if a_count else "[yellow]TARGET NEEDED[/]",
         f"{a_count} runnable target(s)"
         if a_count
-        else "run `uv run bughunt configure --auto`; only safe one-input parser/decoder targets are generated",
+        else (
+            "run `uv run bughunt configure --auto`; only safe one-input "
+            "parser/decoder targets are generated"
+        ),
     )
     s_count = len(schema_targets) + len(explicit_schema)
     schema_detail = (
         f"{s_count} runnable target(s)"
         if s_count
-        else "run `uv run bughunt configure --auto`; FastAPI apps can be fuzzed in-process"
+        else (
+            "run `uv run bughunt configure --auto`; FastAPI apps "
+            "can be fuzzed in-process"
+        )
     )
     if not s_count and schema_candidates:
         schema_detail += (
@@ -5852,13 +6129,19 @@ def doctor(cfg: Config) -> int:
             "[green]READY[/]" if count else "[dim]NONE INFERRED[/]",
             f"{count} high-confidence generated campaign(s)"
             if count
-            else "auto-configure found no high-confidence repository evidence for this campaign class",
+            else (
+                "auto-configure found no high-confidence repository "
+                "evidence for this campaign class"
+            ),
         )
     configured_custom = list(cfg.raw.get("custom", {}).get("checks", []))
     coverage.add_row(
         "custom.checks managed entries",
         "[green]CONFIGURED[/]",
-        f"{len(configured_custom)} total custom check(s) loaded; generated high-confidence campaigns are persisted to bughunt.toml",
+        (
+            f"{len(configured_custom)} total custom check(s) loaded; generated "
+            "high-confidence campaigns are persisted to bughunt.toml"
+        ),
     )
     env_contract = cfg.root / ".bughunt" / "generated" / "env-contract.json"
     env_example = cfg.root / ".env.example"
@@ -5878,9 +6161,13 @@ def doctor(cfg: Config) -> int:
         "Export/import round-trip enforcement",
         "[green]READY[/]" if policy_roundtrip else "[cyan]POLICY[/]",
         (
-            f"{len(policy_roundtrip)} executable round-trip property campaign(s); policy scan also flags untested export/import and backup/restore pairs"
+            f"{len(policy_roundtrip)} executable round-trip property campaign(s); "
+            "policy scan also flags untested export/import and backup/restore pairs"
             if policy_roundtrip
-            else "policy scan flags supported export/import or backup/restore pairs lacking round-trip coverage"
+            else (
+                "policy scan flags supported export/import or backup/restore "
+                "pairs lacking round-trip coverage"
+            )
         ),
     )
     coverage.add_row(
@@ -5888,31 +6175,47 @@ def doctor(cfg: Config) -> int:
         "[green]CONFIGURED[/]"
         if generated_config(cfg.root, "coverage.ini")
         else "[yellow]CONFIG NEEDED[/]",
-        "coverage.py branch instrumentation; uncovered lines/edges become BHCOV findings and feed the risk map",
+        (
+            "coverage.py branch instrumentation; uncovered lines/edges "
+            "become BHCOV findings and feed the risk map"
+        ),
     )
     coverage.add_row(
         "Runtime annotation verification",
         "[green]READY[/]"
         if has_python and python_module_available("typeguard")
         else ("[cyan]N/A[/]" if not has_python else "[yellow]MISSING[/]"),
-        "Typeguard pytest pass checks annotation truth where dynamic/untyped values enter",
+        (
+            "Typeguard pytest pass checks annotation truth where "
+            "dynamic/untyped values enter"
+        ),
     )
     coverage.add_row(
         "Environment/order/interpreter variation",
         "[green]CONFIGURED[/]"
         if (cfg.root / ".bughunt" / "generated" / "noxfile.py").exists()
         else "[yellow]CONFIG NEEDED[/]",
-        "fixed + random hash/order seeds, hostile TZ/locale passes, Nox 3.11-3.14 + free-threaded candidate",
+        (
+            "fixed + random hash/order seeds, hostile TZ/locale "
+            "passes, Nox 3.11-3.14 + free-threaded candidate"
+        ),
     )
     coverage.add_row(
         "Seam/contract drift",
         "[green]ACTIVE[/]" if has_python else "[cyan]N/A[/]",
-        "dict-key drift, **kwargs chains, schema/model drift, external response validation, N+1 and recorded-payload coverage",
+        (
+            "dict-key drift, **kwargs chains, schema/model drift, "
+            "external response validation, N+1 and recorded-payload "
+            "coverage"
+        ),
     )
     coverage.add_row(
         "Packaging/install correctness",
         "[green]ACTIVE[/]" if has_python else "[cyan]N/A[/]",
-        "validate-pyproject + uv lock/pip check + manifest + build/twine where applicable",
+        (
+            "validate-pyproject + uv lock/pip check + manifest "
+            "+ build/twine where applicable"
+        ),
     )
     pact_files = pact_json_files(cfg.root, technology.files.get("pact", []))
     pact_asgi = [
@@ -5931,9 +6234,15 @@ def doctor(cfg: Config) -> int:
             "Consumer/provider contract verification",
             "[green]READY[/]" if pact_ready else "[yellow]TARGET NEEDED[/]",
             (
-                f"{len(pact_files)} Pact file(s) + one local ASGI provider; deep/all can verify locally"
+                f"{len(pact_files)} Pact file(s) + one local ASGI provider; "
+                "deep/all can verify locally"
                 if pact_ready
-                else "Pact detected, but automatic verification requires concrete local Pact JSON plus exactly one high-confidence local provider; remote deployed providers are never auto-targeted"
+                else (
+                    "Pact detected, but automatic verification "
+                    "requires concrete local Pact JSON plus exactly "
+                    "one high-confidence local provider; remote "
+                    "deployed providers are never auto-targeted"
+                )
             ),
         )
     else:
@@ -5945,22 +6254,39 @@ def doctor(cfg: Config) -> int:
     coverage.add_row(
         "Cross-tool disagreement",
         "[green]ACTIVE[/]" if has_python else "[cyan]N/A[/]",
-        "BHDIS001 turns disagreement among strict type engines into first-class evidence instead of silently choosing one checker",
+        (
+            "BHDIS001 turns disagreement among strict type engines "
+            "into first-class evidence instead of silently choosing "
+            "one checker"
+        ),
     )
     coverage.add_row(
         "Non-destructive deduplication",
         "[green]ACTIVE[/]",
-        "raw findings are preserved; reports also group same-location/same-defect-class evidence into logical issue clusters for agent repair",
+        (
+            "raw findings are preserved; reports also group "
+            "same-location/same-defect-class evidence into logical issue "
+            "clusters for agent repair"
+        ),
     )
     coverage.add_row(
         "Recorded payload regression",
         "[green]POLICY[/]" if has_python else "[cyan]N/A[/]",
-        "BHSEAM006 requires HTTP integrations to have cassette/fixture payload evidence; VCR.py is optional, equivalent recorded fixtures count",
+        (
+            "BHSEAM006 requires HTTP integrations to have cassette/fixture "
+            "payload evidence; VCR.py is optional, equivalent recorded "
+            "fixtures count"
+        ),
     )
     coverage.add_row(
         "Deterministic simulation",
         "[cyan]V2 ADAPTER[/]",
-        "clock/scheduler/network/RNG replay requires a project-specific simulation adapter; V2_SPEC.md defines seeded replay and promotion requirements rather than fabricating one",
+        (
+            "clock/scheduler/network/RNG replay requires a project-specific "
+            "simulation adapter; V2_SPEC.md defines seeded replay "
+            "and promotion requirements rather than fabricating "
+            "one"
+        ),
     )
     coverage.add_row(
         "Bug Corpus learning/detectors",
@@ -6002,7 +6328,10 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             "Pysa inferred semantic models",
             ".bughunt/configs/pysa/bughunt.pysa",
             "READY",
-            f"{pysa_count} high-confidence direct source/sink wrapper model(s) inferred; evidence in .bughunt/generated/pysa-models.json",
+            (
+                f"{pysa_count} high-confidence direct source/sink wrapper model(s) "
+                "inferred; evidence in .bughunt/generated/pysa-models.json"
+            ),
         ),
     )
     generated_checks = []
@@ -6207,13 +6536,9 @@ async def run_all(
         and pyrefly_result.status in {Status.FINDINGS, Status.ERROR}
     ):
         dependency_note = (
-            f"Pysa type-provider coverage degraded: Pyrefly is {pyrefly_result.status.value.lower()}"
-            + (
-                f" with {pyrefly_result.count} finding(s)"
-                if pyrefly_result.count
-                else ""
-            )
-        )
+            f"Pysa type-provider coverage degraded: Pyrefly is "
+            f"{pyrefly_result.status.value.lower()}"
+        ) + (f" with {pyrefly_result.count} finding(s)" if pyrefly_result.count else "")
         pysa_result.note = (
             f"{pysa_result.note}; {dependency_note}"
             if pysa_result.note
@@ -6241,7 +6566,9 @@ def exit_code_for(cfg: Config, results: list[Result]) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="bughunt",
-        description="Run independent bug-finding defenses and compile one agent-ready report.",
+        description=(
+            "Run independent bug-finding defenses and compile one agent-ready report."
+        ),
     )
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="repository root")
     parser.add_argument("--config", type=Path, help="path to bughunt.toml")
@@ -6425,7 +6752,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         inventory = discover_technologies(root, persist=True)
         detected = sum(1 for item in inventory.capabilities.values() if item.detected)
         console.print(
-            f"[bold]Detected {detected} repository capability class(es); installing only applicable analysis engines{suffix}...[/]",
+            (
+                f"[bold]Detected {detected} repository capability class(es); "
+                f"installing only applicable analysis engines{suffix}...[/]"
+            ),
         )
         if excluded:
             install_results = install_all(
@@ -6442,7 +6772,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if any(x.status == "ERROR" for x in install_results):
             console.print(
-                "[yellow]Some installers failed; continuing so the final report records the remaining blind spots.[/]",
+                (
+                    "[yellow]Some installers failed; continuing "
+                    "so the final report records the remaining "
+                    "blind spots.[/]"
+                ),
             )
         # Reload config/environment view after uv modified the project.
         cfg = load_config(root, args.config)
@@ -6456,7 +6790,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     console.print(
         Panel.fit(
-            f"[bold bright_cyan]Scanning[/] [bold]{root.name}[/] with [bright_magenta]{profile_display}[/] defenses",
+            (
+                f"[bold bright_cyan]Scanning[/] [bold]{root.name}[/] with "
+                f"[bold bright_magenta]{profile_display}[/] defenses"
+            ),
             border_style="bright_cyan",
         ),
     )

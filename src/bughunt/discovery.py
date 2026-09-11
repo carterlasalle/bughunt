@@ -463,9 +463,17 @@ def _equivalence_helper() -> str:
     return """def _equivalent(left, right):
     if isinstance(left, float) and isinstance(right, float):
         return math.isclose(left, right, rel_tol=1e-9, abs_tol=1e-12)
-    if isinstance(left, (list, tuple)) and isinstance(right, type(left)) and len(left) == len(right):
+    if (
+        isinstance(left, (list, tuple))
+        and isinstance(right, type(left))
+        and len(left) == len(right)
+    ):
         return all(_equivalent(a, b) for a, b in zip(left, right))
-    if isinstance(left, dict) and isinstance(right, dict) and left.keys() == right.keys():
+    if (
+        isinstance(left, dict)
+        and isinstance(right, dict)
+        and left.keys() == right.keys()
+    ):
         return all(_equivalent(left[k], right[k]) for k in left)
     return left == right
 """
@@ -530,9 +538,9 @@ def discover_custom_campaigns(
             if ("custom-differential", target_name) in seen:
                 continue
             seen.add(("custom-differential", target_name))
-            harness = (
-                generated
-                / f"test_differential_{re.sub(r'[^A-Za-z0-9_]+', '_', module + '_' + base)}.py"
+            harness = generated / (
+                f"test_differential_"
+                f"{re.sub(r'[^A-Za-z0-9_]+', '_', module + '_' + base)}.py"
             )
             arguments = ", ".join(name for name, _ in reference.params)
             decorators = ", ".join(
@@ -573,7 +581,11 @@ def test_bughunt_differential({arguments}):
                     name=target_name,
                     confidence="high",
                     runnable=True,
-                    reason=f"matched reference implementation {reference.name} to optimized implementation {optimized.name}; typed signatures agree and neither touches an external boundary",
+                    reason=(
+                        f"matched reference implementation {reference.name} to "
+                        f"optimized implementation {optimized.name}; typed signatures "
+                        "agree and neither touches an external boundary"
+                    ),
                     source=reference.relative_path,
                     command=[
                         "uv",
@@ -587,7 +599,11 @@ def test_bughunt_differential({arguments}):
                         "oracle": reference.qualname,
                         "implementation": optimized.qualname,
                         "generated_harness": str(harness.relative_to(root)),
-                        "evidence": "reference/optimized naming + equal typed signature + no detected I/O boundary",
+                        "evidence": (
+                            "reference/optimized naming + equal "
+                            "typed signature + no detected I/O "
+                            "boundary"
+                        ),
                     },
                 ),
             )
@@ -651,7 +667,11 @@ def test_bughunt_roundtrip({arg_name}):
                         name=key,
                         confidence="high",
                         runnable=True,
-                        reason="inverse naming and annotations form an exact A -> B -> A round-trip with no detected external boundary",
+                        reason=(
+                            "inverse naming and annotations form "
+                            "an exact A -> B -> A round-trip with "
+                            "no detected external boundary"
+                        ),
                         source=encoder.relative_path,
                         command=[
                             "uv",
@@ -668,7 +688,8 @@ def test_bughunt_roundtrip({arg_name}):
                     ),
                 )
 
-    # Idempotence properties for functions whose name and type signature strongly imply it.
+    # Idempotence properties for functions whose name and type signature
+    # strongly imply it.
     for info in infos:
         if info.name not in IDEMPOTENT_NAMES or not _safe_campaign_function(info):
             continue
@@ -704,7 +725,12 @@ def test_bughunt_idempotence({arg_name}):
                 name=key,
                 confidence="high",
                 runnable=True,
-                reason="function name implies canonical/idempotent transformation, input/output annotations match, no explicit raise, and no detected external boundary",
+                reason=(
+                    "function name implies canonical/idempotent "
+                    "transformation, input/output annotations match, "
+                    "no explicit raise, and no detected external "
+                    "boundary"
+                ),
                 source=info.relative_path,
                 command=[
                     "uv",
@@ -771,10 +797,16 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
-data = json.loads((ROOT / ".bughunt/generated/campaigns/fault_boundaries.json").read_text())
+data = json.loads(
+    (ROOT / ".bughunt/generated/campaigns/fault_boundaries.json").read_text()
+)
 rows = data.get("uncovered", [])
 for row in rows:
-    print(f"{row['path']}:{row['line']}:1: warning: external boundary {row['boundary']} in {row['function']} has no detected fault-injection test [BHFAULT001]")
+    print(
+        f"{row['path']}:{row['line']}:1: warning: external boundary "
+        f"{row['boundary']} in {row['function']} has no detected "
+        "fault-injection test [BHFAULT001]"
+    )
 sys.exit(1 if rows else 0)
 """,
     )
@@ -785,7 +817,11 @@ sys.exit(1 if rows else 0)
                 name="external-failure-surface-coverage",
                 confidence="high",
                 runnable=True,
-                reason=f"{len(fault_rows)} first-party external boundary call(s) lack a detected fault-injection test; reports coverage gaps without guessing desired recovery semantics",
+                reason=(
+                    f"{len(fault_rows)} first-party external boundary call(s) lack "
+                    "a detected fault-injection test; reports coverage gaps "
+                    "without guessing desired recovery semantics"
+                ),
                 source=str(inventory.relative_to(root)),
                 command=["uv", "run", "python", str(checker.relative_to(root))],
                 metadata={
@@ -858,7 +894,10 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
             if source_evidence:
                 models.append(
                     PysaModel(
-                        model=f"def {qualified}({', '.join(params)}) -> TaintSource[BugHuntUserControlled]: ...",
+                        model=(
+                            f"def {qualified}({', '.join(params)}) -> "
+                            "TaintSource[BugHuntUserControlled]: ..."
+                        ),
                         kind="source",
                         symbol=qualified,
                         evidence=source_evidence,
@@ -1031,7 +1070,64 @@ def discover_atheris(
                 else f"getattr(getattr(_module, {class_name!r}), {leaf!r})"
             )
             harness.write_text(
-                f"""# Auto-generated by BugHunt from a high/medium confidence parser boundary.\nfrom __future__ import annotations\n\nimport builtins\nimport importlib\nfrom pathlib import Path\nimport sys\n\n_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\nif _ATHERIS_RUNTIME.exists():\n    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n\nimport atheris\n\nMODULE = {module!r}\nEXPLICIT_RAISES = {exc_literals}\n\nwith atheris.instrument_imports():\n    _module = importlib.import_module(MODULE)\n\n_target = {target_access}\n\ndef _expected_exceptions():\n    found = []\n    for dotted in EXPLICIT_RAISES:\n        candidate = None\n        if hasattr(_module, dotted):\n            candidate = getattr(_module, dotted)\n        elif hasattr(builtins, dotted.split(".")[-1]):\n            candidate = getattr(builtins, dotted.split(".")[-1])\n        elif "." in dotted:\n            try:\n                owner, attr = dotted.rsplit(".", 1)\n                candidate = getattr(importlib.import_module(owner), attr)\n            except (ImportError, AttributeError):\n                candidate = None\n        if isinstance(candidate, type) and issubclass(candidate, Exception):\n            found.append(candidate)\n    return tuple(found)\n\n_EXPECTED = _expected_exceptions()\n\n@atheris.instrument_func\ndef TestOneInput(data: bytes) -> None:\n    value = {converter}\n    try:\n        _target(value)\n    except _EXPECTED:\n        return\n\natheris.Setup(sys.argv, TestOneInput)\natheris.Fuzz()\n""",
+                (
+                    "# Auto-generated by BugHunt from a high/medium "
+                    "confidence parser boundary.\n"
+                    "from __future__ import annotations\n"
+                    "\n"
+                    "import builtins\n"
+                    "import importlib\n"
+                    "from pathlib import Path\n"
+                    "import sys\n"
+                    "\n"
+                    "_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n"
+                    '_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\n'
+                    "if _ATHERIS_RUNTIME.exists():\n"
+                    "    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n"
+                    "\n"
+                    "import atheris\n"
+                    "\n"
+                    f"MODULE = {module!r}\n"
+                    f"EXPLICIT_RAISES = {exc_literals}\n"
+                    "\n"
+                    "with atheris.instrument_imports():\n"
+                    "    _module = importlib.import_module(MODULE)\n"
+                    "\n"
+                    f"_target = {target_access}\n"
+                    "\n"
+                    "def _expected_exceptions():\n"
+                    "    found = []\n"
+                    "    for dotted in EXPLICIT_RAISES:\n"
+                    "        candidate = None\n"
+                    "        if hasattr(_module, dotted):\n"
+                    "            candidate = getattr(_module, dotted)\n"
+                    '        elif hasattr(builtins, dotted.split(".")[-1]):\n'
+                    '            candidate = getattr(builtins, dotted.split(".")[-1])\n'
+                    '        elif "." in dotted:\n'
+                    "            try:\n"
+                    '                owner, attr = dotted.rsplit(".", 1)\n'
+                    "                candidate = getattr(importlib.import_module(owner)"
+                    ", attr)\n"
+                    "            except (ImportError, AttributeError):\n"
+                    "                candidate = None\n"
+                    "        if isinstance(candidate, type) and "
+                    "issubclass(candidate, Exception):\n"
+                    "            found.append(candidate)\n"
+                    "    return tuple(found)\n"
+                    "\n"
+                    "_EXPECTED = _expected_exceptions()\n"
+                    "\n"
+                    "@atheris.instrument_func\n"
+                    "def TestOneInput(data: bytes) -> None:\n"
+                    f"    value = {converter}\n"
+                    "    try:\n"
+                    "        _target(value)\n"
+                    "    except _EXPECTED:\n"
+                    "        return\n"
+                    "\n"
+                    "atheris.Setup(sys.argv, TestOneInput)\n"
+                    "atheris.Fuzz()\n"
+                ),
             )
             confidence = (
                 "high"
@@ -1045,11 +1141,23 @@ def discover_atheris(
                     confidence=confidence,
                     runnable=True,
                     reason=(
-                        "parser/decoder has exactly one fuzzable input with explicit type evidence; harness generated"
+                        (
+                            "parser/decoder has exactly one fuzzable "
+                            "input with explicit type evidence; "
+                            "harness generated"
+                        )
                         if annotation is not None
-                        else "parser/decoder has exactly one input and test call sites consistently establish its input type; harness generated"
+                        else (
+                            "parser/decoder has exactly one input "
+                            "and test call sites consistently establish "
+                            "its input type; harness generated"
+                        )
                         if inferred_type
-                        else "parser/decoder has exactly one unannotated input; bytes harness generated as a medium-confidence target"
+                        else (
+                            "parser/decoder has exactly one unannotated "
+                            "input; bytes harness generated as "
+                            "a medium-confidence target"
+                        )
                     ),
                     source=str(path.relative_to(root)),
                     command=[
@@ -1176,7 +1284,33 @@ def discover_schemathesis(
                 target_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{module}.{app_name}")
                 harness = generated / f"test_{target_id.replace('.', '_')}.py"
                 harness.write_text(
-                    f"""# Auto-generated by BugHunt for in-process Schemathesis fuzzing.\nfrom __future__ import annotations\n\nimport importlib\nimport schemathesis\nfrom hypothesis import settings\n\n_module = importlib.import_module({module!r})\n_app = getattr(_module, {app_name!r})\nschema = schemathesis.openapi.from_asgi("/openapi.json", _app)\n\n@schema.parametrize()\n@settings(max_examples={max_examples}, deadline=None)\ndef test_bughunt_api(case):\n    case.call_and_validate()\n\nStateMachine = schema.as_state_machine()\nTestCase = StateMachine.TestCase\nTestCase.settings = settings(\n    max_examples=min({max_examples}, 200),\n    stateful_step_count=10,\n    deadline=None,\n)\n""",
+                    (
+                        "# Auto-generated by BugHunt for in-process "
+                        "Schemathesis fuzzing.\n"
+                        "from __future__ import annotations\n"
+                        "\n"
+                        "import importlib\n"
+                        "import schemathesis\n"
+                        "from hypothesis import settings\n"
+                        "\n"
+                        f"_module = importlib.import_module({module!r})\n"
+                        f"_app = getattr(_module, {app_name!r})\n"
+                        'schema = schemathesis.openapi.from_asgi("/openapi.json", '
+                        "_app)\n"
+                        "\n"
+                        "@schema.parametrize()\n"
+                        f"@settings(max_examples={max_examples}, deadline=None)\n"
+                        "def test_bughunt_api(case):\n"
+                        "    case.call_and_validate()\n"
+                        "\n"
+                        "StateMachine = schema.as_state_machine()\n"
+                        "TestCase = StateMachine.TestCase\n"
+                        "TestCase.settings = settings(\n"
+                        f"    max_examples=min({max_examples}, 200),\n"
+                        "    stateful_step_count=10,\n"
+                        "    deadline=None,\n"
+                        ")\n"
+                    ),
                 )
                 out.append(
                     DiscoveredTarget(
@@ -1184,7 +1318,10 @@ def discover_schemathesis(
                         name=f"{module}.{app_name}",
                         confidence="high",
                         runnable=True,
-                        reason="FastAPI application detected; using Schemathesis ASGI in-process transport",
+                        reason=(
+                            "FastAPI application detected; using "
+                            "Schemathesis ASGI in-process transport"
+                        ),
                         source=str(path.relative_to(root)),
                         command=[
                             "uv",
@@ -1251,7 +1388,8 @@ def discover_schemathesis(
             target_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{module}.{app_name}")
             harness = generated / f"test_wsgi_{target_id.replace('.', '_')}.py"
             harness.write_text(
-                "# Auto-generated by BugHunt for in-process Schemathesis WSGI fuzzing.\n"
+                "# Auto-generated by BugHunt for in-process Schemathesis "
+                "WSGI fuzzing.\n"
                 "from __future__ import annotations\n\n"
                 "import importlib\n"
                 "import schemathesis\n"
@@ -1270,7 +1408,10 @@ def discover_schemathesis(
                     name=f"{module}.{app_name}",
                     confidence="high",
                     runnable=True,
-                    reason=f"Flask application and explicit {schema_path} OpenAPI route detected; using Schemathesis WSGI in-process transport",
+                    reason=(
+                        f"Flask application and explicit {schema_path} OpenAPI route "
+                        "detected; using Schemathesis WSGI in-process transport"
+                    ),
                     source=str(path.relative_to(root)),
                     command=[
                         "uv",
@@ -1335,7 +1476,11 @@ def discover_schemathesis(
                     name=rel,
                     confidence="medium",
                     runnable=False,
-                    reason="OpenAPI schema detected but no localhost base URL; refusing to auto-run against an unknown/remote server",
+                    reason=(
+                        "OpenAPI schema detected but no localhost "
+                        "base URL; refusing to auto-run against "
+                        "an unknown/remote server"
+                    ),
                     source=rel,
                     metadata={
                         "needs": "explicit local base URL or importable ASGI app",

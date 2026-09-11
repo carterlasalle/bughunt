@@ -97,7 +97,14 @@ def test_import_linter_requires_real_config(tmp_path):
 def test_pylint_json2_messages_are_individual_findings():
     from bughunt.cli import parse_json_list
 
-    raw = """{"messages":[{"type":"warning","path":"a.py","line":2,"column":0,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"},{"type":"warning","path":"b.py","line":4,"column":1,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"}],"statistics":{}}"""
+    raw = (
+        '{"messages":[{"type":"warning","path":"a.py","line":2,"column":0,'
+        '"message-id":"W0718","symbol":"broad-exception-caught","message":'
+        '"Catching too general exception Exception"},{"type":"warning","path":'
+        '"b.py","line":4,"column":1,"message-id":"W0718","symbol":'
+        '"broad-exception-caught","message":"Catching too general exception '
+        'Exception"}],"statistics":{}}'
+    )
     got = parse_json_list("pylint", raw, "", 4)
     assert len(got) == 2
     assert all(x.code == "W0718" for x in got)
@@ -230,7 +237,11 @@ def test_quick_alias_routes_fast(monkeypatch, tmp_path):
 def test_deptry_parser_preserves_dependency_rule_codes():
     from bughunt.cli import parse_deptry
 
-    raw = "src/a.py:4:0: DEP004 'pytest' imported but declared as a dev dependency\npyproject.toml: DEP002 'foo' defined as a dependency but not used\n"
+    raw = (
+        "src/a.py:4:0: DEP004 'pytest' imported but declared as "
+        "a dev dependency\npyproject.toml: DEP002 'foo' defined "
+        "as a dependency but not used\n"
+    )
     got = parse_deptry(raw, "", 1)
     assert [x.code for x in got] == ["DEP004", "DEP002"]
     assert got[1].path == "pyproject.toml"
@@ -424,7 +435,11 @@ def test_pysa_is_installed_into_private_compatibility_runtime(monkeypatch, tmp_p
 def test_ruff_fix_metadata_is_preserved():
     from bughunt.cli import parse_ruff
 
-    raw = """[{"code":"F401","message":"unused","filename":"a.py","location":{"row":1,"column":1},"fix":{"applicability":"safe","message":"Remove import","edits":[]}}]"""
+    raw = (
+        '[{"code":"F401","message":"unused","filename":"a.py","location":'
+        '{"row":1,"column":1},"fix":{"applicability":"safe","message":'
+        '"Remove import","edits":[]}}]'
+    )
     finding = parse_ruff(raw, "", 1)[0]
     assert finding.fixable is True
     assert finding.fix_safety == "safe"
@@ -434,7 +449,10 @@ def test_ruff_fix_metadata_is_preserved():
 def test_semgrep_fix_metadata_is_preserved():
     from bughunt.cli import parse_semgrep
 
-    raw = """{"results":[{"check_id":"x","path":"a.py","start":{"line":1,"col":1},"extra":{"message":"bad","severity":"WARNING","fix":"good()"}}]}"""
+    raw = (
+        '{"results":[{"check_id":"x","path":"a.py","start":{"line":1,"col":1},'
+        '"extra":{"message":"bad","severity":"WARNING","fix":"good()"}}]}'
+    )
     finding = parse_semgrep(raw, "", 1)[0]
     assert finding.fixable is True
     assert finding.fix_safety == "rule"
