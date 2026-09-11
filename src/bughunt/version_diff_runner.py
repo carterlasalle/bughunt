@@ -240,7 +240,12 @@ def main(argv: list[str] | None = None) -> int:
                                 "path": rel,
                                 "line": getattr(newf[name], "lineno", None),
                                 "severity": "warning",
-                                "message": f"public side-effect-free function {name} changed observable behavior vs {baseline[:12]} for args={case!r}: old={before_exc or before!r}, new={after_exc or after!r}",
+                                "message": (
+                                    f"public side-effect-free function {name} changed "
+                                    f"observable behavior vs {baseline[:12]} for "
+                                    f"args={case!r}: old={before_exc or before!r}, "
+                                    f"new={after_exc or after!r}"
+                                ),
                             },
                         )
                         break

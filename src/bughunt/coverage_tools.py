@@ -17,7 +17,13 @@ class CoverageGap:
 
 def coverage_config(source_paths: list[str]) -> str:
     source = "\n    ".join(source_paths) if source_paths else "."
-    return f"""[run]\nbranch = true\nparallel = false\nsource =\n    {source}\nomit =\n    */.venv/*\n    */.bughunt/*\n    */site-packages/*\n    */tests/*\n    */test_*\n\n[report]\nshow_missing = true\nskip_covered = false\nprecision = 2\n\n[json]\npretty_print = true\nshow_contexts = true\n"""
+    return (
+        f"[run]\nbranch = true\nparallel = false\nsource =\n    {source}\n"
+        "omit =\n    */.venv/*\n    */.bughunt/*\n    */site-packages/*\n"
+        "    */tests/*\n    */test_*\n\n[report]\nshow_missing = true\n"
+        "skip_covered = false\nprecision = 2\n\n[json]\npretty_print = true\n"
+        "show_contexts = true\n"
+    )
 
 
 def _ranges(lines: list[int]) -> list[tuple[int, int]]:
@@ -62,7 +68,8 @@ def parse_coverage_json(
                     "BHCOV001",
                     str(filename),
                     start,
-                    f"{count} executable line(s) are never exercised by the test suite (missing range {span})",
+                    f"{count} executable line(s) are never exercised by the test suite "
+                    f"(missing range {span})",
                     severity,
                 ),
             )
@@ -74,7 +81,8 @@ def parse_coverage_json(
                         "BHCOV002",
                         str(filename),
                         int(src) if isinstance(src, int) else None,
-                        f"branch edge {src} -> {dst} is never exercised; uncovered exception/decision arms are latent-bug risk",
+                        f"branch edge {src} -> {dst} is never exercised; uncovered "
+                        "exception/decision arms are latent-bug risk",
                         "warning",
                     ),
                 )

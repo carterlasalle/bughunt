@@ -61,7 +61,9 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 json.dumps(
                     {
-                        "error": f"coverage JSON parse failed: {type(exc).__name__}: {exc}",
+                        "error": (
+                            f"coverage JSON parse failed: {type(exc).__name__}: {exc}"
+                        ),
                         "test_stderr": test.stderr[-4000:],
                     },
                 ),

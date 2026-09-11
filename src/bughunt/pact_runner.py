@@ -114,7 +114,10 @@ def main(argv: list[str] | None = None) -> int:
                         "code": "BHSEAM007",
                         "path": str(pact_file.relative_to(root)),
                         "severity": "error",
-                        "message": f"provider {provider_name!r} does not satisfy Pact contract: {type(exc).__name__}: {exc}",
+                        "message": (
+                            f"provider {provider_name!r} does not satisfy Pact "
+                            f"contract: {type(exc).__name__}: {exc}"
+                        ),
                     },
                 )
     finally:

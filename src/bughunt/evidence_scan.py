@@ -118,7 +118,9 @@ def _function_findings(
                 out.append(
                     EvidenceFinding(
                         "BHEVID002",
-                        f"chained cast reconstructs type evidence through multiple assertions (`{target_ann}` outside another cast); preserve/narrow the original contract instead",
+                        f"chained cast reconstructs type evidence through multiple "
+                        f"assertions (`{target_ann}` outside another cast); "
+                        "preserve/narrow the original contract instead",
                         rel,
                         child.lineno,
                         "warning",
@@ -129,7 +131,9 @@ def _function_findings(
                 out.append(
                     EvidenceFinding(
                         "BHEVID001",
-                        f"`{src}` had known type `{src_ann}`, was widened into `{value.id}`, then cast back to `{target_ann}`; this erases static evidence at the seam",
+                        f"`{src}` had known type `{src_ann}`, was widened into "
+                        f"`{value.id}`, then cast back to `{target_ann}`; this "
+                        "erases static evidence at the seam",
                         rel,
                         child.lineno,
                         "error",
@@ -178,7 +182,8 @@ def _function_findings(
                 out.append(
                     EvidenceFinding(
                         "BHEVID003",
-                        f"loop repeatedly copies growing accumulator `{acc}`; this can turn linear work quadratic and hide a performance bug",
+                        f"loop repeatedly copies growing accumulator `{acc}`; this can "
+                        "turn linear work quadratic and hide a performance bug",
                         rel,
                         child.lineno,
                         "warning",

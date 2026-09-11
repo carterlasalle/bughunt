@@ -37,7 +37,10 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "tool": "importtime",
                     "code": "BHPERF001",
-                    "message": f"import {module} failed during startup profiling: {proc.stderr[-1000:]}",
+                    "message": (
+                        f"import {module} failed during startup profiling: "
+                        f"{proc.stderr[-1000:]}"
+                    ),
                 },
             )
         elif ms > threshold_ms:
@@ -45,7 +48,10 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "tool": "importtime",
                     "code": "BHPERF001",
-                    "message": f"import {module} cumulative startup time {ms:.1f}ms exceeds {threshold_ms:.1f}ms budget",
+                    "message": (
+                        f"import {module} cumulative startup time {ms:.1f}ms exceeds "
+                        f"{threshold_ms:.1f}ms budget"
+                    ),
                     "severity": "warning",
                 },
             )

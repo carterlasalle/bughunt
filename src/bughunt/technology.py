@@ -225,7 +225,8 @@ def _git_baseline(root: Path) -> str | None:
             if merge.returncode == 0 and sha:
                 # If HEAD already *is* main/master, compare against the parent
                 # rather than declaring HEAD its own compatibility baseline.
-                # On a feature branch, the merge-base remains the right PR-like baseline.
+                # On a feature branch, the merge-base remains the right PR-like
+                # baseline.
                 head = subprocess.run(
                     ["git", "rev-parse", "HEAD"],
                     cwd=root,
@@ -681,7 +682,10 @@ def target_has_module(python: str, name: str) -> bool:
             [
                 python,
                 "-c",
-                "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)",
+                (
+                    "import importlib.util,sys;"
+                    "sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)"
+                ),
                 name,
             ],
             capture_output=True,

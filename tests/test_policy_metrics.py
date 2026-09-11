@@ -213,7 +213,8 @@ def test_generated_source_exact_string_assertion_is_flagged(tmp_path: Path) -> N
     expected = "x" * 250
     (tmp_path / "tests" / "test_codegen.py").write_text(
         "def test_codegen():\n"
-        f"    generated_source = 'actual'\n    assert generated_source == {expected!r}\n",
+        f"    generated_source = 'actual'\n    assert generated_source == "
+        f"{expected!r}\n",
     )
     findings = scan_policy(tmp_path, ["src"], ["tests"])
     assert any(item.code == "BHTEST005" for item in findings)

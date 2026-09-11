@@ -38,11 +38,14 @@ def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
         "# trace:exempt reason=generated-by-bughunt-configure-do-not-hand-edit\n"
         '@nox.session(python=PYTHONS, venv_backend="uv|virtualenv")\n'
         "def tests(session):\n"
-        '    session.install(".", "pytest", "hypothesis", "pytest-randomly", "pytest-timeout")\n'
+        '    session.install(".", "pytest", "hypothesis", "pytest-randomly", '
+        '"pytest-timeout")\n'
         "    seed = str(secrets.randbelow(2**31 - 2) + 1)\n"
         '    env = {"PYTHONHASHSEED": seed, "PYTHONASYNCIODEBUG": "1"}\n'
-        '    cmd = ["pytest", "-q", "--timeout=300", f"--randomly-seed={seed}", *TEST_PATHS]\n'
-        "    # Free-threaded interpreters deserve an extra concurrent pass.  Do not make\n"
+        '    cmd = ["pytest", "-q", "--timeout=300", '
+        'f"--randomly-seed={seed}", *TEST_PATHS]\n'
+        "    # Free-threaded interpreters deserve an extra "
+        "concurrent pass.  Do not make\n"
         "    # ordinary interpreter sessions pay this cost.\n"
         '    if str(session.python).endswith("t"):\n'
         '        session.install("pytest-run-parallel")\n'
