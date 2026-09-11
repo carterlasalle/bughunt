@@ -10,35 +10,43 @@ TRACE_EXEMPT_PY = "# trace:exempt reason=generated-by-bughunt-configure-do-not-h
 
 # trace:v1 id=impl.src-bughunt-runtime-plugins.blockbuster-plugin work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def blockbuster_plugin() -> str:
-    return TRACE_EXEMPT_PY + "\n" + '''from __future__ import annotations\n\nimport pytest\nfrom blockbuster import blockbuster_ctx\n\n@pytest.fixture(autouse=True)\ndef _bughunt_blockbuster():\n    with blockbuster_ctx():\n        yield\n'''
+    return (
+        "from __future__ import annotations\n\n"
+        "import pytest\n"
+        "from blockbuster import blockbuster_ctx\n\n"
+        "# trace:exempt reason=generated-by-bughunt-configure-do-not-hand-edit\n"
+        "@pytest.fixture(autouse=True)\n"
+        "def _bughunt_blockbuster():\n"
+        "    with blockbuster_ctx():\n"
+        "        yield\n"
+    )
 
 
 # trace:v1 id=impl.src-bughunt-runtime-plugins.noxfile work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
     versions = repr(python_versions)
     paths = repr(test_paths or ["tests"])
-    return TRACE_EXEMPT_PY + "\n" + f'''from __future__ import annotations
-
-import os
-import secrets
-import nox
-
-PYTHONS = {versions}
-TEST_PATHS = {paths}
-
-@nox.session(python=PYTHONS, venv_backend="uv|virtualenv")
-def tests(session):
-    session.install(".", "pytest", "hypothesis", "pytest-randomly", "pytest-timeout")
-    seed = str(secrets.randbelow(2**31 - 2) + 1)
-    env = {{"PYTHONHASHSEED": seed, "PYTHONASYNCIODEBUG": "1"}}
-    cmd = ["pytest", "-q", "--timeout=300", f"--randomly-seed={{seed}}", *TEST_PATHS]
-    # Free-threaded interpreters deserve an extra concurrent pass.  Do not make
-    # ordinary interpreter sessions pay this cost.
-    if str(session.python).endswith("t"):
-        session.install("pytest-run-parallel")
-        cmd[1:1] = ["--parallel-threads=auto", "--iterations=2"]
-    session.run(*cmd, env=env)
-'''
+    return (
+        "from __future__ import annotations\n\n"
+        "import os\n"
+        "import secrets\n"
+        "import nox\n\n"
+        f"PYTHONS = {versions}\n"
+        f"TEST_PATHS = {paths}\n\n"
+        "# trace:exempt reason=generated-by-bughunt-configure-do-not-hand-edit\n"
+        "@nox.session(python=PYTHONS, venv_backend=\"uv|virtualenv\")\n"
+        "def tests(session):\n"
+        "    session.install(\".\", \"pytest\", \"hypothesis\", \"pytest-randomly\", \"pytest-timeout\")\n"
+        "    seed = str(secrets.randbelow(2**31 - 2) + 1)\n"
+        "    env = {\"PYTHONHASHSEED\": seed, \"PYTHONASYNCIODEBUG\": \"1\"}\n"
+        "    cmd = [\"pytest\", \"-q\", \"--timeout=300\", f\"--randomly-seed={seed}\", *TEST_PATHS]\n"
+        "    # Free-threaded interpreters deserve an extra concurrent pass.  Do not make\n"
+        "    # ordinary interpreter sessions pay this cost.\n"
+        "    if str(session.python).endswith(\"t\"):\n"
+        "        session.install(\"pytest-run-parallel\")\n"
+        "        cmd[1:1] = [\"--parallel-threads=auto\", \"--iterations=2\"]\n"
+        "    session.run(*cmd, env=env)\n"
+    )
 
 
 def write_runtime_plugins(root: Path, python_versions: list[str], test_paths: list[str]) -> list[Path]:
