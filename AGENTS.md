@@ -3039,6 +3039,11 @@ ADR-001: baseline toolchain (uv, Ruff, Mypy, CI).
   keys, which need real `trace:v1` markers (`trace marker suggest`).
 - Etching receipts (ruff/mypy/coverage counts) into AGENTS.md beats re-adding
   the same debt conversation every session.
+- Run scans as `uv run --frozen bughunt …` from the repo root. An isolated
+  `uv tool install bughunt` resolves bare `pytest`/imports from system Python
+  (ModuleNotFoundError, 35 phantom "not installed" SKIPs, observed 2026-09-10).
+- JS installer specs float: cap `typescript@<7` while typescript-eslint stays
+  on v8 (upstream #10940). Re-check the cap when either line goes major.
 
 ---
 
