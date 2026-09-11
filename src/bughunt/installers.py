@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .technology import applicable_technology_engines, discover_technologies, project_executable
+from .technology import applicable_technology_engines, discover_technologies, project_executable, target_python
 
 
 @dataclass(slots=True)
@@ -133,7 +133,7 @@ def _python_importable(root: Path, module: str, *, extra_path: Path | None = Non
         env["PYTHONPATH"] = str(extra_path) + (os.pathsep + current if current else "")
     try:
         proc = subprocess.run(
-            [sys.executable, "-c", f"import {module}"],
+            [target_python(root), "-c", f"import {module}"],
             cwd=root,
             text=True,
             capture_output=True,
@@ -413,6 +413,7 @@ PROJECT_MODULES: dict[str, str] = {
     "slipcover": "slipcover",
     "beartype": "beartype",
     "sqlglot": "sqlglot",
+    "uvicorn": "uvicorn",
 }
 
 
@@ -576,7 +577,17 @@ def _install_technology_tools(
             if "react-doctor" in missing_js: packages.append("react-doctor")
             if "tsc" in missing_js and not typescript_added: packages.append("typescript")
             if "knip" in missing_js: packages.append("knip")
-            results.append(_install_cmd("js-correctness-tools", [exe, *args, *packages], root, dry_run=dry_run, emit=emit, note="would install applicable JavaScript/TypeScript correctness tools as dev dependencies"))
+            if "madge" in missing_js: packages.append("madge")
+            if "publint" in missing_js: packages.append("publint")
+            result = _install_cmd("js-correctness-tools", [exe, *args, *packages], root, dry_run=dry_run, emit=emit, note="would install applicable JavaScript/TypeScript correctness tools as dev dependencies")
+            results.append(result)
+            if not dry_run and result.status == "PASS":
+                # A zero exit does not prove the binaries landed (partial
+                # installs, wrong prefix); say exactly what is still missing.
+                still = sorted({name for name in missing_js if not project_executable(root, name)})
+                if still:
+                    result.status = "ERROR"
+                    result.note = f"installer exited 0 but still unresolvable: {', '.join(still)}"
         else:
             for name in missing_js:
                 results.append(InstallResult(name, "SKIPPED", [], "JavaScript/TypeScript detected but no npm/pnpm/yarn/bun package manager is available"))

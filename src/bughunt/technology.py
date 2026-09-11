@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -436,6 +437,43 @@ def project_executable(root: Path, *names: str) -> str | None:
         if found:
             return found
     return None
+
+# trace:v1 id=impl.src-bughunt-technology.target-python work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def target_python(root: Path) -> str:
+    """Interpreter for target-repo execution: its `.venv` first, else ours.
+
+    Defenses that run the target's own tests must resolve modules and console
+    scripts from the target environment. Falling back to `sys.executable`
+    preserves the old behavior for repositories without a virtualenv.
+    """
+    venv = root / ".venv" / ("Scripts" if os.name == "nt" else "bin") / "python"
+    if venv.is_file() and os.access(venv, os.X_OK):
+        return str(venv)
+    return sys.executable
+
+
+# trace:v1 id=impl.src-bughunt-technology.target-executable work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def target_executable(root: Path, *names: str) -> str | None:
+    """Console-script twin of target_python: `.venv/bin/<name>` wins over PATH."""
+    bindir = root / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+    for name in names:
+        cand = bindir / name
+        if cand.is_file() and os.access(cand, os.X_OK):
+            return str(cand)
+    return project_executable(root, *names)
+
+
+# trace:v1 id=impl.src-bughunt-technology.target-has-module work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def target_has_module(python: str, name: str) -> bool:
+    """importlib check against a specific interpreter without importing anything."""
+    try:
+        proc = subprocess.run(
+            [python, "-c", "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)", name],
+            capture_output=True, timeout=15, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0
 
 
 def llvm_executable(root: Path, name: str) -> str | None:

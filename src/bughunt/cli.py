@@ -38,6 +38,7 @@ from .installers import install_all
 from .technology import (
     ENGINE_CAPABILITY, ENGINE_CATEGORY, discover_technologies, engine_applicable,
     git_path_exists, load_technology_inventory, llvm_executable, project_executable,
+    target_executable, target_has_module, target_python,
 )
 
 
@@ -183,6 +184,7 @@ class Check:
     configured: bool = True
     skip_reason: str | None = None
     findings_exit_codes: set[int] = field(default_factory=lambda: {1})
+    skip_exit_codes: set[int] = field(default_factory=set)
     record_progress: bool = True
     timeout_is_success: bool = False
 
@@ -1340,6 +1342,7 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         *,
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
+        skip_exit_codes: set[int] | None = None,
         check_timeout: int | None = None,
         env: dict[str, str] | None = None,
         timeout_is_success: bool = False,
@@ -1364,6 +1367,7 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                 timeout=check_timeout or timeout,
                 cwd=root,
                 findings_exit_codes=findings_exit_codes if findings_exit_codes is not None else {1},
+                skip_exit_codes=skip_exit_codes if skip_exit_codes is not None else set(),
                 env=env,
                 timeout_is_success=timeout_is_success,
             )
@@ -1498,13 +1502,14 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         crosshair_cmd = [crosshair, "check", "--analysis_kind=asserts,PEP316,deal,icontract", "--max_uninteresting_iterations", iterations, "--per_path_timeout", per_path, "--per_condition_timeout", per_condition, *src]
     add("crosshair", "symbolic", crosshair_cmd, reason="crosshair not installed", findings_exit_codes={1})
 
-    pytest = executable("pytest")
+    _target_py = target_python(root)
+    pytest = target_executable(root, "pytest")
     hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
     repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
     test_timeout = int(cfg.raw.get("tests", {}).get("timeout_seconds", 300))
     pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
     pytest_cmd = [pytest, "-q", "--tb=short", "--strict-config", "--strict-markers", "-o", "xfail_strict=true"] if pytest else None
-    if pytest_cmd and python_module_available("pytest_timeout"):
+    if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
         pytest_cmd += ["--timeout", str(test_timeout)]
     if pytest_cmd and profile in {"deep", "all"}:
         # Resource/deprecation/runtime warnings are often latent bugs. Developer
@@ -1512,7 +1517,7 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         pytest_cmd += ["-W", "error"]
         pytest_env["PYTHONDEVMODE"] = "1"
         pytest_env["PYTHONASYNCIODEBUG"] = "1"
-    if pytest_cmd and hypothesis_plugin and python_module_available("hypothesis"):
+    if pytest_cmd and hypothesis_plugin and target_has_module(_target_py, "hypothesis"):
         pytest_cmd += ["-p", "hypothesis_plugin"]
         pytest_env["PYTHONPATH"] = str(hypothesis_plugin.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
     if pytest_cmd:
@@ -1530,8 +1535,9 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
     if technology.has("python"):
         coverage_cfg = generated_config(root, "coverage.ini")
         if "coverage" in wanted:
-            if python_module_available("coverage") and pytest:
-                add("coverage", "coverage/branches", [sys.executable, "-m", "bughunt.coverage_runner", str(root), *tests],
+            cov_python = _target_py if target_has_module(_target_py, "bughunt") else sys.executable
+            if target_has_module(cov_python, "coverage") and pytest:
+                add("coverage", "coverage/branches", [cov_python, "-m", "bughunt.coverage_runner", str(root), *tests],
                     lambda o,e,c: parse_bughunt_helper("coverage", o,e,c), findings_exit_codes={1})
             else:
                 add("coverage", "coverage/branches", None, reason="coverage.py/pytest not installed")
@@ -1551,15 +1557,15 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         if "runtime-types" in wanted:
             packages = python_package_names(root, cfg.source_paths)
             tg_cmd = None
-            if pytest and python_module_available("typeguard") and packages:
+            if pytest and target_has_module(_target_py, "typeguard") and packages:
                 tg_cmd = [pytest, "-q", "--tb=short", f"--typeguard-packages={','.join(packages)}", *tests]
-                if python_module_available("pytest_timeout"):
+                if target_has_module(_target_py, "pytest_timeout"):
                     tg_cmd += ["--timeout", str(test_timeout)]
             add("runtime-types", "runtime-type-contracts", tg_cmd, reason=("no importable package roots for Typeguard" if not packages else "typeguard/pytest not installed"), env={"PYTHONHASHSEED": str(repro_seed)})
 
         if "doctest" in wanted:
             doctest_cmd = [pytest, "-q", "--tb=short", "--doctest-modules", *src] if pytest else None
-            add("doctest", "executable-docs", doctest_cmd, reason="pytest not installed")
+            add("doctest", "executable-docs", doctest_cmd, reason="pytest not installed", skip_exit_codes={5})
 
         if "pydoclint" in wanted:
             pd = executable("pydoclint")
@@ -1571,20 +1577,20 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
 
         if "pytest-random" in wanted:
             seed = secrets.randbelow(2**31 - 2) + 1
-            cmd = [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *tests] if pytest and python_module_available("pytest_randomly") else None
+            cmd = [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *tests] if pytest and target_has_module(_target_py, "pytest_randomly") else None
             add("pytest-random", "determinism/order", cmd, reason="pytest-randomly not installed", env={"PYTHONHASHSEED": str(seed), "PYTHONASYNCIODEBUG": "1"}, findings_exit_codes={1})
 
         if "pytest-no-network" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "--disable-socket", "--allow-unix-socket", *tests] if pytest and python_module_available("pytest_socket") else None
+            cmd = [pytest, "-q", "--tb=short", "--disable-socket", "--allow-unix-socket", *tests] if pytest and target_has_module(_target_py, "pytest_socket") else None
             add("pytest-no-network", "hidden-io", cmd, reason="pytest-socket not installed", env={"PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1})
 
         if "pytest-xdist" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "-n", "auto", "--dist", "loadfile", *tests] if pytest and python_module_available("xdist") else None
+            cmd = [pytest, "-q", "--tb=short", "-n", "auto", "--dist", "loadfile", *tests] if pytest and target_has_module(_target_py, "xdist") else None
             add("pytest-xdist", "cross-test-state", cmd, reason="pytest-xdist not installed", env={"PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1})
 
         if "pytest-async-blocking" in wanted:
             blocker = generated_config(root, "blockbuster_plugin.py")
-            cmd = [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *tests] if pytest and blocker and python_module_available("blockbuster") else None
+            cmd = [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *tests] if pytest and blocker and target_has_module(_target_py, "blockbuster") else None
             env = {"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(repro_seed)}
             if blocker:
                 env["PYTHONPATH"] = str(blocker.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
@@ -1599,7 +1605,7 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             budget = int(cfg.raw.get("hypofuzz", {}).get(f"{profile}_seconds", 300 if profile == "all" else 120))
             workers = int(cfg.raw.get("hypofuzz", {}).get("workers", 2))
             cmd = [hypothesis_cli, "fuzz", "--no-dashboard", "-n", str(workers), "--", *tests] if hypothesis_cli else None
-            add("hypofuzz", "coverage-guided-property-fuzz", cmd, reason="HypoFuzz/Hypothesis CLI not installed", check_timeout=budget, timeout_is_success=True, env={"PYTHONHASHSEED": str(repro_seed)})
+            add("hypofuzz", "coverage-guided-property-fuzz", cmd, reason="HypoFuzz/Hypothesis CLI not installed", check_timeout=budget, timeout_is_success=True, env={"PYTHONHASHSEED": str(repro_seed)}, skip_exit_codes={5})
 
         if "griffe" in wanted:
             griffe = executable("griffe")
@@ -1645,11 +1651,11 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                     env={"LC_ALL": turkish, "LANG": turkish, "PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1}))
 
         if "memray" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "--memray", "--fail-on-increase", *tests] if pytest and python_module_available("pytest_memray") else None
+            cmd = [pytest, "-q", "--tb=short", "--memray", "--fail-on-increase", *tests] if pytest and target_has_module(_target_py, "pytest_memray") else None
             add("memray", "memory-runtime", cmd, reason="pytest-memray not installed", check_timeout=cfg.timeout(profile), findings_exit_codes={1})
 
         if "benchmark" in wanted:
-            if technology.has("benchmark-tests") and pytest and python_module_available("pytest_benchmark"):
+            if technology.has("benchmark-tests") and pytest and target_has_module(_target_py, "pytest_benchmark"):
                 cmd = [pytest, "-q", "--benchmark-only", "--benchmark-autosave"]
                 if (root / ".benchmarks").exists():
                     regression = int(cfg.raw.get("performance", {}).get("benchmark_regression_percent", 10))
@@ -2276,6 +2282,9 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
         status = Status.FINDINGS
         if not findings:
             findings = [Finding(tool=check.name, message=f"{check.name} exited {exit_code} with findings")]
+    elif exit_code in check.skip_exit_codes:
+        status = Status.SKIPPED
+        parse_error = f"exited {exit_code}: nothing collected"
     else:
         status = Status.ERROR
 
@@ -2304,6 +2313,24 @@ async def run_parallel(checks: list[Check], max_parallel: int, raw_limit: int, p
     return await asyncio.gather(*(one(c) for c in checks))
 
 
+# trace:v1 id=impl.src-bughunt-cli.reset-tool-dir work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def _reset_tool_dir(path: Path) -> None:
+    """Best-effort writable recursive delete for tool output trees.
+
+    Analyzer database directories routinely contain read-only files that make
+    the tool's own overwrite/delete step fail (observed: CodeQL
+    MultiIOException on the second consecutive scan). Making the tree writable
+    first lets our own removal succeed; leftovers are the tool's problem.
+    """
+    if not path.exists():
+        return
+    try:
+        subprocess.run(["chmod", "-R", "u+w", str(path)], capture_output=True, check=False, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    shutil.rmtree(path, ignore_errors=True)
+
+
 async def run_codeql(cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None) -> Result:
     if "codeql" not in cfg.tools(profile):
         return Result("codeql", "whole-program", Status.SKIPPED, note="not in profile")
@@ -2315,6 +2342,7 @@ async def run_codeql(cfg: Config, profile: str, raw_limit: int, progress: LiveRu
     db = cfg.root / CACHE_DIR / "codeql" / language
     sarif = cfg.root / CACHE_DIR / "codeql" / f"{language}.sarif"
     db.parent.mkdir(parents=True, exist_ok=True)
+    _reset_tool_dir(db)
 
     suite = cfg.raw.get("codeql", {}).get(
         "python_suite",

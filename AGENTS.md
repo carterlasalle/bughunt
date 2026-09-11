@@ -3013,14 +3013,18 @@ docs/adr/
 ```
 
 ADR-001: baseline toolchain (uv, Ruff, Mypy, CI).
+ADR-002: test interpreters resolve from the target repo (`.venv` first).
 
 ---
 
 ## Known pre-existing issues
 
-- Ruff: 90 pre-existing errors (top: I001 x18, BLE001 x12, FURB167 x12, UP035
-  x9, F401 x8). Mypy: 55 errors in 8 files. Coverage: 59% total branch-aware
-  (70% statement-only) vs the 85% gate. All measured 2026-09-10.
+- Ruff: 90 pre-existing errors (default config) / 2768 under the strict overlay
+  (ALL+preview, 2026-09-11). Mypy: 55 (default) / 1428 (strict overlay, 14
+  files). Basedpyright 1675 / pyrefly 1582 / ty 77 / pylint 2568
+  (scan-normalized counts, same date). Coverage: 59% total branch-aware
+  (70% statement-only) vs the 85% gate. Default-config numbers measured
+  2026-09-10.
 - `requires-python >=3.11` vs 3.12-only syntax at `cli.py:3080`.
 - Full `trace verify`: ~600 pre-existing TL012/TL013 on the imported tree.
 
@@ -3030,9 +3034,8 @@ ADR-001: baseline toolchain (uv, Ruff, Mypy, CI).
 
 - Bump `requires-python` to `>=3.12`, or rewrite `cli.py:3080` for 3.11?
 - Enable a private vulnerability-reporting channel?
-- Is `github/codeql-action@v3` still served, or must CI move to v4?
-- PyPI pending publisher for `carterlasalle/bughunt` + `pypi` environment still
-  need creating (manual, one-time); release workflow is ready otherwise.
+- `codeql-action@v3` serves fine (first analysis green 2026-09-11).
+- PyPI: `bughunt 0.6.0` published via trusted publishing 2026-09-11.
 
 ---
 
@@ -3048,6 +3051,13 @@ ADR-001: baseline toolchain (uv, Ruff, Mypy, CI).
   (ModuleNotFoundError, 35 phantom "not installed" SKIPs, observed 2026-09-10).
 - JS installer specs float: cap `typescript@<7` while typescript-eslint stays
   on v8 (upstream #10940). Re-check the cap when either line goes major.
+- Redownloads every scan came from: unregistered ready-check entries (uvicorn
+  was the only gap; each miss re-ran `uv add` → full re-resolution → lock
+  drift → every later `uv run` re-synced), a missing node_modules (full bun
+  reinstall), and a failed first atheris install (retried next run). Fixed:
+  uvicorn registered, madge/publint install branches added, post-install
+  binary verification, CodeQL DB pre-clean, target-env interpreter
+  resolution, doctest/hypofuzz exit-5 → SKIP.
 
 ---
 
