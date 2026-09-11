@@ -2961,6 +2961,10 @@ Record exact traps, for example:
 - `requires-python >=3.11` but `src/bughunt/cli.py:3080` uses 3.12 f-string
   syntax (ruff invalid-syntax x2). Do not "fix" unilaterally; floor bump is an
   owner decision.
+- Hook obligation notices can go stale for gitignored generated files
+  (observed: `.bughunt/configs/blockbuster_plugin.py`). Authoritative checks
+  are `trace verify --changed` and `trace summary`; when both are clean, do
+  NOT mark generated output or edit trace policy to silence the notice.
 
 ---
 
