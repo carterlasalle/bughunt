@@ -1,0 +1,40 @@
+# trace:v1 id=impl.name work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+name: ci
+# trace:v1 id=impl.on work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# trace:v1 id=impl.jobs work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+jobs:
+  # trace:exempt reason=repo-scaffolding-no-product-behavior
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.1.0
+      - run: uv sync --frozen
+      - run: uv run coverage run -m pytest -q
+      - run: uv run coverage report
+
+  # trace:exempt reason=repo-scaffolding-no-product-behavior
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true # advisory until the 90 pre-existing violations are cleared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.1.0
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+
+  # trace:exempt reason=repo-scaffolding-no-product-behavior
+  typecheck:
+    runs-on: ubuntu-latest
+    continue-on-error: true # advisory until the 55 pre-existing errors are cleared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.1.0
+      - run: uv sync --frozen
+      - run: uv run mypy src

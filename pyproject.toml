@@ -1,4 +1,5 @@
 [project]
+# trace:v1 id=ops.name work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
 name = "bughunt"
 version = "0.6.0"
 description = "Defense-in-depth bug finding orchestrator for Python repositories"
@@ -7,6 +8,24 @@ requires-python = ">=3.11"
 dependencies = [
     "rich>=14.0",
 ]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+license = "MIT"
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+Homepage = "https://github.com/carterlasalle/bughunt"
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+Repository = "https://github.com/carterlasalle/bughunt"
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+Issues = "https://github.com/carterlasalle/bughunt/issues"
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+Changelog = "https://github.com/carterlasalle/bughunt/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
@@ -81,3 +100,25 @@ pytest_add_cli_args_test_selection = ["tests/"]
 # suite can actually execute so the budget measures assertion strength, not reachability.
 mutate_only_covered_lines = true
 # END BUGHUNT MANAGED MUTMUT CONFIG
+
+[tool.ruff]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+target-version = "py311" # matches requires-python floor; keeps 3.12-only syntax flagged
+
+[tool.mypy]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+python_version = "3.12"
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+warn_unused_configs = true
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+ignore_missing_imports = true
+
+[tool.coverage.run]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+source = ["src"]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+branch = true
+
+[tool.coverage.report]
+# trace:exempt reason=repo-scaffolding-no-product-behavior
+show_missing = true

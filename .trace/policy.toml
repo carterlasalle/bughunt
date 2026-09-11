@@ -55,6 +55,8 @@ paths = [
   "*_test.*",
   "*.test.*",
   "*_spec.*",
-  "*.spec.*"
+  "*.spec.*",
+  "uv.lock",
+  ".python-version",
 ]
 extensions = []

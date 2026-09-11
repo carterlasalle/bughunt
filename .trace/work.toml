@@ -1,2 +1,8 @@
 [work."WORK-TL-001"]
 title = "Enforce first-marker traceability"
+[work."WORK-BUG-4ABH9VEY"]
+title = "Repository baseline: governance, tooling, CI, green gates"
+status = "active"
+origin.source = "new_feature"
+origin.intent = "Bring bughunt to AGENTS.md baseline: audit, LICENSE/SECURITY/CONTRIBUTING/CHANGELOG, CONTEXT/DESIGN/ADR/env example, pyproject tooling, CI workflows, README quickstart, memory update, commit with green tests and trace gate"
+origin.session = "default"

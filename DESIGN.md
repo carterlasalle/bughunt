@@ -1,3 +1,5 @@
+<!-- trace:v1 id=DOC-DESIGN type=document work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX -->
+<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
 # Design
 
 BugHunt's design lives in focused documents; this file maps them.

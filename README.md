@@ -1,4 +1,18 @@
+<div align="center">
+
+<!-- trace:v1 id=doc.bug-hunt work=WORK-BUG-4ABH9VEY documents=REQ-BUG-KZG483AX -->
 # BugHunt
+
+**A tool that did not run is never reported as clean.**
+
+[![CI](https://github.com/carterlasalle/bughunt/actions/workflows/ci.yml/badge.svg)](https://github.com/carterlasalle/bughunt/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](.python-version)
+[![uv](https://img.shields.io/badge/uv-managed-261230)](https://docs.astral.sh/uv/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[Quick start](#quick-start) · [Commands](#commands) · [Policy rules](DEFAULT_RULES.md) · [Complexity](COMPLEXITY.md) · [Contributing](#contributing) · [Changelog](CHANGELOG.md)
+
+</div>
 
 ## v0.6.0 runtime, seam, environment, and history correctness
 
@@ -6,8 +20,9 @@ BugHunt 0.6.0 adds the missing runtime/behavior layers around the static stack: 
 
 The correctness model is now:
 
-```text
-STATIC → SEAMS → RUNTIME → ENVIRONMENT → HISTORY → COVERAGE → MUTATION → BUG CORPUS
+```mermaid
+flowchart LR
+    A[STATIC] --> B[SEAMS] --> C[RUNTIME] --> D[ENVIRONMENT] --> E[HISTORY] --> F[COVERAGE] --> G[MUTATION] --> H[BUG CORPUS]
 ```
 
 See `SEAM_CORRECTNESS.md`, `BUG_TAXONOMY.md`, and `DETERMINISTIC_SIMULATION.md`.
@@ -36,6 +51,23 @@ uv run bughunt configure --auto
 uv run bughunt all
 # Full scan without the very expensive mutation stage:
 uv run bughunt skipmutmut
+```
+
+<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+### Prerequisites
+
+- `uv` (any recent release), Python 3.12 (pinned in `.python-version`;
+  the package supports `>=3.11`), and git.
+- No environment variables are required. `SEMGREP_APP_TOKEN` is optional
+  (see `.env.example`); without it Semgrep runs `--oss-only`.
+
+Contributor verification (see `CONTRIBUTING.md`):
+
+```bash
+uv run coverage run -m pytest -q && uv run coverage report
+uv run ruff check src tests     # advisory until lint debt is cleared
+uv run mypy src                 # advisory until type debt is cleared
+uv build                        # wheel + sdist sanity check
 ```
 
 Or install missing tools immediately before the maximal scan:
@@ -435,3 +467,32 @@ See [`V2_SPEC.md`](V2_SPEC.md). V2 turns BugHunt from a multi-analyzer runner in
 ## Analyzer integration invariants
 
 BugHunt treats analyzer infrastructure as part of correctness. Semgrep uses `p/default` plus BugHunt's generated correctness pack instead of `--config auto` while metrics are disabled; security-audit/secrets packs are opt-in. Pysa uses an isolated Python 3.12 compatibility runtime with `click<8.2`; the target repository still controls the Python version semantics in `.pyre_configuration`. Internal CodeQL database construction and `mutmut results` are progress phases, not extra defenses.
+
+<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+## Documentation
+
+| Document | What it covers |
+|---|---|
+| [V2_SPEC](V2_SPEC.md) | System spec and defense pipeline |
+| [DEFAULT_RULES](DEFAULT_RULES.md) | Shipped native policy rules |
+| [STRICT_CONFIGS](STRICT_CONFIGS.md) | Strict analyzer overlays |
+| [TECHNOLOGY_ENGINES](TECHNOLOGY_ENGINES.md) | Technology-specific engines |
+| [AUTO_DISCOVERY](AUTO_DISCOVERY.md) | Auto-discovery and campaigns |
+| [COMPLEXITY](COMPLEXITY.md) | Complexity budgets |
+| [BUG_TAXONOMY](BUG_TAXONOMY.md) | Bug taxonomy and detector roadmap |
+| [SEAM_CORRECTNESS](SEAM_CORRECTNESS.md) | Seam and contract checking |
+| [DETERMINISTIC_SIMULATION](DETERMINISTIC_SIMULATION.md) | Deterministic simulation |
+| [DESIGN](DESIGN.md) | Design index |
+| [CONTEXT](CONTEXT.md) | Domain vocabulary |
+| [CHANGELOG](CHANGELOG.md) | Release history |
+
+<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+## Contributing
+
+See [CONTRIBUTING](CONTRIBUTING.md) for setup, commands, and pull-request
+standards. Small, atomic commits; `trace verify --changed` must pass.
+
+<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+## License
+
+MIT — see [LICENSE](LICENSE).

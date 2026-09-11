@@ -34,3 +34,4 @@ node_modules/
 .cache/
 .artifacts/
 .work/
+.trace/id-allocator.lock

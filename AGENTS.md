@@ -2692,7 +2692,13 @@ Example:
 | DB | `packages/db/` | Persistence | `packages/db/AGENTS.md` |
 -->
 
-TBD.
+|Area|Path|Purpose|
+|---|---|---|
+|CLI|`src/bughunt/cli.py`|Orchestrator, profiles, reporting|
+|Stages|`src/bughunt/policy_scan.py`, `seam_scan.py`, `discovery.py`, `technology.py`, …|Native defense implementations|
+|Config|`bughunt.toml`|Profiles, budgets, custom checks|
+|Tests|`tests/`|pytest suite, 89 tests|
+|Docs|`*.md`, `docs/adr/`, `docs/specs/`|Spec, taxonomy, budgets, decisions|
 
 ---
 
@@ -2703,49 +2709,49 @@ TBD.
 ### Install
 
 ```sh
-TBD
+uv sync
 ```
 
 ### Develop
 
 ```sh
-TBD
+uv run bughunt --help
 ```
 
 ### Focused test
 
 ```sh
-TBD
+uv run pytest -q tests/test_core.py
 ```
 
 ### Full test
 
 ```sh
-TBD
+uv run coverage run -m pytest -q -p no:randomly && uv run coverage report
 ```
 
 ### Lint
 
 ```sh
-TBD
+uv run ruff check src tests
 ```
 
 ### Typecheck
 
 ```sh
-TBD
+uv run mypy src
 ```
 
 ### Build
 
 ```sh
-TBD
+uv build
 ```
 
 ### Full validation / Definition-of-Done command
 
 ```sh
-TBD
+uv run coverage run -m pytest -q && uv run coverage report && trace verify --changed
 ```
 
 ---
@@ -2762,7 +2768,9 @@ Node: current project-supported LTS
 JS package manager: Yarn
 -->
 
-TBD.
+Python 3.12 pinned (`.python-version`); package floor `>=3.11` (`pyproject.toml`).
+Python package manager: `uv` (`uv.lock` committed). Verified with uv 0.11.7 on
+2026-09-10. No JS runtime.
 
 ---
 
@@ -2773,7 +2781,12 @@ Record important configuration files, env behavior, and non-obvious defaults.
 Never put real secrets here.
 -->
 
-TBD.
+`bughunt.toml` owns profiles, timeouts, complexity budgets, and the managed
+`custom.checks` block. `pyproject.toml` owns build meta plus `[tool.ruff]`
+(target py311, matching the floor), `[tool.mypy]`, `[tool.coverage]`, and the
+mutmut block managed by BugHunt. `.env.example` documents the only env var,
+`SEMGREP_APP_TOKEN` (optional; without it Semgrep runs `--oss-only`).
+`.bughunt/` output (configs, reports, cache, generated) is gitignored.
 
 ---
 
@@ -2783,7 +2796,8 @@ TBD.
 Record project-specific dependency direction and ownership rules.
 -->
 
-TBD.
+Single-package CLI: `cli.py` imports stage modules directly. No enforced
+layering; do not add cross-module abstractions without an ADR.
 
 ---
 
@@ -2795,7 +2809,9 @@ Examples:
 - Never edit generated Z directly.
 -->
 
-TBD.
+`bughunt.toml` is authoritative for scan behavior; `pyproject.toml` for build
+and dev-tool defaults; `uv.lock` for reproducible installs. Never hand-edit
+the `BEGIN/END BUGHUNT MANAGED` blocks; run `bughunt configure --auto`.
 
 ---
 
@@ -2805,7 +2821,8 @@ TBD.
 Point to CONTEXT.md and record only terms that repeatedly cause mistakes.
 -->
 
-TBD.
+See `CONTEXT.md`. Most confused pair: finding (one hit) vs signal (grouped
+hits) vs blind spot (applicable defense that could not run, never clean).
 
 ---
 
@@ -2815,7 +2832,7 @@ TBD.
 Point to DESIGN.md. Record project-specific UI traps or visual constraints.
 -->
 
-TBD.
+No UI. `DESIGN.md` maps design topics to their documents; link, do not duplicate.
 
 ---
 
@@ -2826,7 +2843,9 @@ Record where unit/component/integration/E2E tests live and the fastest way to
 run a single test.
 -->
 
-TBD.
+Flat pytest suite in `tests/` (89 tests, ~2.5s). Randomized order via
+pytest-randomly; disable with `-p no:randomly`. Fastest single test:
+`uv run pytest -q tests/test_core.py -k <name>`.
 
 ---
 
@@ -2852,59 +2871,69 @@ Branch:     >= 90%
 
 ### Cyclomatic complexity
 
-TBD.
+Budgets live in `bughunt.toml [complexity]`: cyclomatic warn 10 / error 20,
+function LOC warn 80 / error 150, file LOC warn 500 / error 1200, ABC warn 30 /
+error 45, plus JS/CSS/wasm/bundle KB budgets. See `COMPLEXITY.md`.
 
 Receipt:
 
-TBD.
+Declared 2026-09-10 from `bughunt.toml`. Violation: `src/bughunt/cli.py`
+(3808 lines) exceeds file_loc_error=1200. Recorded as pre-existing debt;
+splitting it is a refactor, not setup.
 
 ### LOC per file
 
-TBD.
+Same table as cyclomatic: warn 500 / error 1200 per file.
 
 Receipt:
 
-TBD.
+`src/bughunt/cli.py` at 3808 lines is the only measured violation (2026-09-10).
 
 ### ABC score
 
-TBD.
+Warn 30 / error 45 per `bughunt.toml`. No violation measured 2026-09-10.
 
 Receipt:
 
-TBD.
+Not measured; Python repo with no JS/CSS assets in tree.
 
 ### CSS / JS / asset-size budgets
 
-TBD.
+JS warn 500KB, CSS 250KB, wasm 2000KB, bundle 1500KB per `bughunt.toml`.
+No bundles in tree; budgets untriggered.
 
 Receipt:
 
-TBD.
+None in tree to measure 2026-09-10.
 
 ---
 
 ## Performance budgets and receipts
 
-TBD.
+`bughunt.toml [performance]`: import warn 1000ms, benchmark regression 10%,
+memray on. No measurements taken 2026-09-10; record a receipt before enforcing.
 
 ---
 
 ## Persistence and migration guarantees
 
-TBD.
+BugHunt is local-only with no user-data store. `.bughunt/` outputs are
+regenerable and gitignored. No migration contract exists or is needed.
 
 ---
 
 ## Import/export and round-trip guarantees
 
-TBD.
+No compatible-format promise. `queue.json` / `agent/` bundles are regenerable
+scan outputs, not a versioned interchange format.
 
 ---
 
 ## Security boundaries
 
-TBD.
+Supported: 0.6.x (`SECURITY.md`). Reports via GitHub issue with `security`
+label; no private channel configured. `SEMGREP_APP_TOKEN` is the only secret;
+it travels via env, never committed (`.env.example` holds the placeholder).
 
 ---
 
@@ -2917,7 +2946,21 @@ Record exact traps, for example:
 - service Y silently defaults to remote;
 -->
 
-TBD.
+- Full `trace verify` reports ~600 pre-existing TL012/TL013 diagnostics on the
+  imported tree. Gate on `trace verify --changed`, not full verify.
+- Every new/changed file needs per-boundary accounting: Markdown needs an
+  exempt comment above each heading; TOML above each new key; body-only edits
+  to existing files need nothing new.
+- `# trace:exempt` does NOT clear TL013 on YAML keys (observed 2026-09-10).
+  Use `trace marker suggest <file>:<line>` and place the suggested `trace:v1`
+  marker instead.
+- The post-mutation hook routinely times out (exit -1); run
+  `trace verify --changed` explicitly before finishing.
+- `.trace/policy.toml` and `.trace/work.toml` may be harness-managed (staged
+  automatically); inspect their diff, do not hand-revert session state.
+- `requires-python >=3.11` but `src/bughunt/cli.py:3080` uses 3.12 f-string
+  syntax (ruff invalid-syntax x2). Do not "fix" unilaterally; floor bump is an
+  owner decision.
 
 ---
 
@@ -2934,7 +2977,12 @@ Weak:
 "Verify things carefully."
 -->
 
-TBD.
+- Do not claim lint/type CI is green: 90 ruff + 55 mypy pre-existing findings
+  keep those CI jobs `continue-on-error`. Clearing them is a refactor PR.
+- Do not reformat the tree to satisfy a newly added formatter (25 files would
+  churn); enforce style on changed code or not at all.
+- `todo init` requires the `list` parameter (`[{phase, items}]`); `phase`
+  alone fails.
 
 ---
 
@@ -2945,7 +2993,10 @@ Record stable official APIs or sanitized HAR-derived request knowledge when
 this materially improves repeated automation.
 -->
 
-TBD.
+GitHub Actions pins verified 2026-09-10: `actions/checkout@v4`,
+`astral-sh/setup-uv@v10.1.0`, `github/codeql-action@v3` (v3 assumed from the
+long-standing major; bump if CI reports it missing). Dependabot tracks `pip`
+and `github-actions` weekly.
 
 ---
 
@@ -2957,25 +3008,37 @@ See:
 docs/adr/
 ```
 
-TBD.
+ADR-001: baseline toolchain (uv, Ruff, Mypy, CI).
 
 ---
 
 ## Known pre-existing issues
 
-TBD.
+- Ruff: 90 pre-existing errors (top: I001 x18, BLE001 x12, FURB167 x12, UP035
+  x9, F401 x8). Mypy: 55 errors in 8 files. Coverage: 59% total branch-aware
+  (70% statement-only) vs the 85% gate. All measured 2026-09-10.
+- `requires-python >=3.11` vs 3.12-only syntax at `cli.py:3080`.
+- Full `trace verify`: ~600 pre-existing TL012/TL013 on the imported tree.
 
 ---
 
 ## Open questions / unclear behavior
 
-TBD.
+- Bump `requires-python` to `>=3.12`, or rewrite `cli.py:3080` for 3.11?
+- Enable a private vulnerability-reporting channel?
+- Is `github/codeql-action@v3` still served, or must CI move to v4?
+- PyPI pending publisher for `carterlasalle/bughunt` + `pypi` environment still
+  need creating (manual, one-time); release workflow is ready otherwise.
 
 ---
 
 ## Durable learnings
 
-TBD.
+- Scaffolding (LICENSE, CI, env example) is honestly accounted with
+  `# trace:exempt reason=repo-scaffolding-no-product-behavior`, except YAML
+  keys, which need real `trace:v1` markers (`trace marker suggest`).
+- Etching receipts (ruff/mypy/coverage counts) into AGENTS.md beats re-adding
+  the same debt conversation every session.
 
 ---
 
@@ -2983,7 +3046,7 @@ TBD.
 
 Date:
 
-TBD.
+2026-09-10
 
 Reviewed:
 
