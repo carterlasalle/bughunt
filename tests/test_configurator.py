@@ -122,7 +122,12 @@ def test_managed_mutmut_config_refreshes_inferred_paths(tmp_path: Path) -> None:
 def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
     import json
 
-    from bughunt.configurator import _JS_TOOL_IGNORES, _eslint_config, _oxlint_config
+    from bughunt.configurator import (
+        _JS_TOOL_IGNORES,
+        _eslint_config,
+        _knip_config,
+        _oxlint_config,
+    )
 
     # Neither tool resolves config-file patterns outside the generated
     # config's own directory, so the ESLint template inlines root-relative
@@ -135,3 +140,6 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
         for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
             assert f'"{ignored}"' in text
     assert "ignorePatterns" not in json.loads(_oxlint_config(False))
+    knip = json.loads(_knip_config())
+    for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
+        assert ignored in knip["ignoreFiles"]

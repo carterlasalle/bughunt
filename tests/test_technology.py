@@ -306,3 +306,21 @@ def test_eslint_empty_scope_banner_parses_clean() -> None:
 
     stderr = f'You are linting ".", but {ESLINT_EMPTY_SCOPE} "." are ignored.\n'
     assert parse_eslint("", stderr, 2) == []
+
+
+# trace:v1 id=test.tests-test-technology.test-tsc-gated-on-tsconfig work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_tsc_gated_on_tsconfig(tmp_path, monkeypatch) -> None:
+    from bughunt import cli as cli_mod
+
+    # Without a project file tsc prints help text that is not a finding;
+    # with one, the check is built. tsc is force-present: host PATH varies.
+    monkeypatch.setattr(cli_mod, "project_executable", lambda root, *names: "/bin/tsc")
+    (tmp_path / "app.ts").write_text("export const x: number = 1;\n")
+    cfg = Config(root=tmp_path, raw=_default_config_raw())
+    _, skipped = build_checks(cfg, "pr")
+    tsc_skip = next(r for r in skipped if r.name == "tsc")
+    assert tsc_skip.status == Status.SKIPPED
+    assert tsc_skip.note is not None and "tsconfig" in tsc_skip.note
+    (tmp_path / "tsconfig.json").write_text("{}")
+    checks, _ = build_checks(cfg, "pr")
+    assert any(c.name == "tsc" for c in checks)

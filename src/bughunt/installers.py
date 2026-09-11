@@ -464,8 +464,24 @@ def _install_pysa_runtime(
     verify.name = "pysa-verify"
     if verify.status == "PASS":
         verify.note = f"private Pysa CLI compatibility verification passed at {pyre}"
+    if verify.status == "PASS" and not _pysa_provider_present(runtime):
+        verify.status = "ERROR"
+        verify.note = (
+            "pyre installed but the pyrefly type-provider binary is missing from "
+            f"{runtime / 'bin'}; re-run the install with network access"
+        )
     results.append(verify)
     return results
+
+
+# trace:v1 id=impl.src-bughunt-installers.-pysa-provider-present work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _pysa_provider_present(runtime: Path) -> bool:
+    """True when pyre can locate its Pyrefly provider inside the runtime.
+
+    `pyre --help` never exercises the provider lookup, so a green CLI probe
+    can mask a broken analyze runtime. The binary itself is the receipt.
+    """
+    return (runtime / "bin" / "pyrefly").exists()
 
 
 PROJECT_EXECUTABLES: dict[str, tuple[str, ...]] = {
@@ -833,7 +849,10 @@ def _install_technology_tools(
             if "react-doctor" in missing_js:
                 packages.append("react-doctor")
             if "tsc" in missing_js and not typescript_added:
-                packages.append("typescript")
+                # Same major cap as above: tsc ships inside the typescript
+                # package, and an uncapped install can land TS >= 7, which
+                # typescript-eslint v8 rejects at eslint startup.
+                packages.append("typescript@<7")
             if "knip" in missing_js:
                 packages.append("knip")
             if "madge" in missing_js:

@@ -642,3 +642,33 @@ def test_run_accepts_positional_all_profile(monkeypatch, tmp_path):
     rc = cli.main(["--root", str(tmp_path), "run", "all", "--skip-mutmut"])
     assert rc == 0
     assert seen["profile"] == "all"
+
+
+# trace:v1 id=test.tests-test-core.test-run-pysa-maps-missing-provider-to-skipped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_run_pysa_maps_missing_provider_to_skipped(tmp_path, monkeypatch) -> None:
+    import asyncio
+    import stat
+
+    from bughunt import cli as cli_mod
+    from bughunt.cli import Config, Status, run_pysa
+
+    # A missing Pyrefly provider means the defense cannot execute; it must
+    # report SKIPPED with the repair, never an analysis ERROR (observed on a
+    # fresh repo whose installer left pyre without its provider, 2026-09-11).
+    (tmp_path / ".pyre_configuration").write_text("{}\n")
+    fake = tmp_path / "pyre"
+    fake.write_text(
+        '#!/bin/sh\necho "Cannot locate a Pyrefly binary to run."\nexit 16\n'
+    )
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(cli_mod, "pysa_executable", lambda root: str(fake))
+    raw = {
+        "project": {"python_paths": ["src"], "source_paths": ["src"]},
+        "execution": {"max_parallel": 1},
+        "timeouts": {"deep": 60},
+        "profiles": {"deep": {"tools": ["pysa"]}},
+    }
+    result = asyncio.run(run_pysa(Config(root=tmp_path, raw=raw), "deep", 512))
+    assert result.status == Status.SKIPPED
+    assert result.findings == []
+    assert "install --only pysa" in (result.note or "")

@@ -1203,6 +1203,18 @@ def _oxlint_config(react: bool) -> str:
     return json.dumps(data, indent=2)
 
 
+# trace:v1 id=impl.src-bughunt-configurator.-knip-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _knip_config() -> str:
+    # ignoreFiles uses the shared JS ignore list. Resolution is verified
+    # empirically after generation: if knip resolves these relative to the
+    # config file instead of the root, the invocation must scope paths.
+    data = {
+        "$schema": "https://unpkg.com/knip@6/schema.json",
+        "ignoreFiles": _JS_TOOL_IGNORES,
+    }
+    return json.dumps(data, indent=2)
+
+
 # trace:v1 id=impl.src-bughunt-configurator.-eslint-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _eslint_config(typescript: bool) -> str:
     # Core ESLint correctness rules plus type-aware typescript-eslint when a
@@ -1400,6 +1412,15 @@ def _configure_technology_overlays(
             (
                 "correctness+suspicious strict; pedantic/restriction/perf "
                 "warnings; style disabled"
+            ),
+        )
+        put(
+            "Knip",
+            "knip.json",
+            _knip_config(),
+            (
+                "harness/runtime/dependency dirs ignored so dynamically loaded "
+                "entry points are not reported unused"
             ),
         )
         put(

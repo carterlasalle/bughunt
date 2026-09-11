@@ -3620,17 +3620,31 @@ def build_checks(
     # Additional configuration/contract/language surfaces. These are selected only
     # when technology.py proves the corresponding capability exists.
     tsc = project_executable(root, "tsc")
+    tsconfig = root / "tsconfig.json"
+    # Without a project file tsc prints help text that is not a finding;
+    # bare `tsc --noEmit` already consumes ./tsconfig.json when present.
+    tsc_cmd = (
+        [tsc, "--noEmit", "--pretty", "false"] if tsc and tsconfig.exists() else None
+    )
     add_technology(
         "tsc",
-        [tsc, "--noEmit", "--pretty", "false"] if tsc else None,
-        reason="TypeScript detected but tsc is not installed",
+        tsc_cmd,
+        reason=(
+            "TypeScript detected but tsc is not installed"
+            if not tsc
+            else "TypeScript detected but no root tsconfig.json project exists"
+        ),
         findings_exit_codes={1, 2},
     )
 
     knip = project_executable(root, "knip")
+    knip_cfg = generated_config(root, "knip.json")
+    knip_cmd = [knip, "--strict"] if knip else None
+    if knip_cmd and knip_cfg:
+        knip_cmd += ["--config", str(knip_cfg)]
     add_technology(
         "knip",
-        [knip, "--strict"] if knip else None,
+        knip_cmd,
         reason="JavaScript/TypeScript detected but Knip is not installed",
         findings_exit_codes={1},
     )
@@ -4221,6 +4235,12 @@ def pysa_executable(root: Path) -> str | None:
     return executable("pyre")
 
 
+# Banner pyre prints when it cannot locate its Pyrefly type-provider binary.
+# A missing provider means the defense cannot execute; the runner maps it to
+# SKIPPED with the repair stated instead of reporting an analysis ERROR.
+PYSA_NO_PROVIDER = "Cannot locate a Pyrefly binary"
+
+
 # trace:v1 id=impl.src-bughunt-cli.run-pysa work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_pysa(
     cfg: Config,
@@ -4270,9 +4290,18 @@ async def run_pysa(
         cfg.root,
         findings_exit_codes={1},
         record_progress=False,
+        env={"PATH": str(Path(pyre).parent) + os.pathsep + os.environ.get("PATH", "")},
     )
     result = await run_process(check, raw_limit, progress)
     result.artifacts.append(str(out_dir))
+    if PYSA_NO_PROVIDER in (result.stdout or "") + (result.stderr or ""):
+        result.status = Status.SKIPPED
+        result.findings = []
+        result.note = (
+            "Pyrefly type-provider binary not found by pyre; re-run "
+            "`uv run bughunt install --only pysa`"
+        )
+        return result
 
     if not result.findings and result.stdout:
         text = result.stdout
