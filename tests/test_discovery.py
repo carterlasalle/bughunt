@@ -1,10 +1,11 @@
+# Copyright (c) 2026 Carter LaSalle
 from pathlib import Path
 
 from bughunt.discovery import discover_all, discover_schemathesis
 
 
 # trace:v1 id=test.tests-test-discovery.test-discovers-fastapi-and-parser work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_discovers_fastapi_and_parser(tmp_path: Path):
+def test_discovers_fastapi_and_parser(tmp_path: Path) -> None:
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")
@@ -45,7 +46,7 @@ def test_discovers_fastapi_and_parser(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-discovery.test-remote-openapi-is-not-auto-run work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_remote_openapi_is_not_auto_run(tmp_path: Path):
+def test_remote_openapi_is_not_auto_run(tmp_path: Path) -> None:
     schema = tmp_path / "openapi.json"
     schema.write_text(
         '{"openapi":"3.1.0","info":{"title":"x","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{}}',
@@ -57,7 +58,7 @@ def test_remote_openapi_is_not_auto_run(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-discovery.test-discovers-semantic-custom-campaigns-and-pysa-models work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
+def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path) -> None:
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")
@@ -110,7 +111,7 @@ def test_discovers_semantic_custom_campaigns_and_pysa_models(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-discovery.test-does-not-invent-differential-oracle-for-io-functions work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path):
+def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path) -> None:
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")
@@ -127,7 +128,7 @@ def test_does_not_invent_differential_oracle_for_io_functions(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-discovery.test-discovers-flask-with-explicit-openapi-route work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path):
+def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path) -> None:
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")
@@ -145,7 +146,7 @@ def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-discovery.test-atheris-infers-expected-parser-rejections work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_atheris_infers_expected_parser_rejections(tmp_path: Path):
+def test_atheris_infers_expected_parser_rejections(tmp_path: Path) -> None:
     src = tmp_path / "src" / "demo"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text("")

@@ -1,9 +1,10 @@
+# Copyright (c) 2026 Carter LaSalle
 from pathlib import Path
 
 from bughunt.cli import Config, Finding, Result, Status, signal_groups, write_reports
 
 
-def test_signal_groups_repeated_rule():
+def test_signal_groups_repeated_rule() -> None:
     results = [
         Result(
             "ruff",
@@ -33,7 +34,7 @@ def test_signal_groups_repeated_rule():
 
 
 # trace:v1 id=test.tests-test-reporting.test-agent-report-artifacts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_agent_report_artifacts(tmp_path: Path):
+def test_agent_report_artifacts(tmp_path: Path) -> None:
     cfg = Config(tmp_path, {"execution": {}})
     result = Result(
         "ruff",
@@ -60,7 +61,7 @@ def test_agent_report_artifacts(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-reporting.test-report-counts-autofixes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_report_counts_autofixes(tmp_path: Path):
+def test_report_counts_autofixes(tmp_path: Path) -> None:
     from bughunt.cli import autofix_summary
 
     results = [

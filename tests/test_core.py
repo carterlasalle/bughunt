@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Carter LaSalle
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ from bughunt.cli import (
 )
 
 
-def test_parse_ruff():
+def test_parse_ruff() -> None:
     raw = """[
       {
         "code":"F821",
@@ -28,7 +29,7 @@ def test_parse_ruff():
     assert got[0].line == 10
 
 
-def test_parse_basedpyright_zero_based_locations():
+def test_parse_basedpyright_zero_based_locations() -> None:
     raw = """{
       "generalDiagnostics": [{
         "file":"src/a.py",
@@ -43,20 +44,22 @@ def test_parse_basedpyright_zero_based_locations():
     assert got[0].column == 3
 
 
-def test_fingerprint_ignores_line_motion():
+def test_fingerprint_ignores_line_motion() -> None:
     a = Finding(tool="ruff", path="a.py", line=1, code="X", message="bad")
     b = Finding(tool="ruff", path="a.py", line=200, code="X", message="bad")
     assert a.fingerprint == b.fingerprint
 
 
-def test_health_penalizes_findings():
+def test_health_penalizes_findings() -> None:
     clean = [Result("a", "x", Status.PASS)]
     dirty = [Result("a", "x", Status.FINDINGS)]
     assert overall_score(clean) > overall_score(dirty)
 
 
 # trace:v1 id=test.tests-test-core.test-install-only-cli-is-wired work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_install_only_cli_is_wired(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_install_only_cli_is_wired(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Regression: the source hotfix must expose --only all the way to install_all."""
     from bughunt import cli
 
@@ -77,7 +80,7 @@ def test_install_only_cli_is_wired(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert seen["only"] == {"atheris"}
 
 
-def test_text_findings_extracts_mypy_error_code():
+def test_text_findings_extracts_mypy_error_code() -> None:
     from bughunt.cli import text_findings
 
     got = text_findings(
@@ -92,7 +95,7 @@ def test_text_findings_extracts_mypy_error_code():
 
 
 # trace:v1 id=test.tests-test-core.test-import-linter-requires-real-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_import_linter_requires_real_config(tmp_path: Path):
+def test_import_linter_requires_real_config(tmp_path: Path) -> None:
     from bughunt.cli import import_linter_configured
 
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
@@ -101,7 +104,7 @@ def test_import_linter_requires_real_config(tmp_path: Path):
     assert import_linter_configured(tmp_path)
 
 
-def test_pylint_json2_messages_are_individual_findings():
+def test_pylint_json2_messages_are_individual_findings() -> None:
     from bughunt.cli import parse_json_list
 
     raw = (
@@ -119,7 +122,9 @@ def test_pylint_json2_messages_are_individual_findings():
 
 
 # trace:v1 id=test.tests-test-core.test-configure-all-generates-paranoid-configs-and-is-idempotent work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_configure_all_generates_paranoid_configs_and_is_idempotent(tmp_path: Path):
+def test_configure_all_generates_paranoid_configs_and_is_idempotent(
+    tmp_path: Path,
+) -> None:
     import json
     import tomllib
 
@@ -176,7 +181,9 @@ def test_configure_all_generates_paranoid_configs_and_is_idempotent(tmp_path: Pa
 
 
 # trace:v1 id=test.tests-test-core.test-run-process-handles-huge-single-line-without-readline-limit work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_run_process_handles_huge_single_line_without_readline_limit(tmp_path: Path):
+def test_run_process_handles_huge_single_line_without_readline_limit(
+    tmp_path: Path,
+) -> None:
     import asyncio
     import sys
 
@@ -199,7 +206,7 @@ def test_run_process_handles_huge_single_line_without_readline_limit(tmp_path: P
 # trace:v1 id=test.tests-test-core.test-deep-profile-is-not-downgraded-to-pr work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_deep_profile_is_not_downgraded_to_pr(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {}
@@ -207,7 +214,9 @@ def test_deep_profile_is_not_downgraded_to_pr(
     monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
 
     # trace:v1 id=test.tests-test-core-test-deep-profile-is-not-downgraded-to-pr.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    async def fake_run_all(cfg: Config, profile: str, *, auto_discover: bool = True):
+    async def fake_run_all(
+        cfg: Config, profile: str, *, auto_discover: bool = True
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
 
@@ -225,14 +234,18 @@ def test_deep_profile_is_not_downgraded_to_pr(
 
 
 # trace:v1 id=test.tests-test-core.test-quick-alias-routes-fast work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_quick_alias_routes_fast(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_quick_alias_routes_fast(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     from bughunt import cli
 
     seen = {}
     monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
 
     # trace:v1 id=test.tests-test-core-test-quick-alias-routes-fast.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    async def fake_run_all(cfg: Config, profile: str, *, auto_discover: bool = True):
+    async def fake_run_all(
+        cfg: Config, profile: str, *, auto_discover: bool = True
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
 
@@ -249,7 +262,7 @@ def test_quick_alias_routes_fast(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     assert seen["profile"] == "fast"
 
 
-def test_deptry_parser_preserves_dependency_rule_codes():
+def test_deptry_parser_preserves_dependency_rule_codes() -> None:
     from bughunt.cli import parse_deptry
 
     raw = (
@@ -262,7 +275,9 @@ def test_deptry_parser_preserves_dependency_rule_codes():
     assert got[1].path == "pyproject.toml"
 
 
-def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code():
+def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code() -> (
+    None
+):
     import json
 
     from bughunt.cli import parse_pyrefly
@@ -286,7 +301,7 @@ def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code(
     assert got[0].signal_key == "pyrefly:bad-assignment"
 
 
-def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages():
+def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages() -> None:
     from bughunt.cli import Finding
 
     a = Finding(tool="mypy", code="misc", message="Expression type contains Any")
@@ -297,7 +312,7 @@ def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages():
 # trace:v1 id=test.tests-test-core.test-canonicalize-findings-collapses-absolute-and-relative-repo-paths work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(
     tmp_path: Path,
-):
+) -> None:
     from bughunt.cli import (
         Finding,
         Result,
@@ -328,7 +343,7 @@ def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(
 
 
 # trace:v1 id=test.tests-test-core.test-canonicalize-findings-exempts-trace-marker-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path):
+def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path) -> None:
     from bughunt.cli import (
         Finding,
         Result,
@@ -361,7 +376,7 @@ def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-core.test-generated-pylint-config-omits-removed-suggestion-mode work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path: Path):
+def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
     (tmp_path / "src/pkg").mkdir(parents=True)
@@ -378,7 +393,7 @@ def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path: Path):
 # trace:v1 id=test.tests-test-core.test-semgrep-auto-is-rewritten-to-explicit-default-pack work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_semgrep_auto_is_rewritten_to_explicit_default_pack(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     (tmp_path / "src").mkdir()
@@ -412,7 +427,9 @@ def test_semgrep_auto_is_rewritten_to_explicit_default_pack(
 
 
 # trace:v1 id=test.tests-test-core.test-internal-progress-stage-is-not-counted-as-completed-defense work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_internal_progress_stage_is_not_counted_as_completed_defense(tmp_path: Path):
+def test_internal_progress_stage_is_not_counted_as_completed_defense(
+    tmp_path: Path,
+) -> None:
     import asyncio
     import sys
 
@@ -437,7 +454,7 @@ def test_internal_progress_stage_is_not_counted_as_completed_defense(tmp_path: P
 # trace:v1 id=test.tests-test-core.test-pysa-is-installed-into-private-compatibility-runtime work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_pysa_is_installed_into_private_compatibility_runtime(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import installers
 
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
@@ -458,7 +475,7 @@ def test_pysa_is_installed_into_private_compatibility_runtime(
     assert not any("uv add --dev pyre-check" in cmd for cmd in commands)
 
 
-def test_ruff_fix_metadata_is_preserved():
+def test_ruff_fix_metadata_is_preserved() -> None:
     from bughunt.cli import parse_ruff
 
     raw = (
@@ -472,7 +489,7 @@ def test_ruff_fix_metadata_is_preserved():
     assert finding.fix_preview == "Remove import"
 
 
-def test_semgrep_fix_metadata_is_preserved():
+def test_semgrep_fix_metadata_is_preserved() -> None:
     from bughunt.cli import parse_semgrep
 
     raw = (
@@ -486,7 +503,7 @@ def test_semgrep_fix_metadata_is_preserved():
 
 
 # trace:v1 id=test.tests-test-core.test-flat-layout-source-path-inference work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_flat_layout_source_path_inference(tmp_path: Path):
+def test_flat_layout_source_path_inference(tmp_path: Path) -> None:
     from bughunt.cli import load_config
 
     package = tmp_path / "demo"
@@ -498,7 +515,9 @@ def test_flat_layout_source_path_inference(tmp_path: Path):
 
 
 # trace:v1 id=test.tests-test-core.test-flat-layout-python-paths-do-not-get-masked-by-tests-dir work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_flat_layout_python_paths_do_not_get_masked_by_tests_dir(tmp_path: Path):
+def test_flat_layout_python_paths_do_not_get_masked_by_tests_dir(
+    tmp_path: Path,
+) -> None:
     from bughunt.cli import load_config
 
     package = tmp_path / "demo"
@@ -512,7 +531,9 @@ def test_flat_layout_python_paths_do_not_get_masked_by_tests_dir(tmp_path: Path)
 
 
 # trace:v1 id=test.tests-test-core.test-default-pr-profile-contains-policy-and-complexity-engines work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_default_pr_profile_contains_policy_and_complexity_engines(tmp_path: Path):
+def test_default_pr_profile_contains_policy_and_complexity_engines(
+    tmp_path: Path,
+) -> None:
     from bughunt.cli import load_config
 
     cfg = load_config(tmp_path)
@@ -524,7 +545,7 @@ def test_default_pr_profile_contains_policy_and_complexity_engines(tmp_path: Pat
 # trace:v1 id=test.tests-test-core.test-full-alias-routes-to-all-and-bootstraps-by-default work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_full_alias_routes_to_all_and_bootstraps_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {"install": 0}
@@ -534,7 +555,9 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
         return []
 
     # trace:v1 id=test.tests-test-core-test-full-alias-routes-to-all-and-bootstraps-by-default.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    async def fake_run_all(cfg: Config, profile: str, *, auto_discover: bool = True):
+    async def fake_run_all(
+        cfg: Config, profile: str, *, auto_discover: bool = True
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
 
@@ -554,7 +577,7 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
     assert seen["install"] == 1
 
 
-def test_complexity_parsers_preserve_tool_specific_signals():
+def test_complexity_parsers_preserve_tool_specific_signals() -> None:
     from bughunt.cli import parse_complexipy, parse_lizard, parse_radon_mi
 
     complexipy = parse_complexipy("src/a.py f 17\n", "", 1)
@@ -574,7 +597,7 @@ def test_complexity_parsers_preserve_tool_specific_signals():
 # trace:v1 id=test.tests-test-core.test-full-alias-accepts-no-install-missing work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_full_alias_accepts_no_install_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {"install": 0, "profile": None}
@@ -586,7 +609,9 @@ def test_full_alias_accepts_no_install_missing(
     )
 
     # trace:v1 id=test.tests-test-core-test-full-alias-accepts-no-install-missing.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    async def fake_run_all(cfg: Config, profile: str, *, auto_discover: bool = True):
+    async def fake_run_all(
+        cfg: Config, profile: str, *, auto_discover: bool = True
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
 
@@ -607,7 +632,7 @@ def test_full_alias_accepts_no_install_missing(
 # trace:v1 id=test.tests-test-core.test-rules-command-lists-native-pack work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_rules_command_lists_native_pack(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {"called": False}
@@ -622,7 +647,7 @@ def test_rules_command_lists_native_pack(
 
 
 # trace:v1 id=test.tests-test-core.test-build-checks-marks-explicitly-skipped-mutmut work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path):
+def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path) -> None:
     from bughunt import cli
 
     cfg = cli.load_config(tmp_path)
@@ -636,7 +661,7 @@ def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path):
 # trace:v1 id=test.tests-test-core.test-skipmutmut-alias-passes-exclusion-and-avoids-install work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {}
@@ -653,7 +678,7 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
         *,
         auto_discover: bool = True,
         excluded: set[str] | None = None,
-    ):
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         seen["excluded"] = set(excluded or ())
         return [], 0.01
@@ -676,7 +701,7 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
 # trace:v1 id=test.tests-test-core.test-run-accepts-positional-all-profile work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_run_accepts_positional_all_profile(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+) -> None:
     from bughunt import cli
 
     seen = {}
@@ -689,7 +714,7 @@ def test_run_accepts_positional_all_profile(
         *,
         auto_discover: bool = True,
         excluded: set[str] | None = None,
-    ):
+    ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
 

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Carter LaSalle
 import tomllib
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from bughunt.discovery import DiscoveredTarget
 
 
 # trace:v1 id=test.tests-test-configurator.test-custom-checks-are-managed-and-loadable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
+def test_custom_checks_are_managed_and_loadable(tmp_path: Path) -> None:
     targets = [
         DiscoveredTarget(
             kind="custom-differential",
@@ -53,7 +54,7 @@ def test_configure_all_generates_complexity_and_env_contract(tmp_path: Path) -> 
 
 
 # trace:v1 id=test.tests-test-configurator.test-shipped-astgrep-rules-have-positive-negative-tests work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path: Path):
+def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
     (tmp_path / "src/pkg").mkdir(parents=True)

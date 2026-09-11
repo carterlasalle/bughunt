@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Carter LaSalle
 from __future__ import annotations
 
 import asyncio

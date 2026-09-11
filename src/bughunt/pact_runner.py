@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Carter LaSalle
 from __future__ import annotations
 
 import json
@@ -104,9 +105,14 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         for pact_file, provider_name in providers:
             try:
-                Verifier(provider_name).add_source(str(pact_file)).add_transport(
-                    url=url,
-                ).verify()
+                # verify() raises on contract failure; the chain result itself
+                # carries nothing the caller needs.
+                _ = (
+                    Verifier(provider_name)
+                    .add_source(str(pact_file))
+                    .add_transport(url=url)
+                    .verify()
+                )
             except Exception as exc:  # noqa: BLE001 - third-party verify(): failure modes are the finding
                 findings.append(
                     {

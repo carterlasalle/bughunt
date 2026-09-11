@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Carter LaSalle
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ from bughunt.installers import install_all
 
 
 # trace:v1 id=test.tests-test-installers.test-typescript-capped-below-7-with-eslint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_typescript_capped_below_7_with_eslint(tmp_path: Path):
+def test_typescript_capped_below_7_with_eslint(tmp_path: Path) -> None:
     # typescript-eslint v8 hard-errors on TypeScript >= 7
     # (typescript-eslint#10940); floating both specs resolved
     # typescript@7 + typescript-eslint@8 and crashed eslint with
@@ -23,7 +24,7 @@ def test_typescript_capped_below_7_with_eslint(tmp_path: Path):
 # trace:v1 id=test.tests-test-installers.test-typescript-capped-below-7-for-tsc-only work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_typescript_capped_below_7_for_tsc_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+) -> None:
     from bughunt import installers
 
     # Same cap as the eslint branch: tsc ships inside the typescript
