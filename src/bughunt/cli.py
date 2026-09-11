@@ -4066,7 +4066,7 @@ async def run_process(
                 Finding(
                     tool=check.name,
                     message=f"{check.name} exited {exit_code} with findings",
-                )
+                ),
             ]
     elif exit_code in check.skip_exit_codes:
         status = Status.SKIPPED
@@ -4444,7 +4444,9 @@ _TRACE_MARKER_LINE = re.compile(r"^\s*(?:#\s*|<!--\s*)trace:(?:v1|exempt)\b")
 
 # trace:v1 id=impl.src-bughunt-cli.finding-on-trace-marker work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _finding_on_trace_marker(
-    root: Path, finding: Finding, cache: dict[str, list[str]]
+    root: Path,
+    finding: Finding,
+    cache: dict[str, list[str]],
 ) -> bool:
     """True when a finding points at a TraceLayer marker line.
 
@@ -6601,7 +6603,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     _ = parser.add_argument(
-        "--root", type=Path, default=Path.cwd(), help="repository root"
+        "--root",
+        type=Path,
+        default=Path.cwd(),
+        help="repository root",
     )
     _ = parser.add_argument("--config", type=Path, help="path to bughunt.toml")
 
@@ -6615,7 +6620,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="profile (also accepted as --profile)",
     )
     _ = run_p.add_argument(
-        "--profile", choices=("fast", "pr", "deep", "all"), default=None
+        "--profile",
+        choices=("fast", "pr", "deep", "all"),
+        default=None,
     )
     _ = run_p.add_argument(
         "--skip",
@@ -6702,10 +6709,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     _ = config_p.add_argument("--auto", action="store_true", default=True)
 
     _ = sub.add_parser(
-        "rules", help="list the shipped BugHunt-native default rule pack"
+        "rules",
+        help="list the shipped BugHunt-native default rule pack",
     )
     _ = sub.add_parser(
-        "doctor", help="show available defenses and missing configuration"
+        "doctor",
+        help="show available defenses and missing configuration",
     )
 
     args = parser.parse_args(argv)

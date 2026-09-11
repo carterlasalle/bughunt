@@ -334,7 +334,7 @@ def _looks_real_secret(name: str, value: str) -> bool:
     low = value.strip().lower()
     if low in PLACEHOLDER_VALUES or low.startswith(("example_", "test_")):
         return False
-    if "${" in value or value.startswith("<") and value.endswith(">"):
+    if "${" in value or (value.startswith("<") and value.endswith(">")):
         return False
     if "PRIVATE KEY-----" in value:
         return True
@@ -496,9 +496,7 @@ def _literal_operational_kwargs(
             if (
                 isinstance(value, (str, int, float, bool))
                 and not isinstance(value, str)
-                or isinstance(value, str)
-                and value
-            ):
+            ) or (isinstance(value, str) and value):
                 yield keyword, keyword.arg, value
 
 

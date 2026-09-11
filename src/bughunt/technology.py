@@ -452,10 +452,8 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         ):
             js_paths.append(path)
             buckets["javascript-typescript"].append(rel)
-        if (
-            suffix in {".ts", ".tsx", ".mts", ".cts"}
-            or name.startswith("tsconfig")
-            and name.endswith(".json")
+        if suffix in {".ts", ".tsx", ".mts", ".cts"} or (
+            name.startswith("tsconfig") and name.endswith(".json")
         ):
             buckets["typescript"].append(rel)
         if suffix == ".toml" or name in {"Cargo.toml", "pyproject.toml"}:
@@ -472,7 +470,7 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
             or "/alembic/versions/" in low
         ):
             buckets["alembic"].append(rel)
-        if name == "manage.py" or "django" in low and suffix == ".py":
+        if name == "manage.py" or ("django" in low and suffix == ".py"):
             buckets["django"].append(rel)
         if suffix == ".py":
             sample = _read_small(path, 65536).lower()

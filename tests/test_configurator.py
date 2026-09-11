@@ -150,3 +150,21 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
     knip = json.loads(_knip_config())
     for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
         assert ignored in knip["ignoreFiles"]
+
+
+# trace:v1 id=test.tests-test-configurator.test-ruff-per-file-ignores-scope-tests-and-runners work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_ruff_per_file_ignores_scope_tests_and_runners(tmp_path) -> None:
+    import tomllib
+
+    from bughunt.configurator import configure_all
+
+    (tmp_path / "src/pkg").mkdir(parents=True)
+    (tmp_path / "src/pkg/__init__.py").write_text("")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "pyproject.toml").write_text('[project]\nname="pkg"\nversion="0"\n')
+    configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
+    cfg = tomllib.loads((tmp_path / ".bughunt/configs/ruff.toml").read_text())
+    scoped = cfg["lint"]["per-file-ignores"]
+    assert "S101" in scoped["tests/**"]
+    assert "D103" in scoped["tests/**"]
+    assert "ANN001" not in scoped["tests/**"]

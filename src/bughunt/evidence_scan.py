@@ -72,9 +72,8 @@ def _annotation(node: ast.AST | None) -> str:
 # trace:v1 id=impl.src-bughunt-evidence_scan.-is-broad work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _is_broad(annotation: str) -> bool:
     compact = annotation.replace(" ", "")
-    return (
-        compact in {"Any", "typing.Any", "object", "builtins.object"}
-        or "Any" in compact
+    return compact in {"Any", "typing.Any", "object", "builtins.object"} or (
+        "Any" in compact
         and compact.startswith(("dict[", "Mapping[", "MutableMapping["))
     )
 
@@ -162,21 +161,27 @@ def _function_findings(
             acc = target.id
             copies = False
             if (
-                isinstance(value, ast.BinOp)
-                and isinstance(value.op, (ast.Add, ast.BitOr))
-                and (
-                    isinstance(value.left, ast.Name)
-                    and value.left.id == acc
-                    or isinstance(value.right, ast.Name)
-                    and value.right.id == acc
+                (
+                    isinstance(value, ast.BinOp)
+                    and isinstance(value.op, (ast.Add, ast.BitOr))
+                    and (
+                        (isinstance(value.left, ast.Name) and value.left.id == acc)
+                        or (isinstance(value.right, ast.Name) and value.right.id == acc)
+                    )
                 )
-                or isinstance(value, ast.Dict)
-                and any(isinstance(v, ast.Name) and v.id == acc for v in value.values)
-                or isinstance(value, ast.Call)
-                and _name(value.func) in {"list", "dict", "set", "tuple"}
-                and value.args
-                and isinstance(value.args[0], ast.Name)
-                and value.args[0].id == acc
+                or (
+                    isinstance(value, ast.Dict)
+                    and any(
+                        isinstance(v, ast.Name) and v.id == acc for v in value.values
+                    )
+                )
+                or (
+                    isinstance(value, ast.Call)
+                    and _name(value.func) in {"list", "dict", "set", "tuple"}
+                    and value.args
+                    and isinstance(value.args[0], ast.Name)
+                    and value.args[0].id == acc
+                )
             ):
                 copies = True
             if copies:

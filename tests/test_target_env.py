@@ -35,7 +35,8 @@ def test_target_python_falls_back_without_venv(tmp_path: Path) -> None:
 
 # trace:v1 id=test.tests-test-target-env.test-target-executable-prefers-venv work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_target_executable_prefers_venv(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _make_venv(tmp_path, "pytest")
     monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name)
@@ -46,7 +47,8 @@ def test_target_executable_prefers_venv(
 
 # trace:v1 id=test.tests-test-target-env.test-target-executable-falls-back work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_target_executable_falls_back(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         "shutil.which",

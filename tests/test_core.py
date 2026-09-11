@@ -58,7 +58,8 @@ def test_health_penalizes_findings() -> None:
 
 # trace:v1 id=test.tests-test-core.test-install-only-cli-is-wired work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_install_only_cli_is_wired(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Regression: the source hotfix must expose --only all the way to install_all."""
     from bughunt import cli
@@ -205,7 +206,8 @@ def test_run_process_handles_huge_single_line_without_readline_limit(
 
 # trace:v1 id=test.tests-test-core.test-deep-profile-is-not-downgraded-to-pr work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_deep_profile_is_not_downgraded_to_pr(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -215,7 +217,10 @@ def test_deep_profile_is_not_downgraded_to_pr(
 
     # trace:v1 id=test.tests-test-core-test-deep-profile-is-not-downgraded-to-pr.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
-        cfg: Config, profile: str, *, auto_discover: bool = True
+        cfg: Config,
+        profile: str,
+        *,
+        auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
@@ -235,7 +240,8 @@ def test_deep_profile_is_not_downgraded_to_pr(
 
 # trace:v1 id=test.tests-test-core.test-quick-alias-routes-fast work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_quick_alias_routes_fast(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -244,7 +250,10 @@ def test_quick_alias_routes_fast(
 
     # trace:v1 id=test.tests-test-core-test-quick-alias-routes-fast.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
-        cfg: Config, profile: str, *, auto_discover: bool = True
+        cfg: Config,
+        profile: str,
+        *,
+        auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
@@ -355,7 +364,7 @@ def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path) -> Non
     target.write_text(
         "# trace:v1 id=impl.x work=W satisfies=R\n"
         "<!-- trace:v1 id=doc.y work=W documents=R -->\n"
-        "x = 1\n"
+        "x = 1\n",
     )
     results = [
         Result(
@@ -392,7 +401,8 @@ def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path: Path) -
 
 # trace:v1 id=test.tests-test-core.test-semgrep-auto-is-rewritten-to-explicit-default-pack work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_semgrep_auto_is_rewritten_to_explicit_default_pack(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -453,7 +463,8 @@ def test_internal_progress_stage_is_not_counted_as_completed_defense(
 
 # trace:v1 id=test.tests-test-core.test-pysa-is-installed-into-private-compatibility-runtime work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_pysa_is_installed_into_private_compatibility_runtime(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import installers
 
@@ -544,7 +555,8 @@ def test_default_pr_profile_contains_policy_and_complexity_engines(
 
 # trace:v1 id=test.tests-test-core.test-full-alias-routes-to-all-and-bootstraps-by-default work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_full_alias_routes_to_all_and_bootstraps_by_default(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -556,7 +568,10 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 
     # trace:v1 id=test.tests-test-core-test-full-alias-routes-to-all-and-bootstraps-by-default.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
-        cfg: Config, profile: str, *, auto_discover: bool = True
+        cfg: Config,
+        profile: str,
+        *,
+        auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
@@ -596,7 +611,8 @@ def test_complexity_parsers_preserve_tool_specific_signals() -> None:
 
 # trace:v1 id=test.tests-test-core.test-full-alias-accepts-no-install-missing work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_full_alias_accepts_no_install_missing(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -610,7 +626,10 @@ def test_full_alias_accepts_no_install_missing(
 
     # trace:v1 id=test.tests-test-core-test-full-alias-accepts-no-install-missing.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
-        cfg: Config, profile: str, *, auto_discover: bool = True
+        cfg: Config,
+        profile: str,
+        *,
+        auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
         seen["profile"] = profile
         return [], 0.01
@@ -631,7 +650,8 @@ def test_full_alias_accepts_no_install_missing(
 
 # trace:v1 id=test.tests-test-core.test-rules-command-lists-native-pack work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_rules_command_lists_native_pack(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -660,7 +680,8 @@ def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path) -> None:
 
 # trace:v1 id=test.tests-test-core.test-skipmutmut-alias-passes-exclusion-and-avoids-install work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -700,7 +721,8 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
 
 # trace:v1 id=test.tests-test-core.test-run-accepts-positional-all-profile work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_run_accepts_positional_all_profile(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from bughunt import cli
 
@@ -732,7 +754,8 @@ def test_run_accepts_positional_all_profile(
 
 # trace:v1 id=test.tests-test-core.test-run-pysa-maps-missing-provider-to-skipped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_run_pysa_maps_missing_provider_to_skipped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import asyncio
     import stat
@@ -746,7 +769,7 @@ def test_run_pysa_maps_missing_provider_to_skipped(
     (tmp_path / ".pyre_configuration").write_text("{}\n")
     fake = tmp_path / "pyre"
     fake.write_text(
-        '#!/bin/sh\necho "Cannot locate a Pyrefly binary to run."\nexit 16\n'
+        '#!/bin/sh\necho "Cannot locate a Pyrefly binary to run."\nexit 16\n',
     )
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setattr(cli_mod, "pysa_executable", lambda root: str(fake))

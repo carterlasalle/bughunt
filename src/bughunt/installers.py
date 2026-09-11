@@ -725,7 +725,10 @@ def _install_technology_tools(
         if _clippy_ready(root):
             results.append(
                 InstallResult(
-                    "clippy", "PASS", [], "cargo clippy is already available"
+                    "clippy",
+                    "PASS",
+                    [],
+                    "cargo clippy is already available",
                 ),
             )
         elif shutil.which("rustup"):
@@ -1132,11 +1135,9 @@ def install_all(
 
     # CodeQL is an external binary. On macOS use the maintained Homebrew cask.
     if (
-        not python_needed
-        and (only is None or "codeql" not in only)
+        (not python_needed and (only is None or "codeql" not in only))
         or "codeql" in exclude
-        or only is not None
-        and "codeql" not in only
+        or (only is not None and "codeql" not in only)
     ):
         pass
     elif shutil.which("codeql"):

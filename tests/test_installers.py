@@ -23,7 +23,8 @@ def test_typescript_capped_below_7_with_eslint(tmp_path: Path) -> None:
 
 # trace:v1 id=test.tests-test-installers.test-typescript-capped-below-7-for-tsc-only work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_typescript_capped_below_7_for_tsc_only(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from bughunt import installers
 
