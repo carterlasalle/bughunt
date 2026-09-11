@@ -2873,7 +2873,7 @@ Branch:     >= 90%
 
 Budgets live in `bughunt.toml [complexity]`: cyclomatic warn 10 / error 20,
 function LOC warn 80 / error 150, file LOC warn 500 / error 1200, ABC warn 30 /
-error 45, plus JS/CSS/wasm/bundle KB budgets. See `COMPLEXITY.md`.
+error 45, plus JS/CSS/wasm/bundle KB budgets. See `docs/COMPLEXITY.md`.
 
 Receipt:
 

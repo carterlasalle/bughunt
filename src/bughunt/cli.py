@@ -1304,6 +1304,7 @@ def odc_class(category: str, finding: Finding | None = None) -> str:
     return "function"
 
 
+# trace:v1 id=impl.src-bughunt-cli.build-checks work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None) -> tuple[list[Check], list[Result]]:
     root = cfg.root
     timeout = cfg.timeout(profile)
@@ -1694,7 +1695,7 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             "bugcorpus",
             "historical/custom-static",
             Status.SKIPPED,
-            note="integrated Bug Corpus execution is a V2 feature; see V2_SPEC.md",
+            note="integrated Bug Corpus execution is a V2 feature; see docs/V2_SPEC.md",
         ))
 
     # Target-specific fuzz / API / custom checks. Explicit config and safe

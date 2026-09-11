@@ -1,3 +1,4 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt hotfix 0.5.1
 
 This hotfix makes default rule selection correctness-first and fixes maximal-scan ergonomics.

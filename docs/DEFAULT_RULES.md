@@ -1,3 +1,4 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt default rule pack
 
 BugHunt ships repository-native rules in addition to every enabled rule from Ruff, the type checkers, Pylint/extensions, Bandit, Semgrep, CodeQL, and other engines.
@@ -12,19 +13,23 @@ to see the installed native pack.
 
 The native rules are intentionally conservative where a repository's semantics cannot be proven. High-confidence control-flow/security defects can be errors; architecture/test/configuration heuristics are usually warnings or notes until repository evidence makes them stronger.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Control flow
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### `BHCTRL001` — jump from `finally` — error
 
 Flags `return`, `break`, or `continue` executed by a `finally` block because the jump can suppress a pending exception or override control flow.
 
 This rule is deliberately redundant. Maximum BugHunt coverage also gets the same class from Ruff `B012` and the shipped ast-grep rule `bughunt-return-in-finally`.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### `bughunt-swallowed-exception` — error
 
 Shipped ast-grep rule for `except ...: pass` / bare `except: pass`. It is kept even though other engines overlap because silent exception loss is a high-value correctness signal.
 
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Semgrep correctness rules
 
 `configure --auto` writes an independently authored BugHunt Semgrep pack under `.bughunt/configs/semgrep/rules/bughunt-correctness.yml`. These are bug/reliability rules, not a security bundle:
@@ -39,6 +44,7 @@ Shipped ast-grep rule for `except ...: pass` / bare `except: pass`. It is kept e
 
 The registry baseline remains `p/default`. Security-specific Semgrep packs are opt-in, keeping the default signal centered on escaped defects.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Configuration contract
 
 BugHunt's default configuration policy is:
@@ -58,6 +64,7 @@ Rules:
 
 `bughunt configure --auto` creates or refreshes only a BugHunt-managed block in `.env.example`; user-owned lines are preserved and secret-like variables are always emitted blank.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Architecture and persistence boundaries
 
 - `BHPERS001`: a higher layer (`api`, `service`, `domain`, `controller`, etc.) imports an obvious persistence implementation (`sqlite`, SQLAlchemy, Redis, MongoDB, etc.) directly. Prefer a public repository/protocol contract unless the dependency is intentional.
@@ -67,6 +74,7 @@ Rules:
 
 BugHunt also generates a conservative Import Linter contract that checks sibling package cycles. It does **not** invent an arbitrary clean/layered architecture when repository evidence does not establish one.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Everything exported must come home
 
 For supported export/import and backup/restore formats, the desired invariant is:
@@ -89,6 +97,7 @@ BugHunt does not blindly infer that every function containing the word `import` 
 
 When a repository format evolves, an agent working the finding should consider export, import, format version, migration, validation, round-trip tests, and format documentation together.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Test quality
 
 These defaults target tests that can go green while behavior is wrong because the tests merely mirror implementation:
@@ -103,6 +112,7 @@ These are warnings, not proof that a test is invalid. Exact call order is legiti
 
 BugHunt intentionally does not try to regex-detect every instance of "duplicating production conditionals"; proving that reliably requires semantic comparison and belongs in the V2 agent/code-analysis layer.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Complexity and size rules
 
 The built-in complexity scanner emits:
@@ -119,6 +129,7 @@ These are risk signals, not instructions to game a metric. A finding explicitly 
 See `COMPLEXITY.md` for the default budgets and the independent external complexity engines BugHunt also runs.
 
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 0.6 seam, coverage, evidence, and history rules
 
 - `BHCOV001` — executable source range is not exercised by the test suite.

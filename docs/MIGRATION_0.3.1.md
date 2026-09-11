@@ -1,7 +1,9 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt 0.3.1 Hotfix
 
 This release fixes defects exposed by a real v0.3.0 `deep/all` run.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Fixed
 
 - Semgrep no longer combines `--config auto` with `--metrics=off`; `auto` is normalized to `p/default`, while `p/security-audit` and `p/secrets` remain enabled.
@@ -17,6 +19,7 @@ This release fixes defects exposed by a real v0.3.0 `deep/all` run.
 - Normal scans auto-configure quietly.
 - Deep/all pytest enables CPython developer mode and treats warnings as errors.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Apply to an existing 0.3.0 tree
 
 ```bash

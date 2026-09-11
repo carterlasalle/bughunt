@@ -1,7 +1,9 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt V2 — Autonomous Correctness Campaign
 
 Status: design specification
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 1. Goal
 
 V1 answers:
@@ -16,6 +18,7 @@ The target is not a claim of mathematically perfect software. The target is to c
 
 V2 is an autonomous bug-search campaign manager layered on top of the deterministic V1 runner.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 2. Core operating loop
 
 ```text
@@ -64,6 +67,7 @@ Repository
               └──────────────→ next campaign iteration
 ```
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 3. Required V2 command surface
 
 ```bash
@@ -89,6 +93,7 @@ uv run bughunt campaign report CAMPAIGN_ID
 
 `bughunt all` remains deterministic V1-style execution. `bughunt hunt` is the agentic V2 campaign.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 4. Campaign state
 
 Campaigns are durable and resumable:
@@ -108,12 +113,14 @@ Campaigns are durable and resumable:
 
 Every agent decision must have inspectable evidence. The model's prose is never the only source of truth.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 5. Risk map
 
 V2 builds a scored map of repository behavior. A unit may be a function, method, class, module, endpoint, CLI command, state machine transition, job handler, or important cross-component flow.
 
 Candidate features include:
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Change / history risk
 
 - churn frequency
@@ -122,6 +129,7 @@ Candidate features include:
 - frequently reverted areas
 - repeated Bug Corpus families
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Static complexity
 
 - cyclomatic/cognitive complexity
@@ -134,6 +142,7 @@ Candidate features include:
 - async/concurrency boundaries
 - resource/transaction boundaries
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Defense weakness
 
 - no tests
@@ -145,6 +154,7 @@ Candidate features include:
 - no fuzz target on complex external input
 - no state-machine property for lifecycle-heavy code
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Boundary risk
 
 - parser/deserializer
@@ -159,6 +169,7 @@ Candidate features include:
 - concurrency/locks
 - external APIs
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Blast radius
 
 - high fan-in
@@ -170,6 +181,7 @@ Candidate features include:
 
 The risk score must be explainable; agents should be able to answer why something ranked high.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 6. Behavior-defense matrix
 
 V2 maintains a matrix showing how each important unit is defended:
@@ -186,6 +198,7 @@ The blanks are attack opportunities.
 
 This matrix is not a vanity score. V2 should generate hypotheses specifically from meaningful missing defenses.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 7. Hypothesis generation
 
 A hypothesis is a concrete falsifiable statement, not "there may be bugs here."
@@ -231,6 +244,7 @@ confirmed-bug
 retired
 ```
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 8. Detector synthesis ladder
 
 V2 uses the cheapest representation capable of expressing the hypothesis:
@@ -252,12 +266,14 @@ An agent must justify moving to a more expensive layer.
 
 Generated analyzers become source-controlled deterministic artifacts if promoted.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 9. Purpose-built searchers
 
 V2 may write code specifically to search for a suspected bug family.
 
 Examples:
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### stale-state-after-await
 
 Required model:
@@ -270,6 +286,7 @@ Required model:
 
 Do not build a full points-to engine if function-local analysis is enough.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### transaction ordering
 
 Required model:
@@ -280,6 +297,7 @@ Required model:
 - CFG ordering
 - exceptional exits
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### parser length propagation
 
 Required model:
@@ -291,6 +309,7 @@ Required model:
 
 The generated searcher must include fixtures and a normalized Finding adapter.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 10. Detector adversarial challenge
 
 A detector is not trusted because it catches the original example.
@@ -323,6 +342,7 @@ historical fixed revision
 
 Promotion thresholds are configurable. Known positives should normally require 100% recall and known negatives 0% false positives.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 11. Fuzz target synthesis
 
 V2 generalizes V1's conservative Atheris discovery.
@@ -349,6 +369,7 @@ Every generated target records:
 - run budget
 - crash artifacts
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 12. Property synthesis
 
 V2 searches for metamorphic/differential properties, for example:
@@ -365,6 +386,7 @@ parallel result == sequential result
 
 Properties are first run in shadow mode. If they produce stable high-value counterexamples, they become normal tests.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 13. State-machine synthesis
 
 For lifecycle APIs/classes V2 should infer candidate states and transitions from:
@@ -389,6 +411,7 @@ Target bug classes:
 - double commit
 - stale handles
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 14. Fault injection synthesis
 
 V2 identifies infrastructure boundaries and generates failure campaigns:
@@ -405,6 +428,7 @@ V2 identifies infrastructure boundaries and generates failure campaigns:
 
 It must assert invariants after each injected failure, not merely check "did not crash."
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 15. Mutation-driven search
 
 Mutation survivors are direct evidence of undefended semantics.
@@ -418,6 +442,7 @@ V2 should cluster survivors by operator and code region, then choose one of:
 
 A surviving boundary mutation such as `<` ↔ `<=` should rank higher than a low-value logging-string mutant.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 16. Differential oracles
 
 When multiple implementations exist, V2 automatically looks for pairs:
@@ -431,6 +456,7 @@ When multiple implementations exist, V2 automatically looks for pairs:
 
 It generates randomized differential tests and minimizes disagreements.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 17. Agent architecture
 
 V2's deterministic core remains tool-agnostic.
@@ -452,44 +478,54 @@ Harness-specific plugins/skills only expose the same campaign operations.
 
 No campaign state should live solely inside chat history.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 18. Agent roles
 
 A deep campaign may use specialized agents:
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Mapper
 
 Builds risk/architecture understanding.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Hypothesis generator
 
 Produces falsifiable bug theories from gaps.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Searcher builder
 
 Writes static/dataflow/custom detectors.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Fuzzer/property engineer
 
 Builds dynamic search experiments.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Adversary
 
 Attempts to defeat candidate detectors/tests.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Triage agent
 
 Validates evidence and minimizes reproducers.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Reviewer
 
 Challenges whether claimed fixes/detectors really close the class.
 
 Agents may run in parallel, but the campaign store resolves their evidence into a single state machine.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 19. Compute budgets
 
 Suggested profiles:
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### standard
 
 - V1 all scan
@@ -498,6 +534,7 @@ Suggested profiles:
 - cheap static synthesis
 - bounded property/fuzz search
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### deep
 
 - top ~100 hypotheses
@@ -506,6 +543,7 @@ Suggested profiles:
 - state-machine/fault campaigns
 - adversarial detector tests
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### insane
 
 - repeatedly regenerate hypotheses
@@ -517,6 +555,7 @@ Suggested profiles:
 
 Budgets must be expressed in actual limits: wall time, number of experiments, model calls, fuzz iterations, and analyzer CPU/time.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 20. Stopping criteria
 
 A campaign stops when any configured combination is reached:
@@ -530,6 +569,7 @@ A campaign stops when any configured combination is reached:
 
 "No more hypotheses" means only that the current campaign exhausted its search strategy, not proof of zero bugs.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 21. Bug Corpus integration
 
 Every confirmed V2 bug goes through the Bug Corpus workflow:
@@ -547,6 +587,7 @@ confirmed evidence
 
 V2 should query Bug Corpus *before* synthesizing a new family so it strengthens existing detectors when possible.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 22. Repair loop
 
 When a real bug is confirmed, V2 can hand it to the same V1 agent repair queue format:
@@ -563,6 +604,7 @@ related Bug Corpus family
 
 After repair, the search experiment must be re-run against the fixed code.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 23. Safety against self-deception
 
 V2 must explicitly prevent these failure modes:
@@ -579,6 +621,7 @@ V2 must explicitly prevent these failure modes:
 
 Campaign reports must disclose blind spots and inconclusive experiments.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 24. Experiment observability
 
 Long experiments need the same live heartbeat as V1, plus:
@@ -596,6 +639,7 @@ last meaningful progress timestamp
 
 A stage with no coverage/path progress for a configurable interval should be marked `STALLED`, not merely `RUNNING`.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 25. Data schemas
 
 Add versioned schemas for:
@@ -615,6 +659,7 @@ CampaignDecision
 
 All agent-readable Markdown is generated from these structured records.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 26. V2 report
 
 The report should answer, in order:
@@ -630,8 +675,10 @@ The report should answer, in order:
 
 Machine output remains JSON/JSONL first-class.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 27. MVP implementation order
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Phase A — campaign substrate
 
 - campaign IDs/state
@@ -640,6 +687,7 @@ Machine output remains JSON/JSONL first-class.
 - V1 result ingestion
 - hypothesis store
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Phase B — static hypothesis synthesis
 
 - agent prompt/skill
@@ -647,6 +695,7 @@ Machine output remains JSON/JSONL first-class.
 - fixtures
 - challenge runner
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Phase C — dynamic synthesis
 
 - richer Atheris targets
@@ -654,12 +703,14 @@ Machine output remains JSON/JSONL first-class.
 - differential pair discovery
 - mutation-survivor ingestion
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Phase D — whole-program synthesis
 
 - custom CodeQL
 - Pysa model generation
 - reusable custom-searcher SDK
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ### Phase E — autonomous loop
 
 - budget controller
@@ -668,6 +719,7 @@ Machine output remains JSON/JSONL first-class.
 - stopping criteria
 - Bug Corpus automatic handoff
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 28. V2 acceptance criteria
 
 V2 is not complete until:
@@ -687,6 +739,7 @@ V2 is not complete until:
 13. Live status exposes stalled experiments.
 14. The final report clearly separates confirmed bug, probable signal, false positive, inconclusive experiment, and missing defense.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## 29. Long-term destination
 
 The end state is a repository-specific **Correctness Compiler**.
@@ -716,12 +769,14 @@ and spends compute attacking those gaps.
 
 That is the path from "run every linter" toward genuinely driving escaped defect probability as low as practical.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Appendix A — V1.3 strict-analysis baseline
 
 V1.3 establishes the configuration floor that V2 inherits. `bughunt configure --auto` now generates max-recall analyzer overlays, not only fuzz targets. Ruff runs ALL + preview, all four type-checking engines are configured at their strongest practical settings, Pylint loads installed bundled extensions, generic architecture/AST/Pysa/Hypothesis/Schemathesis scaffolding is generated, and broad scanners exclude BugHunt runtimes/vendor artifacts. See `STRICT_CONFIGS.md` for the exact baseline.
 
 V2 must never silently relax this baseline. It may add project-specific suppressions only when they are structured, justified, and visible in the coverage model. The V2 synthesis loop should preferentially fill the remaining semantic gaps: application Pysa models, project Semgrep/ast-grep/CodeQL rules, contracts, properties, differential/metamorphic oracles, fault injection, and durable Bug Corpus families.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Implemented ahead of V2 in v0.4.0
 
 The following pieces originally described as V2 foundations now exist in the deterministic v0.4.0 core:
@@ -740,16 +795,19 @@ The following pieces originally described as V2 foundations now exist in the det
 
 V2 still owns the harder semantic layer: agent-generated hypotheses, arbitrary project-specific invariants, detector synthesis and adversarial evaluation, Bug Corpus learning, state-machine/model inference beyond explicit contracts, custom CodeQL/Pysa/Semgrep generation, and iterative search campaigns.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## v0.5 foundation carried into V2
 
 V2 should treat the shipped default policy/complexity pack as seed invariants rather than a closed rule list. Historical bugs and repository semantics may promote a warning/note into a stronger project-specific detector, generate new Semgrep/CodeQL/Pysa/custom rules, or create executable properties. Complexity refactors should be evaluated on call-graph/state complexity as well as local metric deltas so agents cannot "fix" a budget merely by moving the same branching behind meaningless indirection.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Implemented ahead of V2 in v0.5.2
 
 The deterministic core now has technology-capability discovery and applicability-aware defense health. Non-Python correctness engines are selected from repository evidence rather than installed globally. OpenAPI/Protobuf comparisons introduce temporal contract checks against a local Git baseline. V2 should consume `.bughunt/generated/capabilities.json` as another hypothesis source and should generate project-specific rules/campaigns within each applicable technology rather than broadening the catalog blindly.
 
 
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Implemented ahead of V2 in v0.6.0
 
 The deterministic core now contains branch-coverage findings, coverage-aware mutation, runtime type verification, randomized/environment/interpreter matrices, HypoFuzz, packaging checks, API/history compatibility checks, native seam drift rules, cross-type-checker disagreement, non-destructive logical deduplication, ODC-like classification, and a coverage-weighted risk map.

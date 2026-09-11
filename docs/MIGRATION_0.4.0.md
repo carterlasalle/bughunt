@@ -1,5 +1,7 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt 0.4.0
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Existing 0.3.1 checkout
 
 Apply the source hotfix, preserving your project-level dependency additions:

@@ -15,4 +15,4 @@ Runtime, seam, environment, and history correctness: branch coverage,
 runtime Typeguard verification, randomized test order, timezone/locale/
 interpreter matrices, concurrency checks, HypoFuzz, packaging verification,
 public-API/version differentials, seam drift detection, and a
-coverage-weighted risk map. Full notes in `RELEASE_0.6.0.md`.
+coverage-weighted risk map. Full notes in `docs/RELEASE_0.6.0.md`.

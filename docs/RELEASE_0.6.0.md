@@ -1,5 +1,7 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt 0.6.0 Release Verification
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Verified in the build environment
 
 - `python -m compileall` over `src/` and `tests/`: PASS
@@ -14,6 +16,7 @@
   - typed encode/decode pair generated a round-trip campaign
   - bytes parser generated an Atheris target
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Network-limited verification
 
 An online `uv lock` attempt was made, but the build container could not resolve `pypi.org` (DNS failure while requesting `py-spy`). An offline retry also could not resolve because the container package cache does not contain even the base `rich` requirement. Therefore this release does **not** claim that dependency resolution was completed in the build sandbox.

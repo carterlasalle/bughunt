@@ -1,5 +1,7 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt 0.5.0
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## What changed
 
 - ships a first-class native default rule pack (`uv run bughunt rules`);
@@ -16,6 +18,7 @@
 - the standalone BugHunt dev group now includes the normal analyzer stack, so a fresh `uv sync` dogfood checkout is useful instead of mostly blind;
 - scan summaries continue to show safe/review/unsafe deterministic autofix counts and the percent of all findings with a known deterministic fix.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Existing 0.4 checkout
 
 ```bash

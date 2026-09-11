@@ -280,7 +280,8 @@ no_verify = false
 enabled = true
 
 [bugcorpus]
-# Integrated Bug Corpus is specified in V2_SPEC.md; no external executable is required.
+# Integrated Bug Corpus is specified in docs/V2_SPEC.md; no external executable is required.
+# trace:v1 id=ops.enabled work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
 enabled = true
 
 # API fuzzing requires a live API. Add one or more entries:

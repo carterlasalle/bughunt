@@ -10,7 +10,7 @@
 [![uv](https://img.shields.io/badge/uv-managed-261230)](https://docs.astral.sh/uv/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Quick start](#quick-start) · [Commands](#commands) · [Policy rules](DEFAULT_RULES.md) · [Complexity](COMPLEXITY.md) · [Contributing](#contributing) · [Changelog](CHANGELOG.md)
+[Quick start](#quick-start) · [Commands](#commands) · [Policy rules](docs/DEFAULT_RULES.md) · [Complexity](docs/COMPLEXITY.md) · [Contributing](#contributing) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -25,9 +25,9 @@ flowchart LR
     A[STATIC] --> B[SEAMS] --> C[RUNTIME] --> D[ENVIRONMENT] --> E[HISTORY] --> F[COVERAGE] --> G[MUTATION] --> H[BUG CORPUS]
 ```
 
-See `SEAM_CORRECTNESS.md`, `BUG_TAXONOMY.md`, and `DETERMINISTIC_SIMULATION.md`.
+See `docs/SEAM_CORRECTNESS.md`, `docs/BUG_TAXONOMY.md`, and `docs/DETERMINISTIC_SIMULATION.md`.
 
-BugHunt now discovers repository technologies before selecting non-Python engines. GitHub Actions, shell, env files/access, OpenAPI, Protobuf, SQL/PostgreSQL migrations, Docker, Terraform, Go, Rust, C/C++, PHP, JavaScript/TypeScript, and React each activate a bug-focused analyzer layer only when evidence exists. Irrelevant engines are `N/A` and do not lower defense health; applicable engines that cannot run are real `SKIPPED` blind spots. OpenAPI and Protobuf also receive Git-baseline compatibility checks. See `TECHNOLOGY_ENGINES.md`.
+BugHunt now discovers repository technologies before selecting non-Python engines. GitHub Actions, shell, env files/access, OpenAPI, Protobuf, SQL/PostgreSQL migrations, Docker, Terraform, Go, Rust, C/C++, PHP, JavaScript/TypeScript, and React each activate a bug-focused analyzer layer only when evidence exists. Irrelevant engines are `N/A` and do not lower defense health; applicable engines that cannot run are real `SKIPPED` blind spots. OpenAPI and Protobuf also receive Git-baseline compatibility checks. See `docs/TECHNOLOGY_ENGINES.md`.
 
 `all`/`full`/`skipmutmut` discover capabilities before installing technology-specific tools, so a Python-only project does not pull in Rust/C++/Terraform ecosystems. `skipmutmut` remains the maximal practical scan when mutation testing would dominate runtime.
 
@@ -128,7 +128,7 @@ bughunt skipmutmut
 
 The built-in policy layer covers high-confidence control-flow hazards, environment/configuration drift, secret leakage from `.env.example`, private/persistence implementation boundaries, export/import and backup/restore round-trip obligations, and several forms of implementation-coupled testing. The critical `finally` jump rule is deliberately enforced three ways: BugHunt native AST analysis, the shipped ast-grep rule, and Ruff `B012`.
 
-See [`DEFAULT_RULES.md`](DEFAULT_RULES.md). Complexity budgets and anti-gaming guidance are in [`COMPLEXITY.md`](COMPLEXITY.md).
+See [`docs/DEFAULT_RULES.md`](docs/DEFAULT_RULES.md). Complexity budgets and anti-gaming guidance are in [`docs/COMPLEXITY.md`](docs/COMPLEXITY.md).
 
 ## Paranoid analyzer configuration
 
@@ -136,7 +136,7 @@ See [`DEFAULT_RULES.md`](DEFAULT_RULES.md). Complexity budgets and anti-gaming g
 
 Pure style findings are not disabled. They remain in reports but rank below correctness/security issues so they cannot bury likely defects. BugHunt also force-excludes `.bughunt/runtime`, `.venv`, build artifacts and other non-first-party trees from broad scanners.
 
-See [`STRICT_CONFIGS.md`](STRICT_CONFIGS.md) for the tool-by-tool audit and exact reasoning.
+See [`docs/STRICT_CONFIGS.md`](docs/STRICT_CONFIGS.md) for the tool-by-tool audit and exact reasoning.
 
 ## Live progress / stuck detection
 
@@ -462,7 +462,7 @@ Skipped optional defenses are visible and lower defense health, but do not alone
 
 ## V2
 
-See [`V2_SPEC.md`](V2_SPEC.md). V2 turns BugHunt from a multi-analyzer runner into an autonomous bug-search campaign manager that builds a risk map, invents repo-specific searchers, adversarially tests them, feeds confirmed bugs into Bug Corpus, and iterates until its search budget is exhausted.
+See [`docs/V2_SPEC.md`](docs/V2_SPEC.md). V2 turns BugHunt from a multi-analyzer runner into an autonomous bug-search campaign manager that builds a risk map, invents repo-specific searchers, adversarially tests them, feeds confirmed bugs into Bug Corpus, and iterates until its search budget is exhausted.
 
 ## Analyzer integration invariants
 
@@ -473,15 +473,15 @@ BugHunt treats analyzer infrastructure as part of correctness. Semgrep uses `p/d
 
 | Document | What it covers |
 |---|---|
-| [V2_SPEC](V2_SPEC.md) | System spec and defense pipeline |
-| [DEFAULT_RULES](DEFAULT_RULES.md) | Shipped native policy rules |
-| [STRICT_CONFIGS](STRICT_CONFIGS.md) | Strict analyzer overlays |
-| [TECHNOLOGY_ENGINES](TECHNOLOGY_ENGINES.md) | Technology-specific engines |
-| [AUTO_DISCOVERY](AUTO_DISCOVERY.md) | Auto-discovery and campaigns |
-| [COMPLEXITY](COMPLEXITY.md) | Complexity budgets |
-| [BUG_TAXONOMY](BUG_TAXONOMY.md) | Bug taxonomy and detector roadmap |
-| [SEAM_CORRECTNESS](SEAM_CORRECTNESS.md) | Seam and contract checking |
-| [DETERMINISTIC_SIMULATION](DETERMINISTIC_SIMULATION.md) | Deterministic simulation |
+| [V2_SPEC](docs/V2_SPEC.md) | System spec and defense pipeline |
+| [DEFAULT_RULES](docs/DEFAULT_RULES.md) | Shipped native policy rules |
+| [STRICT_CONFIGS](docs/STRICT_CONFIGS.md) | Strict analyzer overlays |
+| [TECHNOLOGY_ENGINES](docs/TECHNOLOGY_ENGINES.md) | Technology-specific engines |
+| [AUTO_DISCOVERY](docs/AUTO_DISCOVERY.md) | Auto-discovery and campaigns |
+| [COMPLEXITY](docs/COMPLEXITY.md) | Complexity budgets |
+| [BUG_TAXONOMY](docs/BUG_TAXONOMY.md) | Bug taxonomy and detector roadmap |
+| [SEAM_CORRECTNESS](docs/SEAM_CORRECTNESS.md) | Seam and contract checking |
+| [DETERMINISTIC_SIMULATION](docs/DETERMINISTIC_SIMULATION.md) | Deterministic simulation |
 | [DESIGN](DESIGN.md) | Design index |
 | [CONTEXT](CONTEXT.md) | Domain vocabulary |
 | [CHANGELOG](CHANGELOG.md) | Release history |

@@ -1,7 +1,9 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # Deterministic Simulation Ring
 
 Deterministic simulation is the V2 answer to bugs that only appear across histories: retries, timeouts, reordered events, partial writes, duplicate delivery, cancellation, races, delayed messages, and state-machine interactions.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Core model
 
 A repository opts in through a project adapter that exposes controllable seams:
@@ -15,6 +17,7 @@ A repository opts in through a project adapter that exposes controllable seams:
 
 One recorded seed drives every pseudo-random choice. Every event is appended to a replay trace. A failure must be reproducible from `{seed, initial state, event trace}`.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Campaign
 
 1. Construct a valid initial state.
@@ -25,10 +28,12 @@ One recorded seed drives every pseudo-random choice. Every event is appended to 
 6. Write a replay artifact under `.bughunt/simulation/replays/`.
 7. Promote a confirmed escaped defect into a deterministic regression and Bug Corpus family.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Generic invariants BugHunt may suggest
 
 BugHunt may infer candidates such as no impossible state, no duplicate stable identifier, no resource leak, no unbounded retry, and round-trip/monotonicity properties. It must not invent business invariants and report them as facts.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Adapter contract (V2 target)
 
 A future `.bughunt/simulation.py` adapter should expose roughly:
@@ -44,6 +49,7 @@ class SimulationAdapter(Protocol):
 
 The exact API may evolve; replayability and explicit invariants are non-negotiable.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## CI profiles
 
 - PR: replay known failing seeds and a small deterministic history budget.

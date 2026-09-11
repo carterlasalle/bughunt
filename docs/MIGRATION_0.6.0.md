@@ -1,7 +1,9 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # Migrating BugHunt 0.5.x to 0.6.0
 
 0.6.0 adds runtime, branch-coverage, environment-variation, seam/contract, package, API-history, concurrency, test-generation candidate, and risk/correlation layers.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Existing checkout
 
 ```bash
@@ -15,6 +17,7 @@ uv run bughunt doctor
 
 Use `uv run bughunt skipmutmut` for the strongest routine maximal scan without the expensive mutation phase; use `uv run bughunt all` for every applicable executable defense.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Important behavior changes
 
 - coverage.py branch coverage is a PR-level defense;

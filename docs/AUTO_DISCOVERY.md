@@ -1,13 +1,16 @@
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 # BugHunt Semantic Auto-Discovery
 
 BugHunt v0.4.0 treats auto-configuration as evidence-based program analysis, not filename guessing.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Evidence tiers
 
 - **High:** enough static/type/test evidence to create a deterministic runnable campaign automatically.
 - **Medium:** useful candidate, but not automatically promoted when doing so could create false bug reports.
 - **Low:** not emitted as an executable target.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Automatically runnable target classes
 
 1. Atheris parser/decoder/validator boundaries with one bytes/string-like input.
@@ -19,6 +22,7 @@ BugHunt v0.4.0 treats auto-configuration as evidence-based program analysis, not
 7. Repository-specific external-failure coverage campaigns.
 8. Direct Pysa source/sink wrapper models.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Generated assets
 
 ```text
@@ -37,10 +41,12 @@ BugHunt v0.4.0 treats auto-configuration as evidence-based program analysis, not
 
 High-confidence `custom-*` targets are mirrored into a managed `[[custom.checks]]` block in `bughunt.toml`. Re-running `configure --auto` replaces only that bounded block.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Accuracy constraints
 
 BugHunt refuses to auto-run remote API schemas, avoids differential/property generation for functions with detected external side effects, requires compatible type shapes for generated Hypothesis strategies, and does not invent application-specific recovery behavior for fault injection.
 
+<!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## v0.5 repository contracts
 
 Auto-configuration also maintains correctness policy infrastructure:
