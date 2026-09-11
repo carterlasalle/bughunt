@@ -66,9 +66,9 @@ def write_runtime_plugins(
     gen.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     blocker = cfg / "blockbuster_plugin.py"
-    blocker.write_text(blockbuster_plugin())
+    _ = blocker.write_text(blockbuster_plugin())
     paths.append(blocker)
     nox = gen / "noxfile.py"
-    nox.write_text(noxfile(python_versions, test_paths))
+    _ = nox.write_text(noxfile(python_versions, test_paths))
     paths.append(nox)
     return paths

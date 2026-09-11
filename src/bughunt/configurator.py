@@ -117,7 +117,7 @@ def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not text.endswith("\n"):
         text += "\n"
-    path.write_text(text)
+    _ = path.write_text(text)
 
 
 def _ruff_config(python_version: str, source_paths: list[str]) -> str:
@@ -909,7 +909,7 @@ def _ensure_mutmut_config(
     if begin in current_text and end in current_text:
         block = _mutmut_block(required_sources, required_tests).strip()
         pattern = re.compile(re.escape(begin) + r".*?" + re.escape(end), re.DOTALL)
-        pyproject.write_text(pattern.sub(block, current_text))
+        _ = pyproject.write_text(pattern.sub(block, current_text))
         return ConfigArtifact(
             "mutmut",
             "pyproject.toml",
@@ -991,9 +991,9 @@ def _ensure_mutmut_config(
     backup_dir.mkdir(parents=True, exist_ok=True)
     backup = backup_dir / "pyproject.toml.before-bughunt-mutmut"
     if not backup.exists():
-        shutil.copy2(pyproject, backup)
+        _ = shutil.copy2(pyproject, backup)
     with pyproject.open("a") as f:
-        f.write(_mutmut_block(required_sources, required_tests))
+        _ = f.write(_mutmut_block(required_sources, required_tests))
     return ConfigArtifact(
         "mutmut",
         "pyproject.toml",
@@ -1089,7 +1089,7 @@ def configure_custom_checks(root: Path, targets: Iterable[object]) -> ConfigArti
 def _manifest(artifacts: list[ConfigArtifact], root: Path) -> None:
     path = root / ".bughunt" / "configs" / "manifest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    _ = path.write_text(
         json.dumps(
             {"schema_version": 2, "artifacts": [asdict(a) for a in artifacts]},
             indent=2,
@@ -1537,19 +1537,19 @@ def configure_all(
         )
         return path
 
-    put(
+    _ = put(
         "Ruff",
         "ruff.toml",
         _ruff_config(python_version, _existing(root, source_paths)),
         "ALL + preview rules; zero rule-family exclusions; tool/runtime paths excluded",
     )
-    put(
+    _ = put(
         "basedpyright",
         "basedpyrightconfig.json",
         _basedpyright_config(config_dir, root, python_paths, python_version),
         "typeCheckingMode=all; Any/Unknown/unreachable/unsafe ignores are errors",
     )
-    put(
+    _ = put(
         "mypy",
         "mypy.ini",
         _mypy_config(root, python_paths, python_version),
@@ -1558,7 +1558,7 @@ def configure_all(
             "correctness error codes"
         ),
     )
-    put(
+    _ = put(
         "ty",
         "ty.toml",
         _ty_config(),
@@ -1567,7 +1567,7 @@ def configure_all(
             "generic type:ignore disabled"
         ),
     )
-    put(
+    _ = put(
         "Pyrefly",
         "pyrefly.toml",
         _pyrefly_config(config_dir, root, python_paths, source_paths, python_version),
@@ -1588,7 +1588,7 @@ def configure_all(
         and importlib.util.find_spec("pylint_odoo") is not None
     ):
         pylint_plugins.append("pylint_odoo")
-    put(
+    _ = put(
         "Pylint",
         "pylintrc",
         _pylint_config(extra_plugins=pylint_plugins),
@@ -1599,13 +1599,13 @@ def configure_all(
             else ""
         ),
     )
-    put(
+    _ = put(
         "Complexipy",
         "complexipy.toml",
         _complexipy_config(_existing(root, source_paths)),
         "cognitive complexity <=10; ignores disabled and ignored functions reported",
     )
-    put(
+    _ = put(
         "Bandit",
         "bandit.yaml",
         _bandit_config(),
@@ -1640,14 +1640,14 @@ def configure_all(
         )
 
     sgconfig, rules = _astgrep_config()
-    put(
+    _ = put(
         "ast-grep",
         "sgconfig.yml",
         sgconfig,
         "generated structural rule pack + test directory",
     )
     for filename, text in rules.items():
-        put(
+        _ = put(
             "ast-grep rule",
             f"ast-grep/rules/{filename}",
             text,
@@ -1691,7 +1691,7 @@ invalid:
 """,
     }
     for filename, text in astgrep_tests.items():
-        put(
+        _ = put(
             "ast-grep rule test",
             f"ast-grep/tests/{filename}",
             text,
@@ -1700,7 +1700,7 @@ invalid:
 
     il = _import_linter_config(package_roots)
     if il:
-        put(
+        _ = put(
             "Import Linter",
             "importlinter.toml",
             il,
@@ -1737,20 +1737,20 @@ invalid:
                 "existing project Pyre configuration preserved",
             ),
         )
-    put(
+    _ = put(
         "Pysa taint config",
         "pysa/taint.config",
         taint_text,
         "valid BugHunt source/sink namespace and taint rule",
     )
-    put(
+    _ = put(
         "Pysa starter models",
         "pysa/bughunt.pysa",
         models_text,
         "valid model file; semantic app models intentionally require evidence",
     )
 
-    put(
+    _ = put(
         "Hypothesis",
         "hypothesis_plugin.py",
         _hypothesis_plugin(),
@@ -1759,7 +1759,7 @@ invalid:
             "bug reporting, no health-check suppression"
         ),
     )
-    put(
+    _ = put(
         "coverage.py",
         "coverage.ini",
         coverage_config(_existing(root, source_paths)),
@@ -1792,7 +1792,7 @@ invalid:
             ),
         ),
     )
-    put(
+    _ = put(
         "Schemathesis",
         "schemathesis.toml",
         _schemathesis_config(schemathesis_examples),

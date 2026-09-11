@@ -20,7 +20,7 @@ def main(argv: list[str] | None = None) -> int:
     out = root / ".bughunt" / "cache" / "coverage.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     base = [sys.executable, "-m", "coverage"]
-    subprocess.run(
+    _ = subprocess.run(
         [*base, "erase", f"--rcfile={cfg}"],
         cwd=root,
         check=False,

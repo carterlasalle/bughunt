@@ -1680,7 +1680,7 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
             continue
         schema = (path.parent / schema_ref).resolve(strict=False)
         try:
-            schema.relative_to(root_resolved)
+            _ = schema.relative_to(root_resolved)
         except ValueError:
             continue
         if schema.is_file():
@@ -3857,9 +3857,9 @@ class LiveRunState:
         entry["output_lines"] = int(entry.get("output_lines", 0)) + 1
 
     def finish(self, result: Result) -> None:
-        self.running.pop(result.name, None)
+        _ = self.running.pop(result.name, None)
         if result.name == "codeql":
-            self.running.pop("codeql-db", None)
+            _ = self.running.pop("codeql-db", None)
         self.completed.append(result)
 
     # trace:v1 id=impl.src-bughunt-cli-liverunstate.render work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -3940,7 +3940,7 @@ async def run_process(
 
     def finish(result: Result) -> Result:
         if progress:
-            progress.running.pop(check.name, None)
+            _ = progress.running.pop(check.name, None)
             if check.record_progress:
                 progress.finish(result)
         return result
@@ -4118,7 +4118,7 @@ def _reset_tool_dir(path: Path) -> None:
     if not path.exists():
         return
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["chmod", "-R", "u+w", str(path)],
             capture_output=True,
             check=False,
@@ -4582,7 +4582,7 @@ def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
     }
     for result in results:
         command_by_tool[result.name] = result.command
-        command_by_tool.setdefault(result.name.split(":", 1)[0], result.command)
+        _ = command_by_tool.setdefault(result.name.split(":", 1)[0], result.command)
     severity_rank = {
         "error": 0,
         "high": 0,
@@ -4746,10 +4746,10 @@ def render_terminal(
     coverage_summary = coverage_summary_from_results(results)
 
     title = Text()
-    title.append("◈ ", style="bold bright_cyan")
-    title.append("ZERO-BUG HUNT", style="bold white")
-    title.append("  //  ", style="dim")
-    title.append(profile.upper(), style="bold bright_magenta")
+    _ = title.append("◈ ", style="bold bright_cyan")
+    _ = title.append("ZERO-BUG HUNT", style="bold white")
+    _ = title.append("  //  ", style="dim")
+    _ = title.append(profile.upper(), style="bold bright_magenta")
 
     subtitle = (
         f"[bold]{len(results)}[/] defenses  •  "
@@ -4947,10 +4947,10 @@ def render_terminal(
         style = "bold yellow"
 
     footer = Text()
-    footer.append(verdict + "\n", style=style)
-    footer.append(f"Human report    {report_md}\n", style="dim")
-    footer.append(f"Machine report  {report_json}\n", style="dim")
-    footer.append(
+    _ = footer.append(verdict + "\n", style=style)
+    _ = footer.append(f"Human report    {report_md}\n", style="dim")
+    _ = footer.append(f"Machine report  {report_json}\n", style="dim")
+    _ = footer.append(
         f"Agent queue     {report_md.parent / 'agent' / 'FIX_QUEUE.md'}",
         style="bold bright_cyan",
     )
@@ -5038,12 +5038,12 @@ def write_reports(
     }
 
     json_path = out / "report.json"
-    json_path.write_text(json.dumps(payload, indent=2, default=str))
-    (out / "findings.jsonl").write_text(
+    _ = json_path.write_text(json.dumps(payload, indent=2, default=str))
+    _ = (out / "findings.jsonl").write_text(
         "\n".join(json.dumps(item, default=str) for item in queue)
         + ("\n" if queue else ""),
     )
-    (agent_dir / "queue.json").write_text(
+    _ = (agent_dir / "queue.json").write_text(
         json.dumps(
             {
                 "schema_version": 3,
@@ -5055,7 +5055,7 @@ def write_reports(
             indent=2,
         ),
     )
-    (agent_dir / "risk-map.json").write_text(
+    _ = (agent_dir / "risk-map.json").write_text(
         json.dumps({"schema_version": 1, "files": risks}, indent=2),
     )
     risk_lines = [
@@ -5078,7 +5078,7 @@ def write_reports(
                 f"{item['branch_gaps']} |"
             ),
         )
-    (agent_dir / "RISK_MAP.md").write_text("\n".join(risk_lines) + "\n")
+    _ = (agent_dir / "RISK_MAP.md").write_text("\n".join(risk_lines) + "\n")
 
     agent_instructions = """# BugHunt Agent Instructions
 
@@ -5121,7 +5121,7 @@ exploration.
 - `../findings.jsonl`: streaming-friendly one-record-per-finding representation.
 - `../report.json`: full scan facts, commands, raw outputs, and statuses.
 """
-    (agent_dir / "AGENT_INSTRUCTIONS.md").write_text(agent_instructions)
+    _ = (agent_dir / "AGENT_INSTRUCTIONS.md").write_text(agent_instructions)
 
     autofix_lines = [
         "# BugHunt Deterministic Auto-fixes",
@@ -5161,7 +5161,7 @@ exploration.
                     f"`{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`"
                 ),
             )
-    (agent_dir / "AUTOFIX.md").write_text("\n".join(autofix_lines) + "\n")
+    _ = (agent_dir / "AUTOFIX.md").write_text("\n".join(autofix_lines) + "\n")
 
     blindspots = [r for r in results if r.status in {Status.ERROR, Status.SKIPPED}]
     blind_lines = [
@@ -5193,7 +5193,7 @@ exploration.
         blind_lines.append("")
     if not blindspots:
         blind_lines += ["_No execution blind spots were recorded in this run._", ""]
-    (agent_dir / "BLIND_SPOTS.md").write_text("\n".join(blind_lines))
+    _ = (agent_dir / "BLIND_SPOTS.md").write_text("\n".join(blind_lines))
 
     checklist_lines = [
         "# BugHunt Repair Checklist",
@@ -5235,7 +5235,7 @@ exploration.
         ),
         "",
     ]
-    (agent_dir / "CHECKLIST.md").write_text("\n".join(checklist_lines))
+    _ = (agent_dir / "CHECKLIST.md").write_text("\n".join(checklist_lines))
 
     dedup_lines = [
         "# Deduplicated Logical Issue Queue",
@@ -5259,7 +5259,7 @@ exploration.
             f"  - Codes: {', '.join(issue['codes']) or '—'}",
             f"  - Representative: {issue['primary_message']}",
         ]
-    (agent_dir / "DEDUPLICATED_QUEUE.md").write_text("\n".join(dedup_lines) + "\n")
+    _ = (agent_dir / "DEDUPLICATED_QUEUE.md").write_text("\n".join(dedup_lines) + "\n")
 
     # One task per repeated semantic/rule signal. Agents can often fix these much
     # faster as a coherent family while still validating individual locations.
@@ -5310,7 +5310,7 @@ exploration.
                 "```",
                 "",
             ]
-        (tasks_dir / f"{index:04d}-{safe}.md").write_text("\n".join(lines))
+        _ = (tasks_dir / f"{index:04d}-{safe}.md").write_text("\n".join(lines))
 
     fix_lines = [
         "# BugHunt Fix Queue",
@@ -5375,7 +5375,7 @@ exploration.
                 "remain in `queue.json` and `../findings.jsonl`._"
             ),
         ]
-    (agent_dir / "FIX_QUEUE.md").write_text("\n".join(fix_lines) + "\n")
+    _ = (agent_dir / "FIX_QUEUE.md").write_text("\n".join(fix_lines) + "\n")
 
     md_path = out / "report.md"
     lines = [
@@ -5483,7 +5483,7 @@ exploration.
                 "```",
                 "",
             ]
-    md_path.write_text("\n".join(lines))
+    _ = md_path.write_text("\n".join(lines))
     return md_path, json_path
 
 
@@ -6388,7 +6388,7 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
     cfg.raw.setdefault("custom", {})["checks"] = [*existing_checks, *generated_checks]
     manifest_path = cfg.root / ".bughunt" / "configs" / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(
+    _ = manifest_path.write_text(
         json.dumps(
             {
                 "schema_version": 3,
@@ -6488,7 +6488,7 @@ async def run_all(
     raw_limit = int(cfg.raw.get("execution", {}).get("raw_output_limit_kb", 512)) * 1024
 
     if auto_discover and cfg.raw.get("autodiscovery", {}).get("enabled", True):
-        auto_configure(cfg, quiet=True)
+        _ = auto_configure(cfg, quiet=True)
 
     excluded = set(excluded or ())
     checks, skipped = build_checks(cfg, profile, excluded=excluded)
@@ -6535,8 +6535,8 @@ async def run_all(
                 result = await runner(cfg, profile, raw_limit, progress)
                 # Internal subprocesses never count as finished defenses. Record
                 # exactly one logical result here, regardless of how many phases ran.
-                progress.running.pop("codeql-db", None)
-                progress.running.pop("mutmut-results", None)
+                _ = progress.running.pop("codeql-db", None)
+                _ = progress.running.pop("mutmut-results", None)
                 progress.finish(result)
                 special.append(result)
             results = normal + skipped
@@ -6599,32 +6599,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             "Run independent bug-finding defenses and compile one agent-ready report."
         ),
     )
-    parser.add_argument("--root", type=Path, default=Path.cwd(), help="repository root")
-    parser.add_argument("--config", type=Path, help="path to bughunt.toml")
+    _ = parser.add_argument(
+        "--root", type=Path, default=Path.cwd(), help="repository root"
+    )
+    _ = parser.add_argument("--config", type=Path, help="path to bughunt.toml")
 
     sub = parser.add_subparsers(dest="command", required=True)
 
     run_p = sub.add_parser("run", help="run a bug-hunting profile")
-    run_p.add_argument(
+    _ = run_p.add_argument(
         "profile_positional",
         nargs="?",
         choices=("fast", "pr", "deep", "all"),
         help="profile (also accepted as --profile)",
     )
-    run_p.add_argument("--profile", choices=("fast", "pr", "deep", "all"), default=None)
-    run_p.add_argument(
+    _ = run_p.add_argument(
+        "--profile", choices=("fast", "pr", "deep", "all"), default=None
+    )
+    _ = run_p.add_argument(
         "--skip",
         action="append",
         default=[],
         metavar="DEFENSE",
         help="skip a defense while keeping the selected profile (repeatable)",
     )
-    run_p.add_argument(
+    _ = run_p.add_argument(
         "--skip-mutmut",
         action="store_true",
         help="skip mutation testing",
     )
-    run_p.add_argument(
+    _ = run_p.add_argument(
         "--no-auto-config",
         action="store_true",
         help="do not refresh strict configs or auto-discovered targets",
@@ -6636,29 +6640,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         ("deep", "run the deep profile"),
     ):
         alias_p = sub.add_parser(alias, help=help_text)
-        alias_p.add_argument("--no-auto-config", action="store_true")
+        _ = alias_p.add_argument("--no-auto-config", action="store_true")
 
     # trace:v1 id=impl.src-bughunt-cli-main.add-all-options work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add_all_options(target: argparse.ArgumentParser) -> None:
-        target.add_argument(
+        _ = target.add_argument(
             "--install-missing",
             action=argparse.BooleanOptionalAction,
             default=True,
             help="install missing analyzers before running (default: true)",
         )
-        target.add_argument(
+        _ = target.add_argument(
             "--skip",
             action="append",
             default=[],
             metavar="DEFENSE",
             help="skip a defense while keeping all other all-profile defenses",
         )
-        target.add_argument(
+        _ = target.add_argument(
             "--skip-mutmut",
             action="store_true",
             help="skip mutation testing (same as --skip mutmut)",
         )
-        target.add_argument("--no-auto-config", action="store_true")
+        _ = target.add_argument("--no-auto-config", action="store_true")
 
     all_p = sub.add_parser(
         "all",
@@ -6682,8 +6686,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "install",
         help="auto-install the analysis stack using uv (plus CodeQL/Watchman on macOS)",
     )
-    install_p.add_argument("--dry-run", action="store_true")
-    install_p.add_argument(
+    _ = install_p.add_argument("--dry-run", action="store_true")
+    _ = install_p.add_argument(
         "--only",
         action="append",
         metavar="COMPONENT",
@@ -6694,10 +6698,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         "configure",
         help="discover and generate safe deep-analysis targets",
     )
-    config_p.add_argument("--auto", action="store_true", default=True)
+    _ = config_p.add_argument("--auto", action="store_true", default=True)
 
-    sub.add_parser("rules", help="list the shipped BugHunt-native default rule pack")
-    sub.add_parser("doctor", help="show available defenses and missing configuration")
+    _ = sub.add_parser(
+        "rules", help="list the shipped BugHunt-native default rule pack"
+    )
+    _ = sub.add_parser(
+        "doctor", help="show available defenses and missing configuration"
+    )
 
     args = parser.parse_args(argv)
     root = args.root.resolve()
@@ -6710,7 +6718,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return doctor(cfg)
 
     if args.command == "configure":
-        auto_configure(cfg)
+        _ = auto_configure(cfg)
         return 0
 
     if args.command == "install":
@@ -6812,7 +6820,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     no_auto = bool(getattr(args, "no_auto_config", False))
     if not no_auto:
-        auto_configure(cfg, quiet=True)
+        _ = auto_configure(cfg, quiet=True)
 
     profile_display = profile + (
         " - " + ", ".join(f"no {name}" for name in sorted(excluded)) if excluded else ""

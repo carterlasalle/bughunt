@@ -396,8 +396,8 @@ def scan(root: Path, source_paths: Iterable[str]) -> list[MetricFinding]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("--source", action="append", default=[])
+    _ = parser.add_argument("--root", type=Path, default=Path.cwd())
+    _ = parser.add_argument("--source", action="append", default=[])
     args = parser.parse_args(argv)
     root = args.root.resolve()
     findings = scan(root, args.source or ["src"])

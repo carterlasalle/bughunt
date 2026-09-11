@@ -409,10 +409,10 @@ def ensure_env_example(
     new_text = (
         outside.rstrip() + ("\n\n" if outside.strip() else "") + "\n".join(lines) + "\n"
     )
-    path.write_text(new_text)
+    _ = path.write_text(new_text)
     inventory = root / ".bughunt" / "generated" / "env-contract.json"
     inventory.parent.mkdir(parents=True, exist_ok=True)
-    inventory.write_text(
+    _ = inventory.write_text(
         json.dumps(
             {"schema_version": 1, "variables": [asdict(x) for x in uses]},
             indent=2,
@@ -1155,9 +1155,9 @@ def scan(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("--source", action="append", default=[])
-    parser.add_argument("--test", action="append", default=[])
+    _ = parser.add_argument("--root", type=Path, default=Path.cwd())
+    _ = parser.add_argument("--source", action="append", default=[])
+    _ = parser.add_argument("--test", action="append", default=[])
     args = parser.parse_args(argv)
     root = args.root.resolve()
     source = args.source or ["src"]

@@ -123,10 +123,10 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         proc.terminate()
         try:
-            proc.wait(timeout=5)
+            _ = proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-            proc.wait(timeout=5)
+            _ = proc.wait(timeout=5)
     print(
         json.dumps(
             {

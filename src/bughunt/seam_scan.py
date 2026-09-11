@@ -160,7 +160,7 @@ class _FunctionCollector(ast.NodeVisitor):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         self.http_json_lines.append(node.lineno)
-                        self._state(target.id, node.lineno)
+                        _ = self._state(target.id, node.lineno)
             if call.rsplit(".", 1)[-1] in VALIDATORS:
                 for target in node.targets:
                     if isinstance(target, ast.Name):
@@ -630,7 +630,7 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
         except (OSError, SyntaxError):
             continue
         for name, fields in _class_fields(tree).items():
-            models.setdefault(name, (fields, _rel(root, path), 1))
+            _ = models.setdefault(name, (fields, _rel(root, path), 1))
 
     findings: list[SeamFinding] = []
     schema_files: list[Path] = []

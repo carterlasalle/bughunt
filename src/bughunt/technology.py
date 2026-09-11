@@ -589,7 +589,7 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
     if persist:
         out = root / ".bughunt" / "generated" / "capabilities.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(inv.to_json(), indent=2) + "\n")
+        _ = out.write_text(json.dumps(inv.to_json(), indent=2) + "\n")
     return inv
 
 
