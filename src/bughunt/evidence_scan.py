@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import ast
 import json
-import os
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
-IGNORED = {".git", ".venv", "venv", ".bughunt", "node_modules", "build", "dist", "__pycache__", "site-packages", "mutants"}
+IGNORED = {
+    ".git",
+    ".venv",
+    "venv",
+    ".bughunt",
+    "node_modules",
+    "build",
+    "dist",
+    "__pycache__",
+    "site-packages",
+    "mutants",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,11 +30,18 @@ class EvidenceFinding:
     severity: str = "warning"
 
 
+# trace:v1 id=impl.src-bughunt-evidence_scan.-files work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _files(root: Path, paths: Iterable[str]) -> Iterable[Path]:
     seen: set[Path] = set()
     for rel in paths:
         base = root / rel
-        candidates = [base] if base.is_file() and base.suffix == ".py" else base.rglob("*.py") if base.is_dir() else []
+        candidates = (
+            [base]
+            if base.is_file() and base.suffix == ".py"
+            else base.rglob("*.py")
+            if base.is_dir()
+            else []
+        )
         for path in candidates:
             if path in seen or any(part in IGNORED for part in path.parts):
                 continue
@@ -43,19 +60,28 @@ def _name(node: ast.AST | None) -> str:
     return ""
 
 
+# trace:v1 id=impl.src-bughunt-evidence_scan.-annotation work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _annotation(node: ast.AST | None) -> str:
     try:
         return ast.unparse(node) if node is not None else ""
-    except Exception:
+    except Exception:  # noqa: BLE001 - unparse fallback: any AST shape must degrade to empty
         return ""
 
 
+# trace:v1 id=impl.src-bughunt-evidence_scan.-is-broad work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _is_broad(annotation: str) -> bool:
     compact = annotation.replace(" ", "")
-    return compact in {"Any", "typing.Any", "object", "builtins.object"} or "Any" in compact and compact.startswith(("dict[", "Mapping[", "MutableMapping["))
+    return (
+        compact in {"Any", "typing.Any", "object", "builtins.object"}
+        or "Any" in compact
+        and compact.startswith(("dict[", "Mapping[", "MutableMapping["))
+    )
 
 
-def _function_findings(node: ast.FunctionDef | ast.AsyncFunctionDef, rel: str) -> list[EvidenceFinding]:
+# trace:v1 id=impl.src-bughunt-evidence_scan.-function-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _function_findings(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, rel: str
+) -> list[EvidenceFinding]:
     out: list[EvidenceFinding] = []
     known: dict[str, str] = {}
     widened_from: dict[str, tuple[str, str, int]] = {}
@@ -70,25 +96,44 @@ def _function_findings(node: ast.FunctionDef | ast.AsyncFunctionDef, rel: str) -
             if isinstance(child.value, ast.Name) and _is_broad(ann):
                 source_ann = known.get(child.value.id)
                 if source_ann and not _is_broad(source_ann):
-                    widened_from[child.target.id] = (child.value.id, source_ann, child.lineno)
+                    widened_from[child.target.id] = (
+                        child.value.id,
+                        source_ann,
+                        child.lineno,
+                    )
             if ann:
                 known[child.target.id] = ann
-        if isinstance(child, ast.Call) and _name(child.func).rsplit(".", 1)[-1] == "cast" and len(child.args) >= 2:
+        if (
+            isinstance(child, ast.Call)
+            and _name(child.func).rsplit(".", 1)[-1] == "cast"
+            and len(child.args) >= 2
+        ):
             target_ann = _annotation(child.args[0])
             value = child.args[1]
-            if isinstance(value, ast.Call) and _name(value.func).rsplit(".", 1)[-1] == "cast":
-                out.append(EvidenceFinding(
-                    "BHEVID002",
-                    f"chained cast reconstructs type evidence through multiple assertions (`{target_ann}` outside another cast); preserve/narrow the original contract instead",
-                    rel, child.lineno, "warning",
-                ))
+            if (
+                isinstance(value, ast.Call)
+                and _name(value.func).rsplit(".", 1)[-1] == "cast"
+            ):
+                out.append(
+                    EvidenceFinding(
+                        "BHEVID002",
+                        f"chained cast reconstructs type evidence through multiple assertions (`{target_ann}` outside another cast); preserve/narrow the original contract instead",
+                        rel,
+                        child.lineno,
+                        "warning",
+                    )
+                )
             if isinstance(value, ast.Name) and value.id in widened_from:
-                src, src_ann, line = widened_from[value.id]
-                out.append(EvidenceFinding(
-                    "BHEVID001",
-                    f"`{src}` had known type `{src_ann}`, was widened into `{value.id}`, then cast back to `{target_ann}`; this erases static evidence at the seam",
-                    rel, child.lineno, "error",
-                ))
+                src, src_ann, _line = widened_from[value.id]
+                out.append(
+                    EvidenceFinding(
+                        "BHEVID001",
+                        f"`{src}` had known type `{src_ann}`, was widened into `{value.id}`, then cast back to `{target_ann}`; this erases static evidence at the seam",
+                        rel,
+                        child.lineno,
+                        "error",
+                    )
+                )
 
     # Growing accumulator copies are often accidental quadratic work. Require a
     # loop and self-reference so ordinary immutable-expression code is ignored.
@@ -98,29 +143,50 @@ def _function_findings(node: ast.FunctionDef | ast.AsyncFunctionDef, rel: str) -
         for child in ast.walk(loop):
             if not isinstance(child, (ast.Assign, ast.AugAssign)):
                 continue
-            target: ast.AST | None = child.target if isinstance(child, ast.AugAssign) else child.targets[0] if len(child.targets) == 1 else None
+            target: ast.AST | None = (
+                child.target
+                if isinstance(child, ast.AugAssign)
+                else child.targets[0]
+                if len(child.targets) == 1
+                else None
+            )
             value = child.value
             if not isinstance(target, ast.Name):
                 continue
             acc = target.id
             copies = False
-            if isinstance(value, ast.BinOp) and isinstance(value.op, (ast.Add, ast.BitOr)) and (
-                isinstance(value.left, ast.Name) and value.left.id == acc or isinstance(value.right, ast.Name) and value.right.id == acc
+            if (
+                isinstance(value, ast.BinOp)
+                and isinstance(value.op, (ast.Add, ast.BitOr))
+                and (
+                    isinstance(value.left, ast.Name)
+                    and value.left.id == acc
+                    or isinstance(value.right, ast.Name)
+                    and value.right.id == acc
+                )
+                or isinstance(value, ast.Dict)
+                and any(isinstance(v, ast.Name) and v.id == acc for v in value.values)
+                or isinstance(value, ast.Call)
+                and _name(value.func) in {"list", "dict", "set", "tuple"}
+                and value.args
+                and isinstance(value.args[0], ast.Name)
+                and value.args[0].id == acc
             ):
                 copies = True
-            elif isinstance(value, ast.Dict) and any(isinstance(v, ast.Name) and v.id == acc for v in value.values):
-                copies = True
-            elif isinstance(value, ast.Call) and _name(value.func) in {"list", "dict", "set", "tuple"} and value.args and isinstance(value.args[0], ast.Name) and value.args[0].id == acc:
-                copies = True
             if copies:
-                out.append(EvidenceFinding(
-                    "BHEVID003",
-                    f"loop repeatedly copies growing accumulator `{acc}`; this can turn linear work quadratic and hide a performance bug",
-                    rel, child.lineno, "warning",
-                ))
+                out.append(
+                    EvidenceFinding(
+                        "BHEVID003",
+                        f"loop repeatedly copies growing accumulator `{acc}`; this can turn linear work quadratic and hide a performance bug",
+                        rel,
+                        child.lineno,
+                        "warning",
+                    )
+                )
     return out
 
 
+# trace:v1 id=impl.src-bughunt-evidence_scan.scan work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def scan(root: Path, paths: Iterable[str]) -> list[EvidenceFinding]:
     findings: list[EvidenceFinding] = []
     for path in _files(root, paths):
@@ -128,7 +194,11 @@ def scan(root: Path, paths: Iterable[str]) -> list[EvidenceFinding]:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
             continue
-        rel = path.resolve(strict=False).relative_to(root.resolve(strict=False)).as_posix()
+        rel = (
+            path.resolve(strict=False)
+            .relative_to(root.resolve(strict=False))
+            .as_posix()
+        )
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 findings.extend(_function_findings(node, rel))
@@ -137,12 +207,29 @@ def scan(root: Path, paths: Iterable[str]) -> list[EvidenceFinding]:
     return sorted(dedup.values(), key=lambda f: (f.path, f.line, f.code))
 
 
+# trace:v1 id=impl.src-bughunt-evidence_scan.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
     root = Path(args.pop(0) if args else ".").resolve()
     paths = args or ["src"]
     findings = scan(root, paths)
-    print(json.dumps({"findings": [{"tool": "evidence", "code": f.code, "message": f.message, "path": f.path, "line": f.line, "severity": f.severity} for f in findings]}))
+    print(
+        json.dumps(
+            {
+                "findings": [
+                    {
+                        "tool": "evidence",
+                        "code": f.code,
+                        "message": f.message,
+                        "path": f.path,
+                        "line": f.line,
+                        "severity": f.severity,
+                    }
+                    for f in findings
+                ]
+            }
+        )
+    )
     return 1 if findings else 0
 
 

@@ -36,7 +36,10 @@ def _ranges(lines: list[int]) -> list[tuple[int, int]]:
     return out
 
 
-def parse_coverage_json(path: Path, *, line_group_limit: int = 50) -> tuple[list[CoverageGap], dict[str, Any]]:
+# trace:v1 id=impl.src-bughunt-coverage_tools.parse-coverage-json work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def parse_coverage_json(
+    path: Path, *, line_group_limit: int = 50
+) -> tuple[list[CoverageGap], dict[str, Any]]:
     data = json.loads(path.read_text())
     findings: list[CoverageGap] = []
     totals = data.get("totals", {}) if isinstance(data, dict) else {}
@@ -44,25 +47,35 @@ def parse_coverage_json(path: Path, *, line_group_limit: int = 50) -> tuple[list
     for filename, payload in files.items():
         if not isinstance(payload, dict):
             continue
-        missing_lines = [int(x) for x in payload.get("missing_lines", []) if isinstance(x, int)]
+        missing_lines = [
+            int(x) for x in payload.get("missing_lines", []) if isinstance(x, int)
+        ]
         missing_branches = payload.get("missing_branches", []) or []
         for start, end in _ranges(missing_lines)[:line_group_limit]:
             span = f"{start}" if start == end else f"{start}-{end}"
             count = end - start + 1
             severity = "error" if count >= 25 else "warning"
-            findings.append(CoverageGap(
-                "BHCOV001", str(filename), start,
-                f"{count} executable line(s) are never exercised by the test suite (missing range {span})",
-                severity,
-            ))
+            findings.append(
+                CoverageGap(
+                    "BHCOV001",
+                    str(filename),
+                    start,
+                    f"{count} executable line(s) are never exercised by the test suite (missing range {span})",
+                    severity,
+                )
+            )
         for branch in missing_branches[:line_group_limit]:
             if isinstance(branch, list) and len(branch) >= 2:
                 src, dst = branch[0], branch[1]
-                findings.append(CoverageGap(
-                    "BHCOV002", str(filename), int(src) if isinstance(src, int) else None,
-                    f"branch edge {src} -> {dst} is never exercised; uncovered exception/decision arms are latent-bug risk",
-                    "warning",
-                ))
+                findings.append(
+                    CoverageGap(
+                        "BHCOV002",
+                        str(filename),
+                        int(src) if isinstance(src, int) else None,
+                        f"branch edge {src} -> {dst} is never exercised; uncovered exception/decision arms are latent-bug risk",
+                        "warning",
+                    )
+                )
     summary = {
         "percent_covered": totals.get("percent_covered"),
         "covered_lines": totals.get("covered_lines"),

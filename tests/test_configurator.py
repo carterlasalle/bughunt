@@ -1,9 +1,9 @@
-from pathlib import Path
 import tomllib
+from pathlib import Path
 
+from bughunt.cli import load_config
 from bughunt.configurator import configure_custom_checks
 from bughunt.discovery import DiscoveredTarget
-from bughunt.cli import load_config
 
 
 def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
@@ -27,7 +27,9 @@ def test_custom_checks_are_managed_and_loadable(tmp_path: Path):
     assert cfg.raw["custom"]["checks"][0]["generated"] is True
 
     configure_custom_checks(tmp_path, targets)
-    assert (tmp_path / "bughunt.toml").read_text().count("BEGIN BUGHUNT MANAGED CUSTOM CHECKS") == 1
+    assert (tmp_path / "bughunt.toml").read_text().count(
+        "BEGIN BUGHUNT MANAGED CUSTOM CHECKS"
+    ) == 1
 
 
 def test_configure_all_generates_complexity_and_env_contract(tmp_path: Path) -> None:
@@ -63,7 +65,6 @@ def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path):
     assert "valid:" in swallowed_test and "invalid:" in swallowed_test
 
 
-
 def test_configure_all_ships_correctness_first_semgrep_rules(tmp_path: Path) -> None:
     from bughunt.configurator import configure_all
 
@@ -72,7 +73,9 @@ def test_configure_all_ships_correctness_first_semgrep_rules(tmp_path: Path) -> 
     (tmp_path / "tests").mkdir()
     (tmp_path / "pyproject.toml").write_text('[project]\nname="pkg"\nversion="0"\n')
     artifacts = configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
-    rules = (tmp_path / ".bughunt/configs/semgrep/rules/bughunt-correctness.yml").read_text()
+    rules = (
+        tmp_path / ".bughunt/configs/semgrep/rules/bughunt-correctness.yml"
+    ).read_text()
     assert rules.count("  - id: bughunt.") == 7
     assert "bughunt.cached-generator" in rules
     assert "bughunt.unconsumed-threadpool-map" in rules

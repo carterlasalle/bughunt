@@ -21,7 +21,7 @@ jobs:
   # trace:exempt reason=repo-scaffolding-no-product-behavior
   lint:
     runs-on: ubuntu-latest
-    continue-on-error: true # advisory until the 90 pre-existing violations are cleared
+    # Enforcing: the tree is clean under default configs (2026-09-11).
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v10.1.0
@@ -32,7 +32,7 @@ jobs:
   # trace:exempt reason=repo-scaffolding-no-product-behavior
   typecheck:
     runs-on: ubuntu-latest
-    continue-on-error: true # advisory until the 55 pre-existing errors are cleared
+    # Enforcing: the tree is clean under default configs (2026-09-11).
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v10.1.0

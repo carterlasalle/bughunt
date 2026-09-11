@@ -2958,9 +2958,13 @@ Record exact traps, for example:
   `trace verify --changed` explicitly before finishing.
 - `.trace/policy.toml` and `.trace/work.toml` may be harness-managed (staged
   automatically); inspect their diff, do not hand-revert session state.
-- `requires-python >=3.11` but `src/bughunt/cli.py:3080` uses 3.12 f-string
-  syntax (ruff invalid-syntax x2). Do not "fix" unilaterally; floor bump is an
-  owner decision.
+- `requires-python >=3.11` held: the 3.12-only f-string at `cli.py:5023` was
+  rewritten (hoisted expression) instead of bumping the floor.
+- Trace markers must match boundary indent: a col-0 marker above an indented
+  method breaks `ruff format --check` AND fails to attach. Script-inserted
+  markers need a re-indent pass to the following boundary's level.
+- A file-level `trace:v1` op marker does NOT satisfy per-boundary TL013s
+  (tested 2026-09-11); each boundary needs its own adjacent marker.
 - Hook obligation notices can go stale for gitignored generated files
   (observed: `.bughunt/configs/blockbuster_plugin.py`). Authoritative checks
   are `trace verify --changed` and `trace summary`; when both are clean, do
@@ -2981,10 +2985,11 @@ Weak:
 "Verify things carefully."
 -->
 
-- Do not claim lint/type CI is green: 90 ruff + 55 mypy pre-existing findings
-  keep those CI jobs `continue-on-error`. Clearing them is a refactor PR.
-- Do not reformat the tree to satisfy a newly added formatter (25 files would
-  churn); enforce style on changed code or not at all.
+- CI lint/typecheck are enforcing (2026-09-11): default `ruff check`,
+  `ruff format --check`, and `mypy` are all green (was: 90 ruff + 55 mypy
+  advisory). Do not reintroduce violations; CI blocks them.
+- Ruff 0.16's default set is wide (~866 rules incl. BLE001/SIM/UP — verified
+  with `--isolated` probe): there is no narrow default gate to hide behind.
 - `todo init` requires the `list` parameter (`[{phase, items}]`); `phase`
   alone fails.
 
@@ -2997,10 +3002,9 @@ Record stable official APIs or sanitized HAR-derived request knowledge when
 this materially improves repeated automation.
 -->
 
-GitHub Actions pins verified 2026-09-10: `actions/checkout@v4`,
-`astral-sh/setup-uv@v10.1.0`, `github/codeql-action@v3` (v3 assumed from the
-long-standing major; bump if CI reports it missing). Dependabot tracks `pip`
-and `github-actions` weekly.
+`astral-sh/setup-uv@v10.1.0`, `github/codeql-action@v3`. Dependabot tracks
+`pip` and `github-actions` weekly. `actions/checkout@v5` (v4 warns Node 20
+deprecation).
 
 ---
 
@@ -3019,20 +3023,21 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
 
 ## Known pre-existing issues
 
-- Ruff: 90 pre-existing errors (default config) / 2768 under the strict overlay
-  (ALL+preview, 2026-09-11). Mypy: 55 (default) / 1428 (strict overlay, 14
-  files). Basedpyright 1675 / pyrefly 1582 / ty 77 / pylint 2568
-  (scan-normalized counts, same date). Coverage: 59% total branch-aware
-  (70% statement-only) vs the 85% gate. Default-config numbers measured
-  2026-09-10.
-- `requires-python >=3.11` vs 3.12-only syntax at `cli.py:3080`.
+- Default-config debt cleared 2026-09-11: ruff 0, mypy 0, 103 tests pass,
+  coverage 60% branch-aware. Strict-overlay debt remains real (ruff 2768 ALL+
+  preview, mypy 1428 strict, basedpyright ~1700, pyrefly ~1600, pylint ~2600):
+  genuine findings on this tree, not breakage; clearing them is a separate
+  refactor PR.
 - Full `trace verify`: ~600 pre-existing TL012/TL013 on the imported tree.
-
+- Mechanical sweeps pull whole files into `verify --changed` scope (file-level
+  accounting). 2026-09-11 decision (owner): per-boundary `trace:v1` markers
+  for the CI-green sweep (`WORK-BUG-JZ02ASSD` / `REQ-BUG-SY8DHSTC`,
+  spec `docs/specs/ci-green-default-gates.md`) rather than a documented
+  exception. Future tree-wide mechanical changes inherit this precedent.
 ---
 
 ## Open questions / unclear behavior
 
-- Bump `requires-python` to `>=3.12`, or rewrite `cli.py:3080` for 3.11?
 - Enable a private vulnerability-reporting channel?
 - `codeql-action@v3` serves fine (first analysis green 2026-09-11).
 - PyPI: `bughunt 0.6.0` published via trusted publishing 2026-09-11.

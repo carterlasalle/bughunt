@@ -1,26 +1,43 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 
-def _run(cmd: list[str], root: Path) -> dict[str, object]:
+# trace:v1 id=impl.src-bughunt-package_checks.-cmdresult work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+class _CmdResult(TypedDict):
+    command: list[str]
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+# trace:v1 id=impl.src-bughunt-package_checks.-run work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _run(cmd: list[str], root: Path) -> _CmdResult:
     try:
-        p = subprocess.run(cmd, cwd=root, text=True, capture_output=True, timeout=600, check=False)
-        return {"command": cmd, "returncode": p.returncode, "stdout": p.stdout[-20000:], "stderr": p.stderr[-20000:]}
+        p = subprocess.run(
+            cmd, cwd=root, text=True, capture_output=True, timeout=600, check=False
+        )
+        return {
+            "command": cmd,
+            "returncode": p.returncode,
+            "stdout": p.stdout[-20000:],
+            "stderr": p.stderr[-20000:],
+        }
     except (OSError, subprocess.SubprocessError) as exc:
         return {"command": cmd, "returncode": 255, "stdout": "", "stderr": str(exc)}
 
 
+# trace:v1 id=impl.src-bughunt-package_checks.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     root = Path(argv[0] if argv else ".").resolve()
-    results: list[dict[str, object]] = []
     pyproject = root / "pyproject.toml"
     uv = shutil.which("uv")
+    results: list[_CmdResult] = []
     if pyproject.exists():
         validate = shutil.which("validate-pyproject")
         if validate:
@@ -44,12 +61,20 @@ def main(argv: list[str] | None = None) -> int:
     for item in results:
         if int(item.get("returncode", 0)) != 0:
             cmd = item.get("command", [])
-            tool = Path(str(cmd[0])).name if isinstance(cmd, list) and cmd else "packaging"
-            findings.append({
-                "tool": tool,
-                "code": "BHPKG001",
-                "message": (str(item.get("stderr") or item.get("stdout") or f"{tool} failed")).strip()[-4000:],
-            })
+            tool = (
+                Path(str(cmd[0])).name if isinstance(cmd, list) and cmd else "packaging"
+            )
+            findings.append(
+                {
+                    "tool": tool,
+                    "code": "BHPKG001",
+                    "message": (
+                        str(
+                            item.get("stderr") or item.get("stdout") or f"{tool} failed"
+                        )
+                    ).strip()[-4000:],
+                }
+            )
     print(json.dumps({"findings": findings, "runs": results}))
     return 1 if findings else 0
 

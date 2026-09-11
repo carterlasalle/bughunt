@@ -31,11 +31,15 @@ def test_target_python_falls_back_without_venv(tmp_path):
 def test_target_executable_prefers_venv(tmp_path, monkeypatch):
     _make_venv(tmp_path, "pytest")
     monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name)
-    assert target_executable(tmp_path, "pytest") == str(tmp_path / ".venv" / "bin" / "pytest")
+    assert target_executable(tmp_path, "pytest") == str(
+        tmp_path / ".venv" / "bin" / "pytest"
+    )
 
 
 def test_target_executable_falls_back(tmp_path, monkeypatch):
-    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name if name == "pytest" else None)
+    monkeypatch.setattr(
+        "shutil.which", lambda name: "/usr/bin/" + name if name == "pytest" else None
+    )
     assert target_executable(tmp_path, "pytest") == "/usr/bin/pytest"
     assert target_executable(tmp_path, "nope") is None
 
@@ -51,9 +55,13 @@ def test_target_has_module_missing_interpreter(tmp_path):
 
 def _exit_five_check(**kwargs):
     return Check(
-        name="t", category="c",
+        name="t",
+        category="c",
         command=[sys.executable, "-c", "raise SystemExit(5)"],
-        parser=lambda o, e, c: [], timeout=30, cwd=Path("."), **kwargs,
+        parser=lambda o, e, c: [],
+        timeout=30,
+        cwd=Path("."),
+        **kwargs,
     )
 
 

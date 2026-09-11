@@ -3,9 +3,9 @@ from __future__ import annotations
 import ast
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
 
 EXCLUDED = {
     ".git",
@@ -22,7 +22,7 @@ EXCLUDED = {
 FUZZ_NAME = re.compile(
     r"(^|_)(parse|parser|decode|deserialize|loads?|from_bytes|from_string|tokenize|lex|"
     r"read_message|parse_message|unpack|unmarshal|decompress|validate)(_|$)",
-    re.I,
+    re.IGNORECASE,
 )
 
 IDEMPOTENT_NAMES = {
@@ -48,7 +48,15 @@ ROUNDTRIP_TOKENS = (
 )
 
 REFERENCE_TOKENS = {"reference", "ref", "baseline", "naive", "slow", "simple"}
-OPTIMIZED_TOKENS = {"fast", "optimized", "optimised", "opt", "vectorized", "vectorised", "accelerated"}
+OPTIMIZED_TOKENS = {
+    "fast",
+    "optimized",
+    "optimised",
+    "opt",
+    "vectorized",
+    "vectorised",
+    "accelerated",
+}
 
 BOUNDARY_PREFIXES = (
     "open",
@@ -150,6 +158,7 @@ class PysaModel:
     line: int
 
 
+# trace:v1 id=impl.src-bughunt-discovery.infer-source-paths work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def infer_source_paths(root: Path) -> list[str]:
     """Infer first-party Python roots when a repo has no usable BugHunt config."""
     candidates: list[str] = []
@@ -160,7 +169,15 @@ def infer_source_paths(root: Path) -> list[str]:
         if base.is_dir() and any(base.rglob("*.py")) and common not in candidates:
             candidates.append(common)
     # Flat-layout packages. Avoid obvious tooling/content directories.
-    ignored = EXCLUDED | {"tests", "test", "docs", "examples", "scripts", "tools", "migrations"}
+    ignored = EXCLUDED | {
+        "tests",
+        "test",
+        "docs",
+        "examples",
+        "scripts",
+        "tools",
+        "migrations",
+    }
     for child in sorted(root.iterdir() if root.exists() else []):
         if child.name in ignored or not child.is_dir():
             continue
@@ -168,7 +185,11 @@ def infer_source_paths(root: Path) -> list[str]:
             candidates.append(child.name)
     if candidates:
         return list(dict.fromkeys(candidates))
-    if any(path.is_file() and path.suffix == ".py" for path in root.iterdir() if root.exists()):
+    if any(
+        path.is_file() and path.suffix == ".py"
+        for path in root.iterdir()
+        if root.exists()
+    ):
         return ["."]
     return ["src"]
 
@@ -222,12 +243,13 @@ def _call_name(node: ast.AST) -> str:
     return ""
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-annotation-text work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _annotation_text(node: ast.AST | None) -> str | None:
     if node is None:
         return None
     try:
         return ast.unparse(node).replace("typing.", "")
-    except Exception:
+    except Exception:  # noqa: BLE001 - unparse fallback: any AST shape must degrade to the name heuristic
         return _call_name(node) or None
 
 
@@ -243,10 +265,17 @@ def _annotation_name(node: ast.AST | None) -> str | None:
     return None
 
 
-def _required_positional_count(fn: ast.FunctionDef | ast.AsyncFunctionDef, *, method: bool = False) -> int:
+# trace:v1 id=impl.src-bughunt-discovery.-required-positional-count work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _required_positional_count(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef, *, method: bool = False
+) -> int:
     total = len(fn.args.posonlyargs) + len(fn.args.args)
     required = total - len(fn.args.defaults)
-    if method and total and (fn.args.posonlyargs + fn.args.args)[0].arg in {"self", "cls"}:
+    if (
+        method
+        and total
+        and (fn.args.posonlyargs + fn.args.args)[0].arg in {"self", "cls"}
+    ):
         required -= 1
     return max(0, required)
 
@@ -269,7 +298,10 @@ def _explicit_raises(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     return sorted(names)
 
 
-def _literal_seeds(root: Path, function_name: str, limit: int = 64) -> list[tuple[bytes, str]]:
+# trace:v1 id=impl.src-bughunt-discovery.-literal-seeds work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _literal_seeds(
+    root: Path, function_name: str, limit: int = 64
+) -> list[tuple[bytes, str]]:
     seeds: list[tuple[bytes, str]] = []
     for path in _test_python_files(root):
         try:
@@ -293,11 +325,16 @@ def _literal_seeds(root: Path, function_name: str, limit: int = 64) -> list[tupl
     return seeds
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-is-boundary-call work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _is_boundary_call(name: str) -> bool:
     lowered = name.lower()
-    return any(lowered == prefix.lower() or lowered.startswith(prefix.lower()) for prefix in BOUNDARY_PREFIXES)
+    return any(
+        lowered == prefix.lower() or lowered.startswith(prefix.lower())
+        for prefix in BOUNDARY_PREFIXES
+    )
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-function-infos work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
     infos: list[FunctionInfo] = []
     for path in _python_files(root, source_paths):
@@ -321,7 +358,9 @@ def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
                 if isinstance(inner, ast.Call):
                     called = _call_name(inner.func)
                     if _is_boundary_call(called):
-                        boundaries.append((called, getattr(inner, "lineno", node.lineno)))
+                        boundaries.append(
+                            (called, getattr(inner, "lineno", node.lineno))
+                        )
             infos.append(
                 FunctionInfo(
                     module=module,
@@ -341,6 +380,7 @@ def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
     return infos
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-strategy-expr work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _strategy_expr(annotation: str | None) -> str | None:
     if annotation is None:
         return None
@@ -370,7 +410,9 @@ def _strategy_expr(annotation: str | None) -> str | None:
         inner = _strategy_expr(generic.group(2))
         if not inner:
             return None
-        fn = {"list": "lists", "set": "sets", "frozenset": "frozensets"}[generic.group(1)]
+        fn = {"list": "lists", "set": "sets", "frozenset": "frozensets"}[
+            generic.group(1)
+        ]
         return f"st.{fn}({inner}, max_size=32)"
     generic = re.fullmatch(r"dict\[(.+),(.+)\]", ann)
     if generic:
@@ -387,8 +429,11 @@ def _strategy_expr(annotation: str | None) -> str | None:
     return None
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-safe-campaign-function work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _safe_campaign_function(info: FunctionInfo) -> bool:
-    return not info.is_async and not info.boundary_calls and 1 <= info.required_count <= 3
+    return (
+        not info.is_async and not info.boundary_calls and 1 <= info.required_count <= 3
+    )
 
 
 def _same_signature(a: FunctionInfo, b: FunctionInfo) -> bool:
@@ -409,8 +454,9 @@ def _name_variant(name: str, tokens: set[str]) -> tuple[str, str] | None:
     return None
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-equivalence-helper work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _equivalence_helper() -> str:
-    return '''def _equivalent(left, right):
+    return """def _equivalent(left, right):
     if isinstance(left, float) and isinstance(right, float):
         return math.isclose(left, right, rel_tol=1e-9, abs_tol=1e-12)
     if isinstance(left, (list, tuple)) and isinstance(right, type(left)) and len(left) == len(right):
@@ -418,7 +464,7 @@ def _equivalence_helper() -> str:
     if isinstance(left, dict) and isinstance(right, dict) and left.keys() == right.keys():
         return all(_equivalent(left[k], right[k]) for k in left)
     return left == right
-'''
+"""
 
 
 def _write_property_harness(path: Path, body: str) -> None:
@@ -435,7 +481,10 @@ def _write_property_harness(path: Path, body: str) -> None:
     )
 
 
-def discover_custom_campaigns(root: Path, source_paths: list[str]) -> list[DiscoveredTarget]:
+# trace:v1 id=impl.src-bughunt-discovery.discover-custom-campaigns work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def discover_custom_campaigns(
+    root: Path, source_paths: list[str]
+) -> list[DiscoveredTarget]:
     infos = _function_infos(root, source_paths)
     by_module: dict[str, list[FunctionInfo]] = {}
     for info in infos:
@@ -459,23 +508,34 @@ def discover_custom_campaigns(root: Path, source_paths: list[str]) -> list[Disco
                 opts[opt[0]] = info
         for base in sorted(refs.keys() & opts.keys()):
             reference, optimized = refs[base], opts[base]
-            if not (_safe_campaign_function(reference) and _safe_campaign_function(optimized)):
+            if not (
+                _safe_campaign_function(reference)
+                and _safe_campaign_function(optimized)
+            ):
                 continue
             if not _same_signature(reference, optimized):
                 continue
-            strategies = [_strategy_expr(annotation) for _, annotation in reference.params]
+            strategies = [
+                _strategy_expr(annotation) for _, annotation in reference.params
+            ]
             if not strategies or not all(strategies):
                 continue
             target_name = f"{module}.{base}:differential"
             if ("custom-differential", target_name) in seen:
                 continue
             seen.add(("custom-differential", target_name))
-            harness = generated / f"test_differential_{re.sub(r'[^A-Za-z0-9_]+', '_', module + '_' + base)}.py"
+            harness = (
+                generated
+                / f"test_differential_{re.sub(r'[^A-Za-z0-9_]+', '_', module + '_' + base)}.py"
+            )
             arguments = ", ".join(name for name, _ in reference.params)
             decorators = ", ".join(
-                f"{name}={strategy}" for (name, _), strategy in zip(reference.params, strategies, strict=True)
+                f"{name}={strategy}"
+                for (name, _), strategy in zip(
+                    reference.params, strategies, strict=True
+                )
             )
-            body = f'''_module = importlib.import_module({module!r})
+            body = f"""_module = importlib.import_module({module!r})
 _reference = getattr(_module, {reference.name!r})
 _optimized = getattr(_module, {optimized.name!r})
 
@@ -497,7 +557,7 @@ def test_bughunt_differential({arguments}):
         assert left[1] is right[1]
     else:
         assert _equivalent(left[1], right[1])
-'''
+"""
             _write_property_harness(harness, body)
             out.append(
                 DiscoveredTarget(
@@ -507,7 +567,14 @@ def test_bughunt_differential({arguments}):
                     runnable=True,
                     reason=f"matched reference implementation {reference.name} to optimized implementation {optimized.name}; typed signatures agree and neither touches an external boundary",
                     source=reference.relative_path,
-                    command=["uv", "run", "pytest", "-q", str(harness.relative_to(root)), "--tb=short"],
+                    command=[
+                        "uv",
+                        "run",
+                        "pytest",
+                        "-q",
+                        str(harness.relative_to(root)),
+                        "--tb=short",
+                    ],
                     metadata={
                         "oracle": reference.qualname,
                         "implementation": optimized.qualname,
@@ -526,11 +593,16 @@ def test_bughunt_differential({arguments}):
                 if encoder_token not in parts:
                     continue
                 idx = parts.index(encoder_token)
-                decoder_name = "_".join(parts[:idx] + [decoder_token] + parts[idx + 1 :])
+                decoder_name = "_".join(
+                    parts[:idx] + [decoder_token] + parts[idx + 1 :]
+                )
                 decoder = names.get(decoder_name)
                 if decoder is None:
                     continue
-                if not (_safe_campaign_function(encoder) and _safe_campaign_function(decoder)):
+                if not (
+                    _safe_campaign_function(encoder)
+                    and _safe_campaign_function(decoder)
+                ):
                     continue
                 if encoder.required_count != 1 or decoder.required_count != 1:
                     continue
@@ -547,9 +619,12 @@ def test_bughunt_differential({arguments}):
                 if ("custom-roundtrip", key) in seen:
                     continue
                 seen.add(("custom-roundtrip", key))
-                harness = generated / f"test_roundtrip_{re.sub(r'[^A-Za-z0-9_]+', '_', key)}.py"
+                harness = (
+                    generated
+                    / f"test_roundtrip_{re.sub(r'[^A-Za-z0-9_]+', '_', key)}.py"
+                )
                 arg_name = encoder.params[0][0]
-                body = f'''_module = importlib.import_module({module!r})
+                body = f"""_module = importlib.import_module({module!r})
 _encode = getattr(_module, {encoder.name!r})
 _decode = getattr(_module, {decoder.name!r})
 
@@ -560,7 +635,7 @@ def test_bughunt_roundtrip({arg_name}):
     encoded = _encode({arg_name})
     decoded = _decode(encoded)
     assert _equivalent(decoded, {arg_name})
-'''
+"""
                 _write_property_harness(harness, body)
                 out.append(
                     DiscoveredTarget(
@@ -570,8 +645,18 @@ def test_bughunt_roundtrip({arg_name}):
                         runnable=True,
                         reason="inverse naming and annotations form an exact A -> B -> A round-trip with no detected external boundary",
                         source=encoder.relative_path,
-                        command=["uv", "run", "pytest", "-q", str(harness.relative_to(root)), "--tb=short"],
-                        metadata={"generated_harness": str(harness.relative_to(root)), "strategy": strategy},
+                        command=[
+                            "uv",
+                            "run",
+                            "pytest",
+                            "-q",
+                            str(harness.relative_to(root)),
+                            "--tb=short",
+                        ],
+                        metadata={
+                            "generated_harness": str(harness.relative_to(root)),
+                            "strategy": strategy,
+                        },
                     )
                 )
 
@@ -588,9 +673,12 @@ def test_bughunt_roundtrip({arg_name}):
         if not strategy:
             continue
         key = f"{info.qualname}:idempotence"
-        harness = generated / f"test_idempotence_{re.sub(r'[^A-Za-z0-9_]+', '_', info.qualname)}.py"
+        harness = (
+            generated
+            / f"test_idempotence_{re.sub(r'[^A-Za-z0-9_]+', '_', info.qualname)}.py"
+        )
         arg_name = info.params[0][0]
-        body = f'''_module = importlib.import_module({info.module!r})
+        body = f"""_module = importlib.import_module({info.module!r})
 _target = getattr(_module, {info.name!r})
 
 
@@ -600,7 +688,7 @@ def test_bughunt_idempotence({arg_name}):
     once = _target({arg_name})
     twice = _target(once)
     assert _equivalent(twice, once)
-'''
+"""
         _write_property_harness(harness, body)
         out.append(
             DiscoveredTarget(
@@ -610,8 +698,18 @@ def test_bughunt_idempotence({arg_name}):
                 runnable=True,
                 reason="function name implies canonical/idempotent transformation, input/output annotations match, no explicit raise, and no detected external boundary",
                 source=info.relative_path,
-                command=["uv", "run", "pytest", "-q", str(harness.relative_to(root)), "--tb=short"],
-                metadata={"generated_harness": str(harness.relative_to(root)), "strategy": strategy},
+                command=[
+                    "uv",
+                    "run",
+                    "pytest",
+                    "-q",
+                    str(harness.relative_to(root)),
+                    "--tb=short",
+                ],
+                metadata={
+                    "generated_harness": str(harness.relative_to(root)),
+                    "strategy": strategy,
+                },
             )
         )
 
@@ -627,7 +725,9 @@ def test_bughunt_idempotence({arg_name}):
         except (SyntaxError, OSError):
             continue
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+            if isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ) and node.name.startswith("test"):
                 segment = ast.get_source_segment(source, node) or ""
                 test_texts.append((node.name, segment.lower()))
     for info in infos:
@@ -649,10 +749,12 @@ def test_bughunt_idempotence({arg_name}):
                     }
                 )
     inventory = generated / "fault_boundaries.json"
-    inventory.write_text(json.dumps({"schema_version": 1, "uncovered": fault_rows}, indent=2) + "\n")
+    inventory.write_text(
+        json.dumps({"schema_version": 1, "uncovered": fault_rows}, indent=2) + "\n"
+    )
     checker = generated / "check_fault_boundaries.py"
     checker.write_text(
-        '''# Auto-generated by BugHunt. Reports untested external-failure surfaces.
+        """# Auto-generated by BugHunt. Reports untested external-failure surfaces.
 from __future__ import annotations
 
 import json
@@ -665,7 +767,7 @@ rows = data.get("uncovered", [])
 for row in rows:
     print(f"{row['path']}:{row['line']}:1: warning: external boundary {row['boundary']} in {row['function']} has no detected fault-injection test [BHFAULT001]")
 sys.exit(1 if rows else 0)
-'''
+"""
     )
     if fault_rows:
         out.append(
@@ -688,6 +790,7 @@ sys.exit(1 if rows else 0)
     return out
 
 
+# trace:v1 id=impl.src-bughunt-discovery.discover-pysa-models work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]:
     models: list[PysaModel] = []
     for path in _python_files(root, source_paths):
@@ -714,8 +817,19 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                             if called in SOURCE_CALLS:
                                 source_evidence = f"returns value from {called}"
                         if isinstance(returned, (ast.Attribute, ast.Subscript)):
-                            text = _call_name(returned if isinstance(returned, ast.Attribute) else returned.value)
-                            if text.startswith(("request.args", "request.form", "request.values", "request.json")):
+                            text = _call_name(
+                                returned
+                                if isinstance(returned, ast.Attribute)
+                                else returned.value
+                            )
+                            if text.startswith(
+                                (
+                                    "request.args",
+                                    "request.form",
+                                    "request.values",
+                                    "request.json",
+                                )
+                            ):
                                 source_evidence = f"returns value from {text}"
                 if isinstance(inner, ast.Call):
                     called = _call_name(inner.func)
@@ -749,7 +863,10 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
                         model=f"def {qualified}({', '.join(sig_parts)}): ...",
                         kind="sink",
                         symbol=qualified,
-                        evidence="; ".join(f"{name} {sink_evidence[name]}" for name in sorted(sink_params)),
+                        evidence="; ".join(
+                            f"{name} {sink_evidence[name]}"
+                            for name in sorted(sink_params)
+                        ),
                         source=rel,
                         line=node.lineno,
                     )
@@ -761,6 +878,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
     return list(dedup.values())
 
 
+# trace:v1 id=impl.src-bughunt-discovery.write-pysa-models work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def write_pysa_models(root: Path, models: list[PysaModel]) -> Path:
     path = root / ".bughunt" / "configs" / "pysa" / "bughunt.pysa"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -773,10 +891,16 @@ def write_pysa_models(root: Path, models: list[PysaModel]) -> Path:
     path.write_text("\n".join(lines).rstrip() + "\n")
     evidence = root / ".bughunt" / "generated" / "pysa-models.json"
     evidence.parent.mkdir(parents=True, exist_ok=True)
-    evidence.write_text(json.dumps({"schema_version": 1, "models": [asdict(m) for m in models]}, indent=2) + "\n")
+    evidence.write_text(
+        json.dumps(
+            {"schema_version": 1, "models": [asdict(m) for m in models]}, indent=2
+        )
+        + "\n"
+    )
     return path
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-inferred-rejection-exceptions work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _inferred_rejection_exceptions(fn: ast.FunctionDef) -> list[str]:
     """Conservative exceptions that represent malformed-input rejection, not crashes."""
     names = set(_explicit_raises(fn))
@@ -788,16 +912,19 @@ def _inferred_rejection_exceptions(fn: ast.FunctionDef) -> list[str]:
         called = _call_name(node.func)
         if called.startswith("zlib.decompress"):
             names.add("zlib.error")
-        if called.startswith("struct.unpack"):
+        elif called.startswith("struct.unpack"):
             names.add("struct.error")
-        if called.startswith("base64.") or called.startswith("binascii."):
+        elif called.startswith(("base64.", "binascii.")):
             names.add("binascii.Error")
-        if called.startswith("pickle.loads"):
+        elif called.startswith("pickle.loads"):
             names.add("pickle.UnpicklingError")
     return sorted(names)
 
 
-def discover_atheris(root: Path, source_paths: list[str], run_count: int = 250_000) -> list[DiscoveredTarget]:
+# trace:v1 id=impl.src-bughunt-discovery.discover-atheris work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def discover_atheris(
+    root: Path, source_paths: list[str], run_count: int = 250_000
+) -> list[DiscoveredTarget]:
     out: list[DiscoveredTarget] = []
     generated = root / ".bughunt" / "generated" / "atheris"
     generated.mkdir(parents=True, exist_ok=True)
@@ -820,10 +947,10 @@ def discover_atheris(root: Path, source_paths: list[str], run_count: int = 250_0
                     if not isinstance(child, ast.FunctionDef):
                         continue
                     decorators = {_call_name(x) for x in child.decorator_list}
-                    if "staticmethod" in decorators:
-                        candidates.append((child, f"{node.name}.{child.name}", node.name))
-                    elif "classmethod" in decorators:
-                        candidates.append((child, f"{node.name}.{child.name}", node.name))
+                    if "staticmethod" in decorators or "classmethod" in decorators:
+                        candidates.append(
+                            (child, f"{node.name}.{child.name}", node.name)
+                        )
 
         for node, callable_name, class_name in candidates:
             leaf = node.name
@@ -863,7 +990,17 @@ def discover_atheris(root: Path, source_paths: list[str], run_count: int = 250_0
             corpus_dir = generated / "corpus" / target_id.replace(".", "_")
             corpus_dir.mkdir(parents=True, exist_ok=True)
             seeds = [seed for seed, _ in seeds_typed]
-            seed_values = [b"", b"0", b"1", b"{}", b"[]", b"null", b"\x00", b"\xff", *seeds]
+            seed_values = [
+                b"",
+                b"0",
+                b"1",
+                b"{}",
+                b"[]",
+                b"null",
+                b"\x00",
+                b"\xff",
+                *seeds,
+            ]
             for i, seed in enumerate(dict.fromkeys(seed_values)):
                 (corpus_dir / f"seed-{i:03d}").write_bytes(seed)
             explicit = _inferred_rejection_exceptions(node)
@@ -876,11 +1013,19 @@ def discover_atheris(root: Path, source_paths: list[str], run_count: int = 250_0
                 converter = "memoryview(data)"
             else:
                 converter = "data"
-            target_access = f"getattr(_module, {leaf!r})" if not class_name else f"getattr(getattr(_module, {class_name!r}), {leaf!r})"
-            harness.write_text(
-                f'''# Auto-generated by BugHunt from a high/medium confidence parser boundary.\nfrom __future__ import annotations\n\nimport builtins\nimport importlib\nfrom pathlib import Path\nimport sys\n\n_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\nif _ATHERIS_RUNTIME.exists():\n    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n\nimport atheris\n\nMODULE = {module!r}\nEXPLICIT_RAISES = {exc_literals}\n\nwith atheris.instrument_imports():\n    _module = importlib.import_module(MODULE)\n\n_target = {target_access}\n\ndef _expected_exceptions():\n    found = []\n    for dotted in EXPLICIT_RAISES:\n        candidate = None\n        if hasattr(_module, dotted):\n            candidate = getattr(_module, dotted)\n        elif hasattr(builtins, dotted.split(".")[-1]):\n            candidate = getattr(builtins, dotted.split(".")[-1])\n        elif "." in dotted:\n            try:\n                owner, attr = dotted.rsplit(".", 1)\n                candidate = getattr(importlib.import_module(owner), attr)\n            except (ImportError, AttributeError):\n                candidate = None\n        if isinstance(candidate, type) and issubclass(candidate, Exception):\n            found.append(candidate)\n    return tuple(found)\n\n_EXPECTED = _expected_exceptions()\n\n@atheris.instrument_func\ndef TestOneInput(data: bytes) -> None:\n    value = {converter}\n    try:\n        _target(value)\n    except _EXPECTED:\n        return\n\natheris.Setup(sys.argv, TestOneInput)\natheris.Fuzz()\n'''
+            target_access = (
+                f"getattr(_module, {leaf!r})"
+                if not class_name
+                else f"getattr(getattr(_module, {class_name!r}), {leaf!r})"
             )
-            confidence = "high" if annotation is not None or inferred_type is not None else "medium"
+            harness.write_text(
+                f"""# Auto-generated by BugHunt from a high/medium confidence parser boundary.\nfrom __future__ import annotations\n\nimport builtins\nimport importlib\nfrom pathlib import Path\nimport sys\n\n_BUGHUNT_ROOT = Path(__file__).resolve().parents[2]\n_ATHERIS_RUNTIME = _BUGHUNT_ROOT / "runtime" / "atheris"\nif _ATHERIS_RUNTIME.exists():\n    sys.path.insert(0, str(_ATHERIS_RUNTIME))\n\nimport atheris\n\nMODULE = {module!r}\nEXPLICIT_RAISES = {exc_literals}\n\nwith atheris.instrument_imports():\n    _module = importlib.import_module(MODULE)\n\n_target = {target_access}\n\ndef _expected_exceptions():\n    found = []\n    for dotted in EXPLICIT_RAISES:\n        candidate = None\n        if hasattr(_module, dotted):\n            candidate = getattr(_module, dotted)\n        elif hasattr(builtins, dotted.split(".")[-1]):\n            candidate = getattr(builtins, dotted.split(".")[-1])\n        elif "." in dotted:\n            try:\n                owner, attr = dotted.rsplit(".", 1)\n                candidate = getattr(importlib.import_module(owner), attr)\n            except (ImportError, AttributeError):\n                candidate = None\n        if isinstance(candidate, type) and issubclass(candidate, Exception):\n            found.append(candidate)\n    return tuple(found)\n\n_EXPECTED = _expected_exceptions()\n\n@atheris.instrument_func\ndef TestOneInput(data: bytes) -> None:\n    value = {converter}\n    try:\n        _target(value)\n    except _EXPECTED:\n        return\n\natheris.Setup(sys.argv, TestOneInput)\natheris.Fuzz()\n"""
+            )
+            confidence = (
+                "high"
+                if annotation is not None or inferred_type is not None
+                else "medium"
+            )
             out.append(
                 DiscoveredTarget(
                     kind="atheris",
@@ -916,16 +1061,18 @@ def discover_atheris(root: Path, source_paths: list[str], run_count: int = 250_0
     return out
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-local-url work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _local_url(url: str) -> bool:
     return bool(
         re.match(
             r"^https?://(127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\])(?::\d+)?(?:/|$)",
             url.strip(),
-            re.I,
+            re.IGNORECASE,
         )
     )
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-openapi-server work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _openapi_server(path: Path) -> str | None:
     text = path.read_text(errors="replace")
     if path.suffix.lower() == ".json":
@@ -938,29 +1085,37 @@ def _openapi_server(path: Path) -> str | None:
             host = data.get("host")
             base = data.get("basePath", "")
             schemes = data.get("schemes") or ["http"]
-            if isinstance(host, str) and host.split(":")[0] in {"localhost", "127.0.0.1", "0.0.0.0"}:
+            if isinstance(host, str) and host.split(":")[0] in {
+                "localhost",
+                "127.0.0.1",
+                "0.0.0.0",
+            }:
                 return f"{schemes[0]}://{host}{base}"
         except json.JSONDecodeError:
             return None
-    for match in re.finditer(r'''(?m)^\s*-?\s*url\s*:\s*["']?([^"'\s]+)''', text):
+    for match in re.finditer(r"""(?m)^\s*-?\s*url\s*:\s*["']?([^"'\s]+)""", text):
         if _local_url(match.group(1)):
             return match.group(1)
     return None
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-looks-openapi work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _looks_openapi(path: Path) -> bool:
     try:
         head = path.read_text(errors="replace")[:80_000]
     except OSError:
         return False
     return bool(
-        re.search(r'''(?m)^\s*(openapi|swagger)\s*[:"]''', head)
+        re.search(r"""(?m)^\s*(openapi|swagger)\s*[:"]""", head)
         or '"openapi"' in head
         or '"swagger"' in head
     )
 
 
-def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int = 500) -> list[DiscoveredTarget]:
+# trace:v1 id=impl.src-bughunt-discovery.discover-schemathesis work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def discover_schemathesis(
+    root: Path, source_paths: list[str], max_examples: int = 500
+) -> list[DiscoveredTarget]:
     out: list[DiscoveredTarget] = []
     generated = root / ".bughunt" / "generated" / "schemathesis"
     generated.mkdir(parents=True, exist_ok=True)
@@ -978,29 +1133,36 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
             if not isinstance(candidate, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for inner in ast.walk(candidate):
-                if isinstance(inner, ast.Return) and isinstance(inner.value, ast.Call):
-                    if _call_name(inner.value.func).endswith("FastAPI"):
-                        fastapi_factories.add(candidate.name)
-                        break
+                if (
+                    isinstance(inner, ast.Return)
+                    and isinstance(inner.value, ast.Call)
+                    and _call_name(inner.value.func).endswith("FastAPI")
+                ):
+                    fastapi_factories.add(candidate.name)
+                    break
         for node in tree.body:
             targets: list[str] = []
             value = None
             if isinstance(node, ast.Assign):
                 value = node.value
-                targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
+                targets = [
+                    target.id for target in node.targets if isinstance(target, ast.Name)
+                ]
             elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
                 value = node.value
                 targets = [node.target.id]
             if not isinstance(value, ast.Call):
                 continue
             called = _call_name(value.func)
-            if not (called.endswith("FastAPI") or called.split(".")[-1] in fastapi_factories):
+            if not (
+                called.endswith("FastAPI") or called.split(".")[-1] in fastapi_factories
+            ):
                 continue
             for app_name in targets:
                 target_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{module}.{app_name}")
                 harness = generated / f"test_{target_id.replace('.', '_')}.py"
                 harness.write_text(
-                    f'''# Auto-generated by BugHunt for in-process Schemathesis fuzzing.\nfrom __future__ import annotations\n\nimport importlib\nimport schemathesis\nfrom hypothesis import settings\n\n_module = importlib.import_module({module!r})\n_app = getattr(_module, {app_name!r})\nschema = schemathesis.openapi.from_asgi("/openapi.json", _app)\n\n@schema.parametrize()\n@settings(max_examples={max_examples}, deadline=None)\ndef test_bughunt_api(case):\n    case.call_and_validate()\n\nStateMachine = schema.as_state_machine()\nTestCase = StateMachine.TestCase\nTestCase.settings = settings(\n    max_examples=min({max_examples}, 200),\n    stateful_step_count=10,\n    deadline=None,\n)\n'''
+                    f"""# Auto-generated by BugHunt for in-process Schemathesis fuzzing.\nfrom __future__ import annotations\n\nimport importlib\nimport schemathesis\nfrom hypothesis import settings\n\n_module = importlib.import_module({module!r})\n_app = getattr(_module, {app_name!r})\nschema = schemathesis.openapi.from_asgi("/openapi.json", _app)\n\n@schema.parametrize()\n@settings(max_examples={max_examples}, deadline=None)\ndef test_bughunt_api(case):\n    case.call_and_validate()\n\nStateMachine = schema.as_state_machine()\nTestCase = StateMachine.TestCase\nTestCase.settings = settings(\n    max_examples=min({max_examples}, 200),\n    stateful_step_count=10,\n    deadline=None,\n)\n"""
                 )
                 out.append(
                     DiscoveredTarget(
@@ -1010,7 +1172,14 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
                         runnable=True,
                         reason="FastAPI application detected; using Schemathesis ASGI in-process transport",
                         source=str(path.relative_to(root)),
-                        command=["uv", "run", "pytest", "-q", str(harness.relative_to(root)), "--tb=short"],
+                        command=[
+                            "uv",
+                            "run",
+                            "pytest",
+                            "-q",
+                            str(harness.relative_to(root)),
+                            "--tb=short",
+                        ],
                         metadata={
                             "transport": "asgi",
                             "schema_path": "/openapi.json",
@@ -1034,7 +1203,11 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
         flask_apps: set[str] = set()
         schema_routes: dict[str, str] = {}
         for node in tree.body:
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and _call_name(node.value.func).endswith("Flask"):
+            if (
+                isinstance(node, ast.Assign)
+                and isinstance(node.value, ast.Call)
+                and _call_name(node.value.func).endswith("Flask")
+            ):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         flask_apps.add(target.id)
@@ -1056,7 +1229,8 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
                 if (
                     isinstance(route, ast.Constant)
                     and isinstance(route.value, str)
-                    and route.value in {"/openapi.json", "/swagger.json", "/api/openapi.json"}
+                    and route.value
+                    in {"/openapi.json", "/swagger.json", "/api/openapi.json"}
                 ):
                     schema_routes[owner] = route.value
         for app_name, schema_path in schema_routes.items():
@@ -1084,7 +1258,14 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
                     runnable=True,
                     reason=f"Flask application and explicit {schema_path} OpenAPI route detected; using Schemathesis WSGI in-process transport",
                     source=str(path.relative_to(root)),
-                    command=["uv", "run", "pytest", "-q", str(harness.relative_to(root)), "--tb=short"],
+                    command=[
+                        "uv",
+                        "run",
+                        "pytest",
+                        "-q",
+                        str(harness.relative_to(root)),
+                        "--tb=short",
+                    ],
                     metadata={
                         "transport": "wsgi",
                         "schema_path": schema_path,
@@ -1097,7 +1278,9 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
     for path in root.rglob("*"):
         if not path.is_file() or any(part in EXCLUDED for part in path.parts):
             continue
-        if path.suffix.lower() not in {".json", ".yaml", ".yml"} or not _looks_openapi(path):
+        if path.suffix.lower() not in {".json", ".yaml", ".yml"} or not _looks_openapi(
+            path
+        ):
             continue
         rel = str(path.relative_to(root))
         url = _openapi_server(path)
@@ -1140,16 +1323,18 @@ def discover_schemathesis(root: Path, source_paths: list[str], max_examples: int
                     runnable=False,
                     reason="OpenAPI schema detected but no localhost base URL; refusing to auto-run against an unknown/remote server",
                     source=rel,
-                    metadata={"needs": "explicit local base URL or importable ASGI app"},
+                    metadata={
+                        "needs": "explicit local base URL or importable ASGI app"
+                    },
                 )
             )
 
     dedup: dict[tuple[str, str], DiscoveredTarget] = {}
-    for target in out:
-        key = (target.kind, target.name)
+    for cand in out:
+        key = (cand.kind, cand.name)
         previous = dedup.get(key)
-        if previous is None or (target.runnable and not previous.runnable):
-            dedup[key] = target
+        if previous is None or (cand.runnable and not previous.runnable):
+            dedup[key] = cand
     return list(dedup.values())
 
 

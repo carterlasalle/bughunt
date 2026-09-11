@@ -8,6 +8,7 @@ from pathlib import Path
 from .coverage_tools import parse_coverage_json
 
 
+# trace:v1 id=impl.src-bughunt-coverage_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
     if not args:
@@ -19,14 +20,26 @@ def main(argv: list[str] | None = None) -> int:
     out = root / ".bughunt" / "cache" / "coverage.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     base = [sys.executable, "-m", "coverage"]
-    subprocess.run([*base, "erase", f"--rcfile={cfg}"], cwd=root, check=False, capture_output=True, text=True)
+    subprocess.run(
+        [*base, "erase", f"--rcfile={cfg}"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     test = subprocess.run(
         [*base, "run", f"--rcfile={cfg}", "-m", "pytest", "-q", "--tb=short", *tests],
-        cwd=root, check=False, capture_output=True, text=True,
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
     )
     report = subprocess.run(
         [*base, "json", f"--rcfile={cfg}", "-o", str(out)],
-        cwd=root, check=False, capture_output=True, text=True,
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
     )
     findings: list[dict[str, object]] = []
     summary: dict[str, object] = {}
@@ -34,11 +47,25 @@ def main(argv: list[str] | None = None) -> int:
         try:
             gaps, summary = parse_coverage_json(out)
             findings = [
-                {"tool": "coverage", "code": g.code, "path": g.path, "line": g.line, "message": g.message, "severity": g.severity}
+                {
+                    "tool": "coverage",
+                    "code": g.code,
+                    "path": g.path,
+                    "line": g.line,
+                    "message": g.message,
+                    "severity": g.severity,
+                }
                 for g in gaps
             ]
-        except Exception as exc:  # coverage output itself is diagnostic infrastructure
-            print(json.dumps({"error": f"coverage JSON parse failed: {type(exc).__name__}: {exc}", "test_stderr": test.stderr[-4000:]}))
+        except Exception as exc:  # noqa: BLE001 - diagnostic-infra parse: failure is reported as JSON, never raised
+            print(
+                json.dumps(
+                    {
+                        "error": f"coverage JSON parse failed: {type(exc).__name__}: {exc}",
+                        "test_stderr": test.stderr[-4000:],
+                    }
+                )
+            )
             return 2
     payload = {
         "findings": findings,

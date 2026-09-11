@@ -6,3 +6,6 @@ status = "active"
 origin.source = "new_feature"
 origin.intent = "Bring bughunt to AGENTS.md baseline: audit, LICENSE/SECURITY/CONTRIBUTING/CHANGELOG, CONTEXT/DESIGN/ADR/env example, pyproject tooling, CI workflows, README quickstart, memory update, commit with green tests and trace gate"
 origin.session = "default"
+
+[work."WORK-BUG-JZ02ASSD"]
+title = "Make default ruff/format/mypy gates pass"

@@ -5,30 +5,45 @@ from bughunt.cli import Config, Finding, Result, Status, signal_groups, write_re
 
 def test_signal_groups_repeated_rule():
     results = [
-        Result('ruff', 'lint', Status.FINDINGS, findings=[
-            Finding('ruff', 'Undefined name `foo`', path='a.py', line=1, code='F821'),
-            Finding('ruff', 'Undefined name `bar`', path='b.py', line=9, code='F821'),
-        ])
+        Result(
+            "ruff",
+            "lint",
+            Status.FINDINGS,
+            findings=[
+                Finding(
+                    "ruff", "Undefined name `foo`", path="a.py", line=1, code="F821"
+                ),
+                Finding(
+                    "ruff", "Undefined name `bar`", path="b.py", line=9, code="F821"
+                ),
+            ],
+        )
     ]
     groups = signal_groups(results)
-    assert groups[0]['count'] == 2
-    assert groups[0]['code'] == 'F821'
+    assert groups[0]["count"] == 2
+    assert groups[0]["code"] == "F821"
 
 
 def test_agent_report_artifacts(tmp_path: Path):
-    cfg = Config(tmp_path, {'execution': {}})
+    cfg = Config(tmp_path, {"execution": {}})
     result = Result(
-        'ruff', 'lint', Status.FINDINGS,
-        command=['ruff', 'check', '.'],
-        findings=[Finding('ruff', 'Undefined name `foo`', path='src/a.py', line=7, code='F821')],
+        "ruff",
+        "lint",
+        Status.FINDINGS,
+        command=["ruff", "check", "."],
+        findings=[
+            Finding(
+                "ruff", "Undefined name `foo`", path="src/a.py", line=7, code="F821"
+            )
+        ],
     )
-    md, js = write_reports(cfg, [result], 'all', 1.2)
+    md, js = write_reports(cfg, [result], "all", 1.2)
     assert md.exists() and js.exists()
-    agent = md.parent / 'agent'
-    assert (agent / 'queue.json').exists()
-    assert (agent / 'FIX_QUEUE.md').exists()
-    assert (agent / 'AGENT_INSTRUCTIONS.md').exists()
-    assert list((agent / 'tasks').glob('*.md'))
+    agent = md.parent / "agent"
+    assert (agent / "queue.json").exists()
+    assert (agent / "FIX_QUEUE.md").exists()
+    assert (agent / "AGENT_INSTRUCTIONS.md").exists()
+    assert list((agent / "tasks").glob("*.md"))
 
 
 def test_report_counts_autofixes(tmp_path: Path):
@@ -40,8 +55,24 @@ def test_report_counts_autofixes(tmp_path: Path):
             "lint",
             Status.FINDINGS,
             findings=[
-                Finding("ruff", "safe", path="a.py", line=1, code="F401", fixable=True, fix_safety="safe"),
-                Finding("ruff", "unsafe", path="a.py", line=2, code="X", fixable=True, fix_safety="unsafe"),
+                Finding(
+                    "ruff",
+                    "safe",
+                    path="a.py",
+                    line=1,
+                    code="F401",
+                    fixable=True,
+                    fix_safety="safe",
+                ),
+                Finding(
+                    "ruff",
+                    "unsafe",
+                    path="a.py",
+                    line=2,
+                    code="X",
+                    fixable=True,
+                    fix_safety="unsafe",
+                ),
             ],
         )
     ]

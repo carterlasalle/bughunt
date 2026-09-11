@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 
+# trace:v1 id=impl.src-bughunt-importtime_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
     if not args:
@@ -14,7 +14,13 @@ def main(argv: list[str] | None = None) -> int:
     findings = []
     samples = []
     for module in args:
-        proc = subprocess.run([sys.executable, "-X", "importtime", "-c", f"import {module}"], text=True, capture_output=True, check=False, timeout=120)
+        proc = subprocess.run(
+            [sys.executable, "-X", "importtime", "-c", f"import {module}"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
         cumulative_us = 0
         for line in proc.stderr.splitlines():
             if line.startswith("import time:"):
@@ -27,9 +33,22 @@ def main(argv: list[str] | None = None) -> int:
         ms = cumulative_us / 1000.0
         samples.append({"module": module, "ms": ms, "returncode": proc.returncode})
         if proc.returncode != 0:
-            findings.append({"tool": "importtime", "code": "BHPERF001", "message": f"import {module} failed during startup profiling: {proc.stderr[-1000:]}"})
+            findings.append(
+                {
+                    "tool": "importtime",
+                    "code": "BHPERF001",
+                    "message": f"import {module} failed during startup profiling: {proc.stderr[-1000:]}",
+                }
+            )
         elif ms > threshold_ms:
-            findings.append({"tool": "importtime", "code": "BHPERF001", "message": f"import {module} cumulative startup time {ms:.1f}ms exceeds {threshold_ms:.1f}ms budget", "severity": "warning"})
+            findings.append(
+                {
+                    "tool": "importtime",
+                    "code": "BHPERF001",
+                    "message": f"import {module} cumulative startup time {ms:.1f}ms exceeds {threshold_ms:.1f}ms budget",
+                    "severity": "warning",
+                }
+            )
     print(json.dumps({"findings": findings, "samples": samples}))
     return 1 if findings else 0
 

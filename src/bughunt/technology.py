@@ -6,16 +6,36 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable
-
 
 IGNORED_DIRS = {
-    ".git", ".hg", ".svn", ".venv", "venv", "env", "node_modules", "vendor",
-    "build", "dist", ".tox", ".nox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-    ".pyre", "site-packages", "__pypackages__", "mutants", ".bughunt",
-    "target", ".terraform", ".next", "coverage", "htmlcov",
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    "vendor",
+    "build",
+    "dist",
+    ".tox",
+    ".nox",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".pyre",
+    "site-packages",
+    "__pypackages__",
+    "mutants",
+    ".bughunt",
+    "target",
+    ".terraform",
+    ".next",
+    "coverage",
+    "htmlcov",
 }
 
 
@@ -27,6 +47,7 @@ class Capability:
     detail: str = ""
 
 
+# trace:v1 id=impl.src-bughunt-technology.technologyinventory work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 @dataclass(slots=True)
 class TechnologyInventory:
     root: Path
@@ -42,11 +63,14 @@ class TechnologyInventory:
         item = self.capabilities.get(capability)
         return list(item.evidence) if item else []
 
+    # trace:v1 id=impl.src-bughunt-technology-technologyinventory.to-json work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def to_json(self) -> dict[str, object]:
         return {
             "schema_version": 1,
             "git_baseline": self.git_baseline,
-            "capabilities": {key: asdict(value) for key, value in self.capabilities.items()},
+            "capabilities": {
+                key: asdict(value) for key, value in self.capabilities.items()
+            },
             "files": self.files,
         }
 
@@ -127,9 +151,14 @@ def _iter_files(root: Path) -> Iterable[Path]:
                 continue
 
 
+# trace:v1 id=impl.src-bughunt-technology.-rel work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _rel(root: Path, path: Path) -> str:
     try:
-        return path.resolve(strict=False).relative_to(root.resolve(strict=False)).as_posix()
+        return (
+            path.resolve(strict=False)
+            .relative_to(root.resolve(strict=False))
+            .as_posix()
+        )
     except ValueError:
         return path.as_posix()
 
@@ -141,13 +170,19 @@ def _read_small(path: Path, limit: int = 65536) -> str:
         return ""
 
 
+# trace:v1 id=impl.src-bughunt-technology.-package-dependencies work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _package_dependencies(root: Path) -> set[str]:
     deps: set[str] = set()
     pkg = root / "package.json"
     if pkg.exists():
         try:
             data = json.loads(pkg.read_text())
-            for section in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+            for section in (
+                "dependencies",
+                "devDependencies",
+                "peerDependencies",
+                "optionalDependencies",
+            ):
                 values = data.get(section, {})
                 if isinstance(values, dict):
                     deps.update(str(k).lower() for k in values)
@@ -156,6 +191,7 @@ def _package_dependencies(root: Path) -> set[str]:
     return deps
 
 
+# trace:v1 id=impl.src-bughunt-technology.-git-baseline work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _git_baseline(root: Path) -> str | None:
     """Pick a stable local baseline without network access.
 
@@ -168,14 +204,22 @@ def _git_baseline(root: Path) -> str | None:
     for ref in refs:
         try:
             verify = subprocess.run(
-                ["git", "rev-parse", "--verify", "--quiet", ref], cwd=root,
-                text=True, capture_output=True, timeout=8, check=False,
+                ["git", "rev-parse", "--verify", "--quiet", ref],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=8,
+                check=False,
             )
             if verify.returncode != 0:
                 continue
             merge = subprocess.run(
-                ["git", "merge-base", "HEAD", ref], cwd=root,
-                text=True, capture_output=True, timeout=8, check=False,
+                ["git", "merge-base", "HEAD", ref],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=8,
+                check=False,
             )
             sha = merge.stdout.strip()
             if merge.returncode == 0 and sha:
@@ -183,8 +227,12 @@ def _git_baseline(root: Path) -> str | None:
                 # rather than declaring HEAD its own compatibility baseline.
                 # On a feature branch, the merge-base remains the right PR-like baseline.
                 head = subprocess.run(
-                    ["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True,
-                    timeout=8, check=False,
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                    timeout=8,
+                    check=False,
                 ).stdout.strip()
                 if sha != head:
                     return sha
@@ -192,38 +240,79 @@ def _git_baseline(root: Path) -> str | None:
             break
     try:
         parent = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD^"], cwd=root,
-            text=True, capture_output=True, timeout=8, check=False,
+            ["git", "rev-parse", "--verify", "HEAD^"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=8,
+            check=False,
         )
-        return parent.stdout.strip() if parent.returncode == 0 and parent.stdout.strip() else None
+        return (
+            parent.stdout.strip()
+            if parent.returncode == 0 and parent.stdout.strip()
+            else None
+        )
     except (OSError, subprocess.SubprocessError):
         return None
 
 
+# trace:v1 id=impl.src-bughunt-technology.git-path-exists work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def git_path_exists(root: Path, ref: str | None, path: str) -> bool:
     if not ref or not shutil.which("git"):
         return False
     try:
         proc = subprocess.run(
-            ["git", "cat-file", "-e", f"{ref}:{path}"], cwd=root,
-            text=True, capture_output=True, timeout=8, check=False,
+            ["git", "cat-file", "-e", f"{ref}:{path}"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=8,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return False
     return proc.returncode == 0
 
 
+# trace:v1 id=impl.src-bughunt-technology.infer-sql-dialect work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def infer_sql_dialect(root: Path, sql_files: list[str]) -> str:
-    corpus = "\n".join(_read_small(root / name, 8192) for name in sql_files[:30]).lower()
+    corpus = "\n".join(
+        _read_small(root / name, 8192) for name in sql_files[:30]
+    ).lower()
     project = "\n".join(
         _read_small(root / name, 65536)
-        for name in ("pyproject.toml", "requirements.txt", "package.json", "go.mod", "composer.json")
+        for name in (
+            "pyproject.toml",
+            "requirements.txt",
+            "package.json",
+            "go.mod",
+            "composer.json",
+        )
         if (root / name).exists()
     ).lower()
     combined = corpus + "\n" + project
-    if any(token in combined for token in ("postgres", "psycopg", "asyncpg", "::jsonb", "returning ", "serial")):
+    if any(
+        token in combined
+        for token in (
+            "postgres",
+            "psycopg",
+            "asyncpg",
+            "::jsonb",
+            "returning ",
+            "serial",
+        )
+    ):
         return "postgres"
-    if any(token in combined for token in ("mysql", "pymysql", "mysqlclient", "auto_increment", "engine=innodb")):
+    if any(
+        token in combined
+        for token in (
+            "mysql",
+            "pymysql",
+            "mysqlclient",
+            "auto_increment",
+            "engine=innodb",
+        )
+    ):
         return "mysql"
     if any(token in combined for token in ("sqlite", "aiosqlite", "sqlite3")):
         return "sqlite"
@@ -236,14 +325,37 @@ def infer_sql_dialect(root: Path, sql_files: list[str]) -> str:
     return "ansi"
 
 
+# trace:v1 id=impl.src-bughunt-technology.discover-technologies work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInventory:
     root = root.resolve()
     buckets: dict[str, list[str]] = {
-        "python": [], "github-actions": [], "shell": [], "dotenv": [], "openapi": [], "protobuf": [],
-        "sql": [], "postgres-migrations": [], "docker": [], "terraform": [], "go": [],
-        "rust": [], "cpp": [], "cpp-compile-db": [], "php": [], "javascript-typescript": [],
-        "react": [], "typescript": [], "toml": [], "yaml": [], "schema-ref": [],
-        "alembic": [], "django": [], "odoo": [], "benchmark-tests": [], "asyncio": [], "pact": [],
+        "python": [],
+        "github-actions": [],
+        "shell": [],
+        "dotenv": [],
+        "openapi": [],
+        "protobuf": [],
+        "sql": [],
+        "postgres-migrations": [],
+        "docker": [],
+        "terraform": [],
+        "go": [],
+        "rust": [],
+        "cpp": [],
+        "cpp-compile-db": [],
+        "php": [],
+        "javascript-typescript": [],
+        "react": [],
+        "typescript": [],
+        "toml": [],
+        "yaml": [],
+        "schema-ref": [],
+        "alembic": [],
+        "django": [],
+        "odoo": [],
+        "benchmark-tests": [],
+        "asyncio": [],
+        "pact": [],
     }
     files = list(_iter_files(root))
     npm_deps = _package_dependencies(root)
@@ -270,14 +382,31 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
 
         if name == ".env" or name == ".env.example" or name.startswith(".env."):
             buckets["dotenv"].append(rel)
-        elif suffix in {".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}:
+        elif suffix in {
+            ".py",
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            ".ts",
+            ".tsx",
+            ".mts",
+            ".cts",
+        }:
             env_text = _read_small(path, 32768)
-            if re.search(r"(?:os\.(?:getenv|environ)|process\.env|Deno\.env|getenv\s*\()", env_text):
+            if re.search(
+                r"(?:os\.(?:getenv|environ)|process\.env|Deno\.env|getenv\s*\()",
+                env_text,
+            ):
                 buckets["dotenv"].append(f"{rel} (environment access)")
 
-        if suffix in {".yaml", ".yml", ".json"} and any(token in name.lower() for token in ("openapi", "swagger")):
+        if suffix in {".yaml", ".yml", ".json"} and any(
+            token in name.lower() for token in ("openapi", "swagger")
+        ):
             text = _read_small(path, 32768).lower()
-            if re.search(r"(?:^|[\n{,])\s*[\"']?(?:openapi|swagger)[\"']?\s*[:=]", text):
+            if re.search(
+                r"(?:^|[\n{,])\s*[\"']?(?:openapi|swagger)[\"']?\s*[:=]", text
+            ):
                 buckets["openapi"].append(rel)
 
         if suffix == ".proto" or name in {"buf.yaml", "buf.work.yaml"}:
@@ -285,7 +414,11 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         if suffix == ".sql":
             sql_paths.append(path)
             buckets["sql"].append(rel)
-        if name == "Dockerfile" or name.startswith("Dockerfile.") or low.endswith("/dockerfile"):
+        if (
+            name == "Dockerfile"
+            or name.startswith("Dockerfile.")
+            or low.endswith("/dockerfile")
+        ):
             buckets["docker"].append(rel)
         if suffix == ".tf" or name in {".terraform.lock.hcl", ".tflint.hcl"}:
             buckets["terraform"].append(rel)
@@ -293,16 +426,34 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
             buckets["go"].append(rel)
         if suffix == ".rs" or name in {"Cargo.toml", "Cargo.lock"}:
             buckets["rust"].append(rel)
-        if suffix in {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".m", ".mm"}:
+        if suffix in {
+            ".c",
+            ".cc",
+            ".cpp",
+            ".cxx",
+            ".h",
+            ".hh",
+            ".hpp",
+            ".hxx",
+            ".m",
+            ".mm",
+        }:
             buckets["cpp"].append(rel)
         if name == "compile_commands.json":
             buckets["cpp-compile-db"].append(rel)
         if suffix == ".php" or name == "composer.json":
             buckets["php"].append(rel)
-        if suffix in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"} or name == "package.json":
+        if (
+            suffix in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+            or name == "package.json"
+        ):
             js_paths.append(path)
             buckets["javascript-typescript"].append(rel)
-        if suffix in {".ts", ".tsx", ".mts", ".cts"} or name.startswith("tsconfig") and name.endswith(".json"):
+        if (
+            suffix in {".ts", ".tsx", ".mts", ".cts"}
+            or name.startswith("tsconfig")
+            and name.endswith(".json")
+        ):
             buckets["typescript"].append(rel)
         if suffix == ".toml" or name in {"Cargo.toml", "pyproject.toml"}:
             buckets["toml"].append(rel)
@@ -312,13 +463,19 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
             sample = _read_small(path, 32768)
             if "$schema" in sample or "yaml-language-server: $schema=" in sample:
                 buckets["schema-ref"].append(rel)
-        if name == "alembic.ini" or low.endswith("/alembic/env.py") or "/alembic/versions/" in low:
+        if (
+            name == "alembic.ini"
+            or low.endswith("/alembic/env.py")
+            or "/alembic/versions/" in low
+        ):
             buckets["alembic"].append(rel)
         if name == "manage.py" or "django" in low and suffix == ".py":
             buckets["django"].append(rel)
         if suffix == ".py":
             sample = _read_small(path, 65536).lower()
-            if "benchmark" in sample and ("def test_" in sample or "@pytest.mark.benchmark" in sample):
+            if "benchmark" in sample and (
+                "def test_" in sample or "@pytest.mark.benchmark" in sample
+            ):
                 buckets["benchmark-tests"].append(rel)
             if "async def " in sample or "asyncio" in sample:
                 buckets["asyncio"].append(rel)
@@ -328,29 +485,57 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
     # SQL migration classification is intentionally evidence-based. Squawk is
     # PostgreSQL-specific, so do not run it on every random SQL file.
     if sql_paths:
-        dialect = infer_sql_dialect(root, [p.relative_to(root).as_posix() for p in sql_paths])
+        dialect = infer_sql_dialect(
+            root, [p.relative_to(root).as_posix() for p in sql_paths]
+        )
         if dialect == "postgres":
             for path in sql_paths:
                 rel = _rel(root, path)
                 parts = {part.lower() for part in path.parts}
-                if parts & {"migration", "migrations", "versions", "alembic"} or re.search(r"(?:^|/)(?:v?\d{4,}|\d+[_-].*)\.sql$", rel, re.I):
+                if parts & {
+                    "migration",
+                    "migrations",
+                    "versions",
+                    "alembic",
+                } or re.search(
+                    r"(?:^|/)(?:v?\d{4,}|\d+[_-].*)\.sql$", rel, re.IGNORECASE
+                ):
                     buckets["postgres-migrations"].append(rel)
 
     if "react" in npm_deps or "react-dom" in npm_deps or "next" in npm_deps:
-        buckets["react"] = [p.relative_to(root).as_posix() for p in js_paths if p.suffix.lower() in {".jsx", ".tsx"}][:50]
+        buckets["react"] = [
+            p.relative_to(root).as_posix()
+            for p in js_paths
+            if p.suffix.lower() in {".jsx", ".tsx"}
+        ][:50]
         if not buckets["react"]:
             buckets["react"] = ["package.json"]
     pyproject_text = _read_small(root / "pyproject.toml", 131072).lower()
     req_text = _read_small(root / "requirements.txt", 131072).lower()
     pydeps = pyproject_text + "\n" + req_text
     if "django" in pydeps and not buckets["django"]:
-        buckets["django"] = ["pyproject.toml" if (root / "pyproject.toml").exists() else "requirements.txt"]
+        buckets["django"] = [
+            "pyproject.toml"
+            if (root / "pyproject.toml").exists()
+            else "requirements.txt"
+        ]
     if "alembic" in pydeps and not buckets["alembic"]:
-        buckets["alembic"] = ["pyproject.toml" if (root / "pyproject.toml").exists() else "requirements.txt"]
+        buckets["alembic"] = [
+            "pyproject.toml"
+            if (root / "pyproject.toml").exists()
+            else "requirements.txt"
+        ]
     if "pact-python" in pydeps and not buckets["pact"]:
         buckets["pact"] = ["pyproject.toml"]
-    if re.search(r"(?m)(?:^|[^a-z0-9_-])odoo(?:[^a-z0-9_-]|$)", pydeps) and not buckets["odoo"]:
-        buckets["odoo"] = ["pyproject.toml" if (root / "pyproject.toml").exists() else "requirements.txt"]
+    if (
+        re.search(r"(?m)(?:^|[^a-z0-9_-])odoo(?:[^a-z0-9_-]|$)", pydeps)
+        and not buckets["odoo"]
+    ):
+        buckets["odoo"] = [
+            "pyproject.toml"
+            if (root / "pyproject.toml").exists()
+            else "requirements.txt"
+        ]
 
     details = {
         "python": "Python source/stubs",
@@ -382,10 +567,17 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
         "pact": "Pact contract artifacts/dependency",
     }
     capabilities = {
-        key: Capability(key, bool(value), sorted(dict.fromkeys(value))[:100], details[key])
+        key: Capability(
+            key, bool(value), sorted(dict.fromkeys(value))[:100], details[key]
+        )
         for key, value in buckets.items()
     }
-    inv = TechnologyInventory(root, capabilities, {k: sorted(dict.fromkeys(v)) for k, v in buckets.items()}, _git_baseline(root))
+    inv = TechnologyInventory(
+        root,
+        capabilities,
+        {k: sorted(dict.fromkeys(v)) for k, v in buckets.items()},
+        _git_baseline(root),
+    )
     if persist:
         out = root / ".bughunt" / "generated" / "capabilities.json"
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -393,6 +585,7 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
     return inv
 
 
+# trace:v1 id=impl.src-bughunt-technology.load-technology-inventory work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def load_technology_inventory(root: Path) -> TechnologyInventory:
     path = root / ".bughunt" / "generated" / "capabilities.json"
     if not path.exists():
@@ -408,13 +601,17 @@ def load_technology_inventory(root: Path) -> TechnologyInventory:
             )
             for key, value in dict(data.get("capabilities", {})).items()
         }
-        files = {str(k): [str(x) for x in v] for k, v in dict(data.get("files", {})).items()}
-        return TechnologyInventory(root.resolve(), caps, files, data.get("git_baseline"))
+        files = {
+            str(k): [str(x) for x in v] for k, v in dict(data.get("files", {})).items()
+        }
+        return TechnologyInventory(
+            root.resolve(), caps, files, data.get("git_baseline")
+        )
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
         return discover_technologies(root)
 
 
-
+# trace:v1 id=impl.src-bughunt-technology.project-executable work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def project_executable(root: Path, *names: str) -> str | None:
     """Resolve repo-local tooling before global PATH.
 
@@ -424,11 +621,13 @@ def project_executable(root: Path, *names: str) -> str | None:
     """
     candidates: list[Path] = []
     for name in names:
-        candidates.extend([
-            root / ".venv" / "bin" / name,
-            root / "node_modules" / ".bin" / name,
-            root / "vendor" / "bin" / name,
-        ])
+        candidates.extend(
+            [
+                root / ".venv" / "bin" / name,
+                root / "node_modules" / ".bin" / name,
+                root / "vendor" / "bin" / name,
+            ]
+        )
     for candidate in candidates:
         if candidate.exists() and os.access(candidate, os.X_OK):
             return str(candidate)
@@ -437,6 +636,7 @@ def project_executable(root: Path, *names: str) -> str | None:
         if found:
             return found
     return None
+
 
 # trace:v1 id=impl.src-bughunt-technology.target-python work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def target_python(root: Path) -> str:
@@ -468,14 +668,22 @@ def target_has_module(python: str, name: str) -> bool:
     """importlib check against a specific interpreter without importing anything."""
     try:
         proc = subprocess.run(
-            [python, "-c", "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)", name],
-            capture_output=True, timeout=15, check=False,
+            [
+                python,
+                "-c",
+                "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)",
+                name,
+            ],
+            capture_output=True,
+            timeout=15,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return False
     return proc.returncode == 0
 
 
+# trace:v1 id=impl.src-bughunt-technology.llvm-executable work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def llvm_executable(root: Path, name: str) -> str | None:
     found = project_executable(root, name)
     if found:
@@ -484,8 +692,12 @@ def llvm_executable(root: Path, name: str) -> str | None:
     if brew:
         try:
             proc = subprocess.run(
-                [brew, "--prefix", "llvm"], cwd=root, text=True, capture_output=True,
-                timeout=8, check=False,
+                [brew, "--prefix", "llvm"],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=8,
+                check=False,
             )
             candidate = Path(proc.stdout.strip()) / "bin" / name
             if proc.returncode == 0 and candidate.exists():
@@ -494,10 +706,14 @@ def llvm_executable(root: Path, name: str) -> str | None:
             pass
     return None
 
+
 def engine_applicable(inventory: TechnologyInventory, engine: str) -> bool:
     capability = ENGINE_CAPABILITY.get(engine)
     return inventory.has(capability) if capability else True
 
 
+# trace:v1 id=impl.src-bughunt-technology.applicable-technology-engines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def applicable_technology_engines(inventory: TechnologyInventory) -> set[str]:
-    return {engine for engine in ENGINE_CAPABILITY if engine_applicable(inventory, engine)}
+    return {
+        engine for engine in ENGINE_CAPABILITY if engine_applicable(inventory, engine)
+    }

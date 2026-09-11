@@ -1,7 +1,7 @@
 from bughunt.cli import (
     Finding,
-    Status,
     Result,
+    Status,
     overall_score,
     parse_basedpyright,
     parse_ruff,
@@ -63,7 +63,9 @@ def test_install_only_cli_is_wired(monkeypatch, tmp_path):
         return []
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
-    rc = cli.main(["--root", str(tmp_path), "install", "--only", "atheris", "--dry-run"])
+    rc = cli.main(
+        ["--root", str(tmp_path), "install", "--only", "atheris", "--dry-run"]
+    )
     assert rc == 0
     assert seen["dry_run"] is True
     assert seen["only"] == {"atheris"}
@@ -71,7 +73,10 @@ def test_install_only_cli_is_wired(monkeypatch, tmp_path):
 
 def test_text_findings_extracts_mypy_error_code():
     from bughunt.cli import text_findings
-    got = text_findings("mypy", 'src/a.py:7: error: Name "x" is not defined  [name-defined]\n', '', 1)
+
+    got = text_findings(
+        "mypy", 'src/a.py:7: error: Name "x" is not defined  [name-defined]\n', "", 1
+    )
     assert len(got) == 1
     assert got[0].code == "name-defined"
     assert got[0].message == 'Name "x" is not defined'
@@ -79,6 +84,7 @@ def test_text_findings_extracts_mypy_error_code():
 
 def test_import_linter_requires_real_config(tmp_path):
     from bughunt.cli import import_linter_configured
+
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
     assert not import_linter_configured(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[tool.importlinter]\nroot_package="x"\n')
@@ -87,7 +93,8 @@ def test_import_linter_requires_real_config(tmp_path):
 
 def test_pylint_json2_messages_are_individual_findings():
     from bughunt.cli import parse_json_list
-    raw = '''{"messages":[{"type":"warning","path":"a.py","line":2,"column":0,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"},{"type":"warning","path":"b.py","line":4,"column":1,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"}],"statistics":{}}'''
+
+    raw = """{"messages":[{"type":"warning","path":"a.py","line":2,"column":0,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"},{"type":"warning","path":"b.py","line":4,"column":1,"message-id":"W0718","symbol":"broad-exception-caught","message":"Catching too general exception Exception"}],"statistics":{}}"""
     got = parse_json_list("pylint", raw, "", 4)
     assert len(got) == 2
     assert all(x.code == "W0718" for x in got)
@@ -97,6 +104,7 @@ def test_pylint_json2_messages_are_individual_findings():
 def test_configure_all_generates_paranoid_configs_and_is_idempotent(tmp_path):
     import json
     import tomllib
+
     from bughunt.configurator import configure_all
 
     (tmp_path / "src/pkg").mkdir(parents=True)
@@ -152,6 +160,7 @@ def test_configure_all_generates_paranoid_configs_and_is_idempotent(tmp_path):
 def test_run_process_handles_huge_single_line_without_readline_limit(tmp_path):
     import asyncio
     import sys
+
     from bughunt.cli import Check, run_process
 
     check = Check(
@@ -169,7 +178,6 @@ def test_run_process_handles_huge_single_line_without_readline_limit(tmp_path):
 
 
 def test_deep_profile_is_not_downgraded_to_pr(monkeypatch, tmp_path):
-    import asyncio
     from bughunt import cli
 
     seen = {}
@@ -181,7 +189,9 @@ def test_deep_profile_is_not_downgraded_to_pr(monkeypatch, tmp_path):
         return [], 0.01
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
     rc = cli.main(["--root", str(tmp_path), "run", "--profile", "deep"])
@@ -200,7 +210,9 @@ def test_quick_alias_routes_fast(monkeypatch, tmp_path):
         return [], 0.01
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
     rc = cli.main(["--root", str(tmp_path), "quick"])
@@ -219,16 +231,23 @@ def test_deptry_parser_preserves_dependency_rule_codes():
 
 def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code():
     import json
+
     from bughunt.cli import parse_pyrefly
 
-    raw = json.dumps({"errors": [{
-        "path": "src/a.py",
-        "line": 7,
-        "column": 3,
-        "code": -2,
-        "name": "bad-assignment",
-        "message": "incompatible assignment",
-    }]})
+    raw = json.dumps(
+        {
+            "errors": [
+                {
+                    "path": "src/a.py",
+                    "line": 7,
+                    "column": 3,
+                    "code": -2,
+                    "name": "bad-assignment",
+                    "message": "incompatible assignment",
+                }
+            ]
+        }
+    )
     got = parse_pyrefly(raw, "", 1)
     assert got[0].code == "bad-assignment"
     assert got[0].signal_key == "pyrefly:bad-assignment"
@@ -243,14 +262,24 @@ def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages():
 
 
 def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(tmp_path):
-    from bughunt.cli import Finding, Result, Status, canonicalize_findings, hotspot_files
+    from bughunt.cli import (
+        Finding,
+        Result,
+        Status,
+        canonicalize_findings,
+        hotspot_files,
+    )
 
     (tmp_path / "src").mkdir()
     target = tmp_path / "src" / "a.py"
     target.write_text("x = 1\n")
     results = [
-        Result("a", "x", Status.FINDINGS, findings=[Finding("a", "m", path=str(target))]),
-        Result("b", "x", Status.FINDINGS, findings=[Finding("b", "m", path="src/a.py")]),
+        Result(
+            "a", "x", Status.FINDINGS, findings=[Finding("a", "m", path=str(target))]
+        ),
+        Result(
+            "b", "x", Status.FINDINGS, findings=[Finding("b", "m", path="src/a.py")]
+        ),
     ]
     canonicalize_findings(tmp_path, results)
     assert hotspot_files(results)[0] == ("src/a.py", 2)
@@ -262,7 +291,9 @@ def test_generated_pylint_config_omits_removed_suggestion_mode(tmp_path):
     (tmp_path / "src/pkg").mkdir(parents=True)
     (tmp_path / "src/pkg/__init__.py").write_text("")
     (tmp_path / "tests").mkdir()
-    (tmp_path / "pyproject.toml").write_text('[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n')
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="pkg"\nversion="0"\nrequires-python=">=3.11"\n'
+    )
     configure_all(tmp_path, ["src", "tests"], ["src"], ["tests"])
     text = (tmp_path / ".bughunt/configs/pylintrc").read_text()
     assert "suggestion-mode" not in text
@@ -273,13 +304,24 @@ def test_semgrep_auto_is_rewritten_to_explicit_default_pack(monkeypatch, tmp_pat
 
     (tmp_path / "src").mkdir()
     (tmp_path / "src/a.py").write_text("x = 1\n")
-    cfg = cli.Config(tmp_path, {
-        "project": {"python_paths": ["src"], "source_paths": ["src"], "test_paths": []},
-        "profiles": {"pr": {"tools": ["semgrep"]}},
-        "semgrep": {"configs": ["auto"]},
-    })
+    cfg = cli.Config(
+        tmp_path,
+        {
+            "project": {
+                "python_paths": ["src"],
+                "source_paths": ["src"],
+                "test_paths": [],
+            },
+            "profiles": {"pr": {"tools": ["semgrep"]}},
+            "semgrep": {"configs": ["auto"]},
+        },
+    )
     real = cli.executable
-    monkeypatch.setattr(cli, "executable", lambda *names: "/usr/bin/semgrep" if "semgrep" in names else real(*names))
+    monkeypatch.setattr(
+        cli,
+        "executable",
+        lambda *names: "/usr/bin/semgrep" if "semgrep" in names else real(*names),
+    )
     checks, _ = cli.build_checks(cfg, "pr")
     command = next(c.command for c in checks if c.name == "semgrep")
     assert "auto" not in command
@@ -293,6 +335,7 @@ def test_semgrep_auto_is_rewritten_to_explicit_default_pack(monkeypatch, tmp_pat
 def test_internal_progress_stage_is_not_counted_as_completed_defense(tmp_path):
     import asyncio
     import sys
+
     from bughunt.cli import Check, LiveRunState, run_process
 
     progress = LiveRunState(total=1)
@@ -315,8 +358,12 @@ def test_pysa_is_installed_into_private_compatibility_runtime(monkeypatch, tmp_p
     from bughunt import installers
 
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
-    monkeypatch.setattr(installers.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
-    got = installers.install_all(tmp_path, dry_run=True, emit=lambda _: None, only={"pysa"})
+    monkeypatch.setattr(
+        installers.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None
+    )
+    got = installers.install_all(
+        tmp_path, dry_run=True, emit=lambda _: None, only={"pysa"}
+    )
     commands = [" ".join(x.command) for x in got]
     assert any("uv venv --python 3.12" in cmd for cmd in commands)
     assert any("click<8.2" in cmd and "pyre-check" in cmd for cmd in commands)
@@ -392,7 +439,9 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(monkeypatch, tmp_pat
     monkeypatch.setattr(cli, "install_all", fake_install_all)
     monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
     rc = cli.main(["--root", str(tmp_path), "full"])
@@ -423,14 +472,20 @@ def test_full_alias_accepts_no_install_missing(monkeypatch, tmp_path):
 
     seen = {"install": 0, "profile": None}
     monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
-    monkeypatch.setattr(cli, "install_all", lambda *a, **k: seen.__setitem__("install", seen["install"] + 1) or [])
+    monkeypatch.setattr(
+        cli,
+        "install_all",
+        lambda *a, **k: seen.__setitem__("install", seen["install"] + 1) or [],
+    )
 
     async def fake_run_all(cfg, profile, *, auto_discover=True):
         seen["profile"] = profile
         return [], 0.01
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
 
     rc = cli.main(["--root", str(tmp_path), "full", "--no-install-missing"])
@@ -443,11 +498,12 @@ def test_rules_command_lists_native_pack(monkeypatch, tmp_path):
     from bughunt import cli
 
     seen = {"called": False}
-    monkeypatch.setattr(cli, "show_default_rules", lambda: seen.__setitem__("called", True) or 0)
+    monkeypatch.setattr(
+        cli, "show_default_rules", lambda: seen.__setitem__("called", True) or 0
+    )
     rc = cli.main(["--root", str(tmp_path), "rules"])
     assert rc == 0
     assert seen["called"] is True
-
 
 
 def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path):
@@ -462,7 +518,6 @@ def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path):
 
 
 def test_skipmutmut_alias_passes_exclusion_and_avoids_install(monkeypatch, tmp_path):
-    import asyncio
     from bughunt import cli
 
     seen = {}
@@ -479,7 +534,9 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(monkeypatch, tmp_p
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
     rc = cli.main(["--root", str(tmp_path), "skipmutmut"])
     assert rc == 0
@@ -499,7 +556,9 @@ def test_run_accepts_positional_all_profile(monkeypatch, tmp_path):
         return [], 0.01
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
-    monkeypatch.setattr(cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json"))
+    monkeypatch.setattr(
+        cli, "write_reports", lambda *a, **k: (tmp_path / "r.md", tmp_path / "r.json")
+    )
     monkeypatch.setattr(cli, "render_terminal", lambda *a, **k: None)
     rc = cli.main(["--root", str(tmp_path), "run", "all", "--skip-mutmut"])
     assert rc == 0

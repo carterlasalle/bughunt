@@ -16,10 +16,12 @@ import sys
 import time
 import tomllib
 from collections import Counter
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 from rich import box
 from rich.console import Console
@@ -33,14 +35,26 @@ from rich.text import Text
 from bughunt.default_rules import DEFAULT_RULES
 
 from .configurator import configure_all, configure_custom_checks
-from .discovery import discover_all, infer_source_paths, infer_test_paths, load_generated_targets
+from .discovery import (
+    discover_all,
+    infer_source_paths,
+    infer_test_paths,
+    load_generated_targets,
+)
 from .installers import install_all
 from .technology import (
-    ENGINE_CAPABILITY, ENGINE_CATEGORY, discover_technologies, engine_applicable,
-    git_path_exists, load_technology_inventory, llvm_executable, project_executable,
-    target_executable, target_has_module, target_python,
+    ENGINE_CAPABILITY,
+    ENGINE_CATEGORY,
+    discover_technologies,
+    engine_applicable,
+    git_path_exists,
+    llvm_executable,
+    load_technology_inventory,
+    project_executable,
+    target_executable,
+    target_has_module,
+    target_python,
 )
-
 
 APP = "BugHunt"
 CONFIG_NAME = "bughunt.toml"
@@ -50,26 +64,68 @@ CACHE_DIR = ".bughunt/cache"
 console = Console()
 
 TECH_PR_TOOLS = [
-    "actionlint", "shellcheck", "dotenv-linter", "oasdiff", "buf",
-    "sqlfluff", "squawk", "hadolint", "tflint", "golangci-lint",
-    "clippy", "cppcheck", "phpstan", "oxlint", "eslint", "react-doctor",
-    "tsc", "knip", "madge", "publint", "taplo", "yamllint",
-    "check-jsonschema", "alembic-check", "django-migrations",
+    "actionlint",
+    "shellcheck",
+    "dotenv-linter",
+    "oasdiff",
+    "buf",
+    "sqlfluff",
+    "squawk",
+    "hadolint",
+    "tflint",
+    "golangci-lint",
+    "clippy",
+    "cppcheck",
+    "phpstan",
+    "oxlint",
+    "eslint",
+    "react-doctor",
+    "tsc",
+    "knip",
+    "madge",
+    "publint",
+    "taplo",
+    "yamllint",
+    "check-jsonschema",
+    "alembic-check",
+    "django-migrations",
 ]
 TECH_DEEP_TOOLS = [*TECH_PR_TOOLS, "clang-tidy", "infer", "pact-contracts"]
 
 # Correctness floors are augmented at runtime so an old bughunt.toml cannot
 # silently omit a defense introduced by a newer BugHunt release.
 PR_CORRECTNESS_FLOOR = [
-    "coverage", "seam", "evidence", "packaging", "runtime-types", "doctest", "pydoclint", "refurb",
+    "coverage",
+    "seam",
+    "evidence",
+    "packaging",
+    "runtime-types",
+    "doctest",
+    "pydoclint",
+    "refurb",
 ]
 DEEP_CORRECTNESS_FLOOR = [
-    *PR_CORRECTNESS_FLOOR, "pytest-random", "pytest-no-network", "pytest-xdist",
-    "pytest-async-blocking", "hypofuzz", "griffe", "importtime", "type-disagreement",
+    *PR_CORRECTNESS_FLOOR,
+    "pytest-random",
+    "pytest-no-network",
+    "pytest-xdist",
+    "pytest-async-blocking",
+    "hypofuzz",
+    "griffe",
+    "importtime",
+    "type-disagreement",
 ]
 ALL_CORRECTNESS_FLOOR = [
-    *DEEP_CORRECTNESS_FLOOR, "pytest-parallel", "python-matrix", "timezone-matrix",
-    "memray", "benchmark", "pyanalyze", "version-diff", "ghostwriter", "pynguin",
+    *DEEP_CORRECTNESS_FLOOR,
+    "pytest-parallel",
+    "python-matrix",
+    "timezone-matrix",
+    "memray",
+    "benchmark",
+    "pyanalyze",
+    "version-diff",
+    "ghostwriter",
+    "pynguin",
 ]
 
 # These defenses operate specifically on Python source or Python's runtime/test
@@ -78,15 +134,53 @@ ALL_CORRECTNESS_FLOOR = [
 # excluded because they can analyze multiple languages, while Schemathesis can
 # exercise an OpenAPI contract independently of the implementation language.
 PYTHON_ONLY_TOOLS = {
-    "compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly", "pylint",
-    "policy", "complexipy", "radon", "vulture", "bandit", "deptry",
-    "import-linter", "ast-grep", "deal", "crosshair", "pytest",
-    "codeql", "pysa", "mutmut", "atheris",
-    "coverage", "seam", "evidence", "packaging", "runtime-types", "doctest", "pydoclint",
-    "refurb", "pytest-random", "pytest-no-network", "pytest-xdist",
-    "pytest-async-blocking", "pytest-parallel", "hypofuzz", "griffe", "importtime",
-    "type-disagreement", "python-matrix", "timezone-matrix", "memray", "benchmark",
-    "pyanalyze", "version-diff", "ghostwriter", "pynguin",
+    "compile",
+    "ruff",
+    "basedpyright",
+    "mypy",
+    "ty",
+    "pyrefly",
+    "pylint",
+    "policy",
+    "complexipy",
+    "radon",
+    "vulture",
+    "bandit",
+    "deptry",
+    "import-linter",
+    "ast-grep",
+    "deal",
+    "crosshair",
+    "pytest",
+    "codeql",
+    "pysa",
+    "mutmut",
+    "atheris",
+    "coverage",
+    "seam",
+    "evidence",
+    "packaging",
+    "runtime-types",
+    "doctest",
+    "pydoclint",
+    "refurb",
+    "pytest-random",
+    "pytest-no-network",
+    "pytest-xdist",
+    "pytest-async-blocking",
+    "pytest-parallel",
+    "hypofuzz",
+    "griffe",
+    "importtime",
+    "type-disagreement",
+    "python-matrix",
+    "timezone-matrix",
+    "memray",
+    "benchmark",
+    "pyanalyze",
+    "version-diff",
+    "ghostwriter",
+    "pynguin",
 }
 
 
@@ -189,6 +283,7 @@ class Check:
     timeout_is_success: bool = False
 
 
+# trace:v1 id=impl.src-bughunt-cli.config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 @dataclass(slots=True)
 class Config:
     root: Path
@@ -207,6 +302,7 @@ class Config:
         fallback = timeouts.get("deep", 900) if profile == "all" else 900
         return int(timeouts.get(profile, fallback))
 
+    # trace:v1 id=impl.src-bughunt-cli-config.tools work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def tools(self, profile: str) -> list[str]:
         profiles = self.raw.get("profiles", {})
         configured = list(profiles.get(profile, {}).get("tools", []))
@@ -217,8 +313,20 @@ class Config:
                 for tool in data.get("tools", []):
                     if tool not in configured:
                         configured.append(tool)
-        technology = TECH_PR_TOOLS if profile == "pr" else (TECH_DEEP_TOOLS if profile in {"deep", "all"} else [])
-        floor = PR_CORRECTNESS_FLOOR if profile == "pr" else (DEEP_CORRECTNESS_FLOOR if profile == "deep" else (ALL_CORRECTNESS_FLOOR if profile == "all" else []))
+        technology = (
+            TECH_PR_TOOLS
+            if profile == "pr"
+            else (TECH_DEEP_TOOLS if profile in {"deep", "all"} else [])
+        )
+        floor = (
+            PR_CORRECTNESS_FLOOR
+            if profile == "pr"
+            else (
+                DEEP_CORRECTNESS_FLOOR
+                if profile == "deep"
+                else (ALL_CORRECTNESS_FLOOR if profile == "all" else [])
+            )
+        )
         for tool in floor:
             if tool not in configured:
                 configured.append(tool)
@@ -243,15 +351,21 @@ class Config:
             return configured
         return infer_test_paths(self.root)
 
+    # trace:v1 id=impl.src-bughunt-cli-config.python-paths work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     @property
     def python_paths(self) -> list[str]:
-        configured = [path for path in self.project.get("python_paths", []) if (self.root / path).exists()]
+        configured = [
+            path
+            for path in self.project.get("python_paths", [])
+            if (self.root / path).exists()
+        ]
         # Always include the *effective* inferred source/test roots; a flat-layout
         # repo may have tests/ (making the default partially valid) while src/ is
         # absent, and must not silently omit the real package directory.
         return list(dict.fromkeys([*self.source_paths, *self.test_paths, *configured]))
 
 
+# trace:v1 id=impl.src-bughunt-cli.-default-config-raw work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _default_config_raw() -> dict[str, Any]:
     raw: dict[str, Any] = {
         "project": {
@@ -259,39 +373,153 @@ def _default_config_raw() -> dict[str, Any]:
             "source_paths": ["src"],
             "test_paths": ["tests"],
         },
-        "execution": {"max_parallel": 6, "fail_on": "findings", "raw_output_limit_kb": 512},
+        "execution": {
+            "max_parallel": 6,
+            "fail_on": "findings",
+            "raw_output_limit_kb": 512,
+        },
         "timeouts": {"fast": 120, "pr": 900, "deep": 7200, "all": 14400},
         "profiles": {
-            "fast": {"tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly"]},
-            "pr": {"tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly", "pylint", "complexity", "complexipy", "radon", "lizard", "policy", "vulture", "bandit", "deptry", "import-linter", "ast-grep", "semgrep", "deal", "crosshair", "pytest"]},
-            "deep": {"tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly", "pylint", "complexity", "complexipy", "radon", "lizard", "policy", "vulture", "bandit", "deptry", "import-linter", "ast-grep", "semgrep", "codeql", "pysa", "deal", "crosshair", "pytest", "mutmut", "bugcorpus", "schemathesis", "atheris", "custom"]},
-            "all": {"tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly", "pylint", "complexity", "complexipy", "radon", "lizard", "policy", "vulture", "bandit", "deptry", "import-linter", "ast-grep", "semgrep", "codeql", "pysa", "deal", "crosshair", "pytest", "mutmut", "bugcorpus", "schemathesis", "atheris", "custom"]},
+            "fast": {
+                "tools": ["compile", "ruff", "basedpyright", "mypy", "ty", "pyrefly"]
+            },
+            "pr": {
+                "tools": [
+                    "compile",
+                    "ruff",
+                    "basedpyright",
+                    "mypy",
+                    "ty",
+                    "pyrefly",
+                    "pylint",
+                    "complexity",
+                    "complexipy",
+                    "radon",
+                    "lizard",
+                    "policy",
+                    "vulture",
+                    "bandit",
+                    "deptry",
+                    "import-linter",
+                    "ast-grep",
+                    "semgrep",
+                    "deal",
+                    "crosshair",
+                    "pytest",
+                ]
+            },
+            "deep": {
+                "tools": [
+                    "compile",
+                    "ruff",
+                    "basedpyright",
+                    "mypy",
+                    "ty",
+                    "pyrefly",
+                    "pylint",
+                    "complexity",
+                    "complexipy",
+                    "radon",
+                    "lizard",
+                    "policy",
+                    "vulture",
+                    "bandit",
+                    "deptry",
+                    "import-linter",
+                    "ast-grep",
+                    "semgrep",
+                    "codeql",
+                    "pysa",
+                    "deal",
+                    "crosshair",
+                    "pytest",
+                    "mutmut",
+                    "bugcorpus",
+                    "schemathesis",
+                    "atheris",
+                    "custom",
+                ]
+            },
+            "all": {
+                "tools": [
+                    "compile",
+                    "ruff",
+                    "basedpyright",
+                    "mypy",
+                    "ty",
+                    "pyrefly",
+                    "pylint",
+                    "complexity",
+                    "complexipy",
+                    "radon",
+                    "lizard",
+                    "policy",
+                    "vulture",
+                    "bandit",
+                    "deptry",
+                    "import-linter",
+                    "ast-grep",
+                    "semgrep",
+                    "codeql",
+                    "pysa",
+                    "deal",
+                    "crosshair",
+                    "pytest",
+                    "mutmut",
+                    "bugcorpus",
+                    "schemathesis",
+                    "atheris",
+                    "custom",
+                ]
+            },
         },
-        "autodiscovery": {"enabled": True, "atheris_runs": 500000, "schemathesis_max_examples": 1000},
+        "autodiscovery": {
+            "enabled": True,
+            "atheris_runs": 500000,
+            "schemathesis_max_examples": 1000,
+        },
         "complexity": {
-            "cyclomatic_warn": 10, "cyclomatic_error": 20, "cognitive_max": 10,
-            "function_loc_warn": 80, "function_loc_error": 150,
-            "file_loc_warn": 500, "file_loc_error": 1200,
-            "abc_warn": 30, "abc_error": 45,
-            "js_file_kb_warn": 500, "css_file_kb_warn": 250,
-            "wasm_file_kb_warn": 2000, "bundle_kb_warn": 1500,
+            "cyclomatic_warn": 10,
+            "cyclomatic_error": 20,
+            "cognitive_max": 10,
+            "function_loc_warn": 80,
+            "function_loc_error": 150,
+            "file_loc_warn": 500,
+            "file_loc_error": 1200,
+            "abc_warn": 30,
+            "abc_error": 45,
+            "js_file_kb_warn": 500,
+            "css_file_kb_warn": 250,
+            "wasm_file_kb_warn": 2000,
+            "bundle_kb_warn": 1500,
         },
         "semgrep": {
             "configs": ["p/default"],
             "security_configs": ["p/security-audit", "p/secrets"],
             "include_security": False,
         },
-        "codeql": {"languages": ["python"], "python_suite": "codeql/python-queries:codeql-suites/python-security-and-quality.qls"},
+        "codeql": {
+            "languages": ["python"],
+            "python_suite": "codeql/python-queries:codeql-suites/python-security-and-quality.qls",
+        },
         "pysa": {"no_verify": False},
         "mutmut": {"enabled": True},
         "bugcorpus": {"enabled": True},
         "coverage": {"branch": True},
         "tests": {"timeout_seconds": 300, "repro_seed": 1, "randomized": True},
         "hypofuzz": {"deep_seconds": 120, "all_seconds": 300, "workers": 2},
-        "performance": {"import_ms_warn": 1000, "benchmark_regression_percent": 10, "memray": True},
+        "performance": {
+            "import_ms_warn": 1000,
+            "benchmark_regression_percent": 10,
+            "memray": True,
+        },
         "execution_imports": {"allow_importing_analyzers": False},
     }
-    for profile, floor in (("pr", PR_CORRECTNESS_FLOOR), ("deep", DEEP_CORRECTNESS_FLOOR), ("all", ALL_CORRECTNESS_FLOOR)):
+    for profile, floor in (
+        ("pr", PR_CORRECTNESS_FLOOR),
+        ("deep", DEEP_CORRECTNESS_FLOOR),
+        ("all", ALL_CORRECTNESS_FLOOR),
+    ):
         for name in floor:
             if name not in raw["profiles"][profile]["tools"]:
                 raw["profiles"][profile]["tools"].append(name)
@@ -323,6 +551,12 @@ def load_config(root: Path, config_path: Path | None = None) -> Config:
     return Config(root=root, raw=raw)
 
 
+# trace:exempt reason=internal-detail
+def _optional_cmd(exe: str | None, args: Sequence[str]) -> list[str] | None:
+    """Build a tool command when the executable resolved; None (SKIP) otherwise."""
+    return [exe, *args] if exe else None
+
+
 def executable(*names: str) -> str | None:
     for name in names:
         path = shutil.which(name)
@@ -339,11 +573,16 @@ def python_module_available(name: str) -> bool:
         return False
 
 
+# trace:v1 id=impl.src-bughunt-cli.atheris-available work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def atheris_available(root: Path) -> bool:
     if python_module_available("atheris"):
         return True
     runtime = root / ".bughunt" / "runtime" / "atheris"
-    return (runtime / "atheris").exists() or any(runtime.glob("atheris*.so")) if runtime.exists() else False
+    return (
+        (runtime / "atheris").exists() or any(runtime.glob("atheris*.so"))
+        if runtime.exists()
+        else False
+    )
 
 
 def ast_grep_executable() -> str | None:
@@ -413,14 +652,21 @@ def import_linter_configured(root: Path) -> bool:
     return False
 
 
+# trace:v1 id=impl.src-bughunt-cli.text-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     if exit_code == 0:
         return []
     lines = (stdout + "\n" + stderr).splitlines()
     findings: list[Finding] = []
     patterns = [
-        re.compile(r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$", re.I),
-        re.compile(r"^(?P<path>.+?):(?P<line>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$", re.I),
+        re.compile(
+            r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^(?P<path>.+?):(?P<line>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            re.IGNORECASE,
+        ),
     ]
     for line in lines:
         for pat in patterns:
@@ -455,6 +701,7 @@ def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[F
     return findings
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-ruff work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
@@ -468,9 +715,10 @@ def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         # ALL really means ALL. Presentation/convention diagnostics are retained,
         # but ranked below likely correctness/security findings in agent queues.
         if code and (
-            code.startswith("D")
+            code.startswith(
+                ("D", "COM", "Q", "I", "N", "PTH", "T20", "TD", "FIX", "ERA", "EM")
+            )
             or code in {"E501", "W505"}
-            or code.startswith(("COM", "Q", "I", "N", "PTH", "T20", "TD", "FIX", "ERA", "EM"))
         ):
             severity = "note"
         fix = item.get("fix") if isinstance(item, dict) else None
@@ -496,6 +744,7 @@ def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-basedpyright work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_basedpyright(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout)
@@ -508,8 +757,12 @@ def parse_basedpyright(stdout: str, stderr: str, exit_code: int) -> list[Finding
             Finding(
                 tool="basedpyright",
                 path=item.get("file"),
-                line=(start.get("line") + 1) if isinstance(start.get("line"), int) else None,
-                column=(start.get("character") + 1) if isinstance(start.get("character"), int) else None,
+                line=(start.get("line") + 1)
+                if isinstance(start.get("line"), int)
+                else None,
+                column=(start.get("character") + 1)
+                if isinstance(start.get("character"), int)
+                else None,
                 code=item.get("rule"),
                 message=item.get("message", "Type error"),
                 severity=item.get("severity", "error"),
@@ -518,7 +771,10 @@ def parse_basedpyright(stdout: str, stderr: str, exit_code: int) -> list[Finding
     return out
 
 
-def parse_json_list(tool: str, stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+# trace:v1 id=impl.src-bughunt-cli.parse-json-list work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def parse_json_list(
+    tool: str, stdout: str, stderr: str, exit_code: int
+) -> list[Finding]:
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:
@@ -543,8 +799,19 @@ def parse_json_list(tool: str, stdout: str, stderr: str, exit_code: int) -> list
         path = item.get("path") or item.get("file") or item.get("filename")
         if isinstance(path, dict):
             path = path.get("path")
-        msg = item.get("message") or item.get("description") or item.get("name") or str(item)
-        code = item.get("code") or item.get("rule") or item.get("check_id") or item.get("message-id") or item.get("symbol")
+        msg = (
+            item.get("message")
+            or item.get("description")
+            or item.get("name")
+            or str(item)
+        )
+        code = (
+            item.get("code")
+            or item.get("rule")
+            or item.get("check_id")
+            or item.get("message-id")
+            or item.get("symbol")
+        )
         line = item.get("line")
         col = item.get("column")
         if isinstance(start, dict):
@@ -558,7 +825,9 @@ def parse_json_list(tool: str, stdout: str, stderr: str, exit_code: int) -> list
                 column=int(col) if isinstance(col, int) else None,
                 code=str(code) if code else None,
                 message=str(msg),
-                severity=str(item.get("severity") or item.get("type") or "error").lower(),
+                severity=str(
+                    item.get("severity") or item.get("type") or "error"
+                ).lower(),
             )
         )
     if not out and exit_code:
@@ -566,6 +835,7 @@ def parse_json_list(tool: str, stdout: str, stderr: str, exit_code: int) -> list
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-pyrefly work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse Pyrefly JSON using the diagnostic *name*, not its internal numeric code."""
     try:
@@ -589,18 +859,38 @@ def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             path = path.get("path") or path.get("uri")
         name = item.get("name") or item.get("rule") or item.get("check_id")
         internal = item.get("code")
-        out.append(Finding(
-            tool="pyrefly",
-            path=str(path) if path else None,
-            line=(item.get("line") or (start.get("line") if isinstance(start, dict) else None)),
-            column=(item.get("column") or (start.get("column") if isinstance(start, dict) else None)),
-            code=str(name or internal) if (name is not None or internal is not None) else None,
-            message=str(item.get("message") or item.get("description") or name or "Pyrefly finding"),
-            severity=str(item.get("severity") or item.get("type") or "error").lower(),
-        ))
-    return out or (text_findings("pyrefly", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="pyrefly",
+                path=str(path) if path else None,
+                line=(
+                    item.get("line")
+                    or (start.get("line") if isinstance(start, dict) else None)
+                ),
+                column=(
+                    item.get("column")
+                    or (start.get("column") if isinstance(start, dict) else None)
+                ),
+                code=str(name or internal)
+                if (name is not None or internal is not None)
+                else None,
+                message=str(
+                    item.get("message")
+                    or item.get("description")
+                    or name
+                    or "Pyrefly finding"
+                ),
+                severity=str(
+                    item.get("severity") or item.get("type") or "error"
+                ).lower(),
+            )
+        )
+    return out or (
+        text_findings("pyrefly", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-pylint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse Pylint JSON2 and rank convention/refactor/info below bug-oriented diagnostics."""
     try:
@@ -615,21 +905,32 @@ def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             continue
         kind = str(item.get("type") or item.get("category") or "error").lower()
         severity = {
-            "fatal": "error", "error": "error", "warning": "warning",
-            "refactor": "note", "convention": "note", "info": "note",
+            "fatal": "error",
+            "error": "error",
+            "warning": "warning",
+            "refactor": "note",
+            "convention": "note",
+            "info": "note",
         }.get(kind, "warning")
-        out.append(Finding(
-            tool="pylint",
-            path=item.get("path") or item.get("abspath") or item.get("module"),
-            line=item.get("line"),
-            column=item.get("column"),
-            code=item.get("symbol") or item.get("message-id") or item.get("messageId"),
-            message=str(item.get("message") or "Pylint finding"),
-            severity=severity,
-        ))
-    return out or (text_findings("pylint", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="pylint",
+                path=item.get("path") or item.get("abspath") or item.get("module"),
+                line=item.get("line"),
+                column=item.get("column"),
+                code=item.get("symbol")
+                or item.get("message-id")
+                or item.get("messageId"),
+                message=str(item.get("message") or "Pylint finding"),
+                severity=severity,
+            )
+        )
+    return out or (
+        text_findings("pylint", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-deptry work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse deptry's text output, including pyproject findings without line numbers."""
     out: list[Finding] = []
@@ -642,15 +943,17 @@ def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         if not m:
             continue
         gd = m.groupdict()
-        out.append(Finding(
-            tool="deptry",
-            path=gd["path"],
-            line=int(gd["line"]) if gd.get("line") else None,
-            column=int(gd["col"]) if gd.get("col") else None,
-            code=gd["code"],
-            message=gd["msg"],
-            severity="error",
-        ))
+        out.append(
+            Finding(
+                tool="deptry",
+                path=gd["path"],
+                line=int(gd["line"]) if gd.get("line") else None,
+                column=int(gd["col"]) if gd.get("col") else None,
+                code=gd["code"],
+                message=gd["msg"],
+                severity="error",
+            )
+        )
     return out or text_findings("deptry", stdout, stderr, exit_code)
 
 
@@ -680,6 +983,7 @@ def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-deal work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse `python -m deal lint --json` JSON-lines output."""
     out: list[Finding] = []
@@ -693,15 +997,20 @@ def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             continue
         if not isinstance(item, dict):
             continue
-        out.append(Finding(
-            tool="deal",
-            path=item.get("filename") or item.get("path"),
-            line=item.get("row") or item.get("line"),
-            column=item.get("col") or item.get("column"),
-            code=item.get("code"),
-            message=item.get("text") or item.get("message") or item.get("value") or "Deal contract finding",
-            severity="error",
-        ))
+        out.append(
+            Finding(
+                tool="deal",
+                path=item.get("filename") or item.get("path"),
+                line=item.get("row") or item.get("line"),
+                column=item.get("col") or item.get("column"),
+                code=item.get("code"),
+                message=item.get("text")
+                or item.get("message")
+                or item.get("value")
+                or "Deal contract finding",
+                severity="error",
+            )
+        )
     if out:
         return out
     return text_findings("deal", stdout, stderr, exit_code)
@@ -726,6 +1035,7 @@ def parse_bandit(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     ]
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-ast-grep work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_ast_grep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
@@ -739,8 +1049,12 @@ def parse_ast_grep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             Finding(
                 tool="ast-grep",
                 path=i.get("file"),
-                line=(start.get("line") + 1) if isinstance(start.get("line"), int) else None,
-                column=(start.get("column") + 1) if isinstance(start.get("column"), int) else None,
+                line=(start.get("line") + 1)
+                if isinstance(start.get("line"), int)
+                else None,
+                column=(start.get("column") + 1)
+                if isinstance(start.get("column"), int)
+                else None,
                 code=i.get("ruleId"),
                 message=i.get("message") or i.get("text") or "ast-grep finding",
             )
@@ -748,26 +1062,34 @@ def parse_ast_grep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-complexipy work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_complexipy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
     for line in (stdout + "\n" + stderr).splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith(("Analyzing", "Summary", "─", "=")):
             continue
-        match = re.match(r"^(?P<path>.+?\.py)\s+(?P<name>\S+)\s+(?P<score>\d+)\s*$", stripped)
+        match = re.match(
+            r"^(?P<path>.+?\.py)\s+(?P<name>\S+)\s+(?P<score>\d+)\s*$", stripped
+        )
         if not match:
             continue
         score = int(match.group("score"))
-        out.append(Finding(
-            tool="complexipy", path=match.group("path"), code="COG001",
-            message=f"`{match.group('name')}` cognitive complexity is {score} (budget 10)",
-            severity="warning" if score <= 20 else "error",
-        ))
+        out.append(
+            Finding(
+                tool="complexipy",
+                path=match.group("path"),
+                code="COG001",
+                message=f"`{match.group('name')}` cognitive complexity is {score} (budget 10)",
+                severity="warning" if score <= 20 else "error",
+            )
+        )
     if not out and exit_code not in {0, 1}:
         return text_findings("complexipy", stdout, stderr, exit_code)
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-radon-mi work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_radon_mi(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "{}")
@@ -783,28 +1105,47 @@ def parse_radon_mi(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         rank = item.get("rank")
         if not isinstance(mi, (int, float)) or mi > 19:
             continue
-        out.append(Finding(
-            tool="radon", path=str(path), code="RADON_MI",
-            message=f"maintainability index is {mi:.1f} (rank {rank or '?'})",
-            severity="error" if mi <= 9 else "warning",
-        ))
+        out.append(
+            Finding(
+                tool="radon",
+                path=str(path),
+                code="RADON_MI",
+                message=f"maintainability index is {mi:.1f} (rank {rank or '?'})",
+                severity="error" if mi <= 9 else "warning",
+            )
+        )
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-lizard work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_lizard(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
-    pattern = re.compile(r"^(?P<path>.+?):(?P<line>\d+):\s*warning:\s*(?P<msg>.+)$", re.I)
+    pattern = re.compile(
+        r"^(?P<path>.+?):(?P<line>\d+):\s*warning:\s*(?P<msg>.+)$", re.IGNORECASE
+    )
     for line in (stdout + "\n" + stderr).splitlines():
         match = pattern.match(line.strip())
         if not match:
             continue
         msg = match.group("msg")
-        code = "LIZARD_CCN" if "CCN" in msg else ("LIZARD_NLOC" if "NLOC" in msg else "LIZARD")
-        out.append(Finding(tool="lizard", path=match.group("path"), line=int(match.group("line")), code=code, message=msg, severity="warning"))
+        code = (
+            "LIZARD_CCN"
+            if "CCN" in msg
+            else ("LIZARD_NLOC" if "NLOC" in msg else "LIZARD")
+        )
+        out.append(
+            Finding(
+                tool="lizard",
+                path=match.group("path"),
+                line=int(match.group("line")),
+                code=code,
+                message=msg,
+                severity="warning",
+            )
+        )
     if not out and exit_code not in {0, 1}:
         return text_findings("lizard", stdout, stderr, exit_code)
     return out
-
 
 
 def _severity(value: object, default: str = "error") -> str:
@@ -818,6 +1159,7 @@ def _severity(value: object, default: str = "error") -> str:
     return default
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-actionlint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_actionlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse actionlint's one-JSON-object-per-diagnostic formatter."""
     out: list[Finding] = []
@@ -828,18 +1170,23 @@ def parse_actionlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
             continue
         if not isinstance(item, dict):
             continue
-        out.append(Finding(
-            tool="actionlint",
-            path=item.get("filepath") or item.get("file"),
-            line=item.get("line"),
-            column=item.get("column") or item.get("col"),
-            code=item.get("kind") or item.get("code"),
-            message=str(item.get("message") or "GitHub Actions workflow problem"),
-            severity="error",
-        ))
-    return out or (text_findings("actionlint", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="actionlint",
+                path=item.get("filepath") or item.get("file"),
+                line=item.get("line"),
+                column=item.get("column") or item.get("col"),
+                code=item.get("kind") or item.get("code"),
+                message=str(item.get("message") or "GitHub Actions workflow problem"),
+                severity="error",
+            )
+        )
+    return out or (
+        text_findings("actionlint", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-shellcheck work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_shellcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "{}")
@@ -850,15 +1197,23 @@ def parse_shellcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     for item in comments if isinstance(comments, list) else []:
         if not isinstance(item, dict):
             continue
-        out.append(Finding(
-            tool="shellcheck", path=item.get("file"), line=item.get("line"), column=item.get("column"),
-            code=f"SC{item.get('code')}" if item.get("code") is not None else None,
-            message=str(item.get("message") or "ShellCheck finding"),
-            severity=_severity(item.get("level"), "warning"),
-        ))
-    return out or (text_findings("shellcheck", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="shellcheck",
+                path=item.get("file"),
+                line=item.get("line"),
+                column=item.get("column"),
+                code=f"SC{item.get('code')}" if item.get("code") is not None else None,
+                message=str(item.get("message") or "ShellCheck finding"),
+                severity=_severity(item.get("level"), "warning"),
+            )
+        )
+    return out or (
+        text_findings("shellcheck", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-sqlfluff work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_sqlfluff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
@@ -872,31 +1227,52 @@ def parse_sqlfluff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         for item in file_item.get("violations", []) or []:
             if not isinstance(item, dict):
                 continue
-            out.append(Finding(
-                tool="sqlfluff", path=str(path) if path else None,
-                line=item.get("start_line_no") or item.get("line_no"),
-                column=item.get("start_line_pos") or item.get("line_pos"),
-                code=item.get("code"), message=str(item.get("description") or item.get("message") or "SQLFluff finding"),
-                severity="error",
-            ))
-    return out or (text_findings("sqlfluff", stdout, stderr, exit_code) if exit_code else [])
+            out.append(
+                Finding(
+                    tool="sqlfluff",
+                    path=str(path) if path else None,
+                    line=item.get("start_line_no") or item.get("line_no"),
+                    column=item.get("start_line_pos") or item.get("line_pos"),
+                    code=item.get("code"),
+                    message=str(
+                        item.get("description")
+                        or item.get("message")
+                        or "SQLFluff finding"
+                    ),
+                    severity="error",
+                )
+            )
+    return out or (
+        text_findings("sqlfluff", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-hadolint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_hadolint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
     except json.JSONDecodeError:
         return text_findings("hadolint", stdout, stderr, exit_code)
-    return [
-        Finding(
-            tool="hadolint", path=item.get("file"), line=item.get("line"), column=item.get("column"),
-            code=item.get("code"), message=str(item.get("message") or "Hadolint finding"),
-            severity=_severity(item.get("level"), "warning"),
-        )
-        for item in data if isinstance(item, dict)
-    ] if isinstance(data, list) else text_findings("hadolint", stdout, stderr, exit_code)
+    return (
+        [
+            Finding(
+                tool="hadolint",
+                path=item.get("file"),
+                line=item.get("line"),
+                column=item.get("column"),
+                code=item.get("code"),
+                message=str(item.get("message") or "Hadolint finding"),
+                severity=_severity(item.get("level"), "warning"),
+            )
+            for item in data
+            if isinstance(item, dict)
+        ]
+        if isinstance(data, list)
+        else text_findings("hadolint", stdout, stderr, exit_code)
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-tflint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_tflint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "{}")
@@ -909,36 +1285,59 @@ def parse_tflint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         rule = item.get("rule") or {}
         rng = item.get("range") or {}
         start = rng.get("start") or {}
-        out.append(Finding(
-            tool="tflint", path=rng.get("filename") or item.get("filename"),
-            line=start.get("line"), column=start.get("column"),
-            code=rule.get("name") if isinstance(rule, dict) else None,
-            message=str(item.get("message") or "TFLint finding"),
-            severity=_severity(rule.get("severity") if isinstance(rule, dict) else None, "warning"),
-        ))
-    return out or (text_findings("tflint", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="tflint",
+                path=rng.get("filename") or item.get("filename"),
+                line=start.get("line"),
+                column=start.get("column"),
+                code=rule.get("name") if isinstance(rule, dict) else None,
+                message=str(item.get("message") or "TFLint finding"),
+                severity=_severity(
+                    rule.get("severity") if isinstance(rule, dict) else None, "warning"
+                ),
+            )
+        )
+    return out or (
+        text_findings("tflint", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-golangci work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_golangci(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "{}")
     except json.JSONDecodeError:
         return text_findings("golangci-lint", stdout, stderr, exit_code)
-    issues = data.get("Issues", data.get("issues", [])) if isinstance(data, dict) else []
+    issues = (
+        data.get("Issues", data.get("issues", [])) if isinstance(data, dict) else []
+    )
     out: list[Finding] = []
     for item in issues if isinstance(issues, list) else []:
         if not isinstance(item, dict):
             continue
         pos = item.get("Pos") or item.get("pos") or {}
-        out.append(Finding(
-            tool="golangci-lint", path=pos.get("Filename") or pos.get("filename"),
-            line=pos.get("Line") or pos.get("line"), column=pos.get("Column") or pos.get("column"),
-            code=item.get("FromLinter") or item.get("fromLinter") or item.get("linter"),
-            message=str(item.get("Text") or item.get("text") or "Go correctness finding"), severity="error",
-        ))
-    return out or (text_findings("golangci-lint", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="golangci-lint",
+                path=pos.get("Filename") or pos.get("filename"),
+                line=pos.get("Line") or pos.get("line"),
+                column=pos.get("Column") or pos.get("column"),
+                code=item.get("FromLinter")
+                or item.get("fromLinter")
+                or item.get("linter"),
+                message=str(
+                    item.get("Text") or item.get("text") or "Go correctness finding"
+                ),
+                severity="error",
+            )
+        )
+    return out or (
+        text_findings("golangci-lint", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-clippy work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
     for line in stdout.splitlines():
@@ -952,18 +1351,30 @@ def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         if not isinstance(msg, dict) or msg.get("level") not in {"error", "warning"}:
             continue
         spans = msg.get("spans") or []
-        primary = next((x for x in spans if isinstance(x, dict) and x.get("is_primary")), {})
+        primary = next(
+            (x for x in spans if isinstance(x, dict) and x.get("is_primary")), {}
+        )
         code_obj = msg.get("code") or {}
-        out.append(Finding(
-            tool="clippy", path=primary.get("file_name"), line=primary.get("line_start"), column=primary.get("column_start"),
-            code=code_obj.get("code") if isinstance(code_obj, dict) else None,
-            message=str(msg.get("message") or "Clippy finding"), severity=_severity(msg.get("level")),
-        ))
-    return out or (text_findings("clippy", stdout, stderr, exit_code) if exit_code else [])
+        out.append(
+            Finding(
+                tool="clippy",
+                path=primary.get("file_name"),
+                line=primary.get("line_start"),
+                column=primary.get("column_start"),
+                code=code_obj.get("code") if isinstance(code_obj, dict) else None,
+                message=str(msg.get("message") or "Clippy finding"),
+                severity=_severity(msg.get("level")),
+            )
+        )
+    return out or (
+        text_findings("clippy", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-cppcheck work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_cppcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     import xml.etree.ElementTree as ET
+
     try:
         root = ET.fromstring(stderr.strip())
     except ET.ParseError:
@@ -972,16 +1383,25 @@ def parse_cppcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     for error in root.findall(".//error"):
         locations = error.findall("location")
         loc = locations[0] if locations else None
-        out.append(Finding(
-            tool="cppcheck", path=loc.get("file") if loc is not None else None,
-            line=int(loc.get("line")) if loc is not None and (loc.get("line") or "").isdigit() else None,
-            column=int(loc.get("column")) if loc is not None and (loc.get("column") or "").isdigit() else None,
-            code=error.get("id"), message=error.get("verbose") or error.get("msg") or "Cppcheck finding",
-            severity=_severity(error.get("severity"), "warning"),
-        ))
+        out.append(
+            Finding(
+                tool="cppcheck",
+                path=loc.get("file") if loc is not None else None,
+                line=int(str(loc.get("line")))
+                if loc is not None and str(loc.get("line") or "").isdigit()
+                else None,
+                column=int(str(loc.get("column")))
+                if loc is not None and str(loc.get("column") or "").isdigit()
+                else None,
+                code=error.get("id"),
+                message=error.get("verbose") or error.get("msg") or "Cppcheck finding",
+                severity=_severity(error.get("severity"), "warning"),
+            )
+        )
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-phpstan work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "{}")
@@ -995,16 +1415,27 @@ def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         for item in payload.get("messages", []) or []:
             if not isinstance(item, dict):
                 continue
-            out.append(Finding(
-                tool="phpstan", path=str(path), line=item.get("line"), code=item.get("identifier"),
-                message=str(item.get("message") or "PHPStan finding"), severity="error",
-            ))
+            out.append(
+                Finding(
+                    tool="phpstan",
+                    path=str(path),
+                    line=item.get("line"),
+                    code=item.get("identifier"),
+                    message=str(item.get("message") or "PHPStan finding"),
+                    severity="error",
+                )
+            )
     for message in data.get("errors", []) if isinstance(data, dict) else []:
         out.append(Finding(tool="phpstan", message=str(message), severity="error"))
-    return out or (text_findings("phpstan", stdout, stderr, exit_code) if exit_code else [])
+    return out or (
+        text_findings("phpstan", stdout, stderr, exit_code) if exit_code else []
+    )
 
 
-def parse_eslint(stdout: str, stderr: str, exit_code: int, *, tool: str = "eslint") -> list[Finding]:
+# trace:v1 id=impl.src-bughunt-cli.parse-eslint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def parse_eslint(
+    stdout: str, stderr: str, exit_code: int, *, tool: str = "eslint"
+) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
     except json.JSONDecodeError:
@@ -1013,22 +1444,43 @@ def parse_eslint(stdout: str, stderr: str, exit_code: int, *, tool: str = "eslin
     if isinstance(data, dict):
         data = data.get("results") or data.get("diagnostics") or data.get("files") or []
         if isinstance(data, dict):
-            data = [{"filePath": k, **(v if isinstance(v, dict) else {})} for k, v in data.items()]
+            data = [
+                {"filePath": k, **(v if isinstance(v, dict) else {})}
+                for k, v in data.items()
+            ]
     for file_item in data if isinstance(data, list) else []:
         if not isinstance(file_item, dict):
             continue
-        path = file_item.get("filePath") or file_item.get("path") or file_item.get("filename")
-        messages = file_item.get("messages") or file_item.get("diagnostics") or [file_item]
+        path = (
+            file_item.get("filePath")
+            or file_item.get("path")
+            or file_item.get("filename")
+        )
+        messages = (
+            file_item.get("messages") or file_item.get("diagnostics") or [file_item]
+        )
         for item in messages if isinstance(messages, list) else []:
             if not isinstance(item, dict):
                 continue
-            out.append(Finding(
-                tool=tool, path=str(path) if path else item.get("file"), line=item.get("line") or item.get("start_line"),
-                column=item.get("column") or item.get("start_column"), code=item.get("ruleId") or item.get("rule_id") or item.get("code"),
-                message=str(item.get("message") or item.get("description") or f"{tool} finding"),
-                severity="error" if item.get("severity") in {2, "error"} else "warning",
-                fixable=bool(item.get("fix")), fix_safety="review" if item.get("fix") else None,
-            ))
+            out.append(
+                Finding(
+                    tool=tool,
+                    path=str(path) if path else item.get("file"),
+                    line=item.get("line") or item.get("start_line"),
+                    column=item.get("column") or item.get("start_column"),
+                    code=item.get("ruleId") or item.get("rule_id") or item.get("code"),
+                    message=str(
+                        item.get("message")
+                        or item.get("description")
+                        or f"{tool} finding"
+                    ),
+                    severity="error"
+                    if item.get("severity") in {2, "error"}
+                    else "warning",
+                    fixable=bool(item.get("fix")),
+                    fix_safety="review" if item.get("fix") else None,
+                )
+            )
     return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
 
 
@@ -1036,16 +1488,20 @@ def parse_oxlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     return parse_eslint(stdout, stderr, exit_code, tool="oxlint")
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-squawk work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_squawk(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
         data = json.loads(stdout or "[]")
     except json.JSONDecodeError:
         return text_findings("squawk", stdout, stderr, exit_code)
     if isinstance(data, dict):
-        data = data.get("messages") or data.get("diagnostics") or data.get("results") or []
+        data = (
+            data.get("messages") or data.get("diagnostics") or data.get("results") or []
+        )
     return parse_json_list("squawk", json.dumps(data), stderr, exit_code)
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-buf-json-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_buf_json_lines(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     out: list[Finding] = []
     for raw in stdout.splitlines():
@@ -1055,14 +1511,21 @@ def parse_buf_json_lines(stdout: str, stderr: str, exit_code: int) -> list[Findi
             continue
         if not isinstance(item, dict):
             continue
-        out.append(Finding(
-            tool="buf", path=item.get("path") or item.get("filename"), line=item.get("start_line") or item.get("line"),
-            column=item.get("start_column") or item.get("column"), code=item.get("rule_id") or item.get("rule"),
-            message=str(item.get("message") or "Buf schema finding"), severity="error",
-        ))
+        out.append(
+            Finding(
+                tool="buf",
+                path=item.get("path") or item.get("filename"),
+                line=item.get("start_line") or item.get("line"),
+                column=item.get("start_column") or item.get("column"),
+                code=item.get("rule_id") or item.get("rule"),
+                message=str(item.get("message") or "Buf schema finding"),
+                severity="error",
+            )
+        )
     return out or (text_findings("buf", stdout, stderr, exit_code) if exit_code else [])
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-sarif work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_sarif(path: Path, tool: str) -> list[Finding]:
     if not path.exists():
         return []
@@ -1074,7 +1537,7 @@ def parse_sarif(path: Path, tool: str) -> list[Finding]:
     for run in data.get("runs", []):
         for result in run.get("results", []):
             locs = result.get("locations", [])
-            phys = ((locs[0].get("physicalLocation", {}) if locs else {}) or {})
+            phys = (locs[0].get("physicalLocation", {}) if locs else {}) or {}
             art = phys.get("artifactLocation", {})
             region = phys.get("region", {})
             msg = result.get("message", {})
@@ -1092,7 +1555,10 @@ def parse_sarif(path: Path, tool: str) -> list[Finding]:
     return out
 
 
-def parse_bughunt_helper(tool: str, stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+# trace:v1 id=impl.src-bughunt-cli.parse-bughunt-helper work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def parse_bughunt_helper(
+    tool: str, stdout: str, stderr: str, exit_code: int
+) -> list[Finding]:
     """Parse BugHunt helper modules that emit {findings:[...]} JSON."""
     try:
         data = json.loads(stdout or "{}")
@@ -1103,15 +1569,19 @@ def parse_bughunt_helper(tool: str, stdout: str, stderr: str, exit_code: int) ->
     for item in raw if isinstance(raw, list) else []:
         if not isinstance(item, dict):
             continue
-        out.append(Finding(
-            tool=str(item.get("tool") or tool),
-            message=str(item.get("message") or "BugHunt helper finding"),
-            path=str(item.get("path")) if item.get("path") else None,
-            line=int(item["line"]) if isinstance(item.get("line"), int) else None,
-            column=int(item["column"]) if isinstance(item.get("column"), int) else None,
-            code=str(item.get("code")) if item.get("code") is not None else None,
-            severity=str(item.get("severity") or "warning"),
-        ))
+        out.append(
+            Finding(
+                tool=str(item.get("tool") or tool),
+                message=str(item.get("message") or "BugHunt helper finding"),
+                path=str(item.get("path")) if item.get("path") else None,
+                line=int(item["line"]) if isinstance(item.get("line"), int) else None,
+                column=int(item["column"])
+                if isinstance(item.get("column"), int)
+                else None,
+                code=str(item.get("code")) if item.get("code") is not None else None,
+                severity=str(item.get("severity") or "warning"),
+            )
+        )
     return out
 
 
@@ -1134,6 +1604,7 @@ def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
     return list(dict.fromkeys(x for x in names if x.isidentifier()))
 
 
+# trace:v1 id=impl.src-bughunt-cli.local-schema-pairs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]]:
     """Resolve explicit *local* $schema references without network access."""
     pairs: list[tuple[str, str]] = []
@@ -1156,7 +1627,9 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
             match = re.search(r"(?m)^\s*\$schema\s*:\s*[\"']?([^\"'\s#]+)", text)
             if match:
                 schema_ref = match.group(1)
-        if not schema_ref or re.match(r"^[a-z][a-z0-9+.-]*://", schema_ref, re.I):
+        if not schema_ref or re.match(
+            r"^[a-z][a-z0-9+.-]*://", schema_ref, re.IGNORECASE
+        ):
             continue
         schema = (path.parent / schema_ref).resolve(strict=False)
         try:
@@ -1168,6 +1641,7 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
     return pairs
 
 
+# trace:v1 id=impl.src-bughunt-cli.pact-json-files work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def pact_json_files(root: Path, files: Sequence[str]) -> list[str]:
     out: list[str] = []
     for rel in files:
@@ -1180,16 +1654,26 @@ def pact_json_files(root: Path, files: Sequence[str]) -> list[str]:
             continue
         if not isinstance(payload, dict):
             continue
-        if isinstance(payload.get("consumer"), dict) and isinstance(payload.get("provider"), dict) and isinstance(payload.get("interactions"), list):
+        if (
+            isinstance(payload.get("consumer"), dict)
+            and isinstance(payload.get("provider"), dict)
+            and isinstance(payload.get("interactions"), list)
+        ):
             out.append(rel)
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.type-disagreement-result work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def type_disagreement_result(results: list[Result]) -> Result | None:
     """Make cross-checker disagreement a first-class, deduplicated signal."""
     checker_names = {"mypy", "basedpyright", "pyrefly", "ty"}
     by_location: dict[tuple[str, int], dict[str, list[Finding]]] = {}
-    present = {r.name for r in results if r.name in checker_names and r.status not in {Status.SKIPPED, Status.NA, Status.ERROR}}
+    present = {
+        r.name
+        for r in results
+        if r.name in checker_names
+        and r.status not in {Status.SKIPPED, Status.NA, Status.ERROR}
+    }
     if len(present) < 2:
         return None
     for result in results:
@@ -1197,7 +1681,9 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
             continue
         for f in result.findings:
             if f.path and f.line:
-                by_location.setdefault((f.path, f.line), {}).setdefault(result.name, []).append(f)
+                by_location.setdefault((f.path, f.line), {}).setdefault(
+                    result.name, []
+                ).append(f)
     findings: list[Finding] = []
     for (path, line), tools in by_location.items():
         reporters = set(tools)
@@ -1205,16 +1691,33 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
             continue
         silent = sorted(present - reporters)
         loud = sorted(reporters)
-        findings.append(Finding(
-            tool="type-disagreement", code="BHDIS001", path=path, line=line,
-            severity="warning",
-            message=f"type-checker disagreement: {', '.join(loud)} reports a problem here while {', '.join(silent)} does not; inspect erased/dynamic typing at this seam",
-        ))
+        findings.append(
+            Finding(
+                tool="type-disagreement",
+                code="BHDIS001",
+                path=path,
+                line=line,
+                severity="warning",
+                message=f"type-checker disagreement: {', '.join(loud)} reports a problem here while {', '.join(silent)} does not; inspect erased/dynamic typing at this seam",
+            )
+        )
     if not findings:
-        return Result("type-disagreement", "cross-tool-correlation", Status.PASS, note="type checkers agreed on diagnostic locations")
-    return Result("type-disagreement", "cross-tool-correlation", Status.FINDINGS, findings=findings, note=f"{len(findings)} disagreement location(s)")
+        return Result(
+            "type-disagreement",
+            "cross-tool-correlation",
+            Status.PASS,
+            note="type checkers agreed on diagnostic locations",
+        )
+    return Result(
+        "type-disagreement",
+        "cross-tool-correlation",
+        Status.FINDINGS,
+        findings=findings,
+        note=f"{len(findings)} disagreement location(s)",
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.correlated-issue-groups work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def correlated_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     """Correlate independent tools at the same source location without deleting raw evidence."""
     buckets: dict[tuple[str, int], list[Finding]] = {}
@@ -1227,14 +1730,29 @@ def correlated_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
         tools = sorted({f.tool for f in findings})
         if len(tools) < 2:
             continue
-        out.append({
-            "path": path, "line": line, "tools": tools, "tool_count": len(tools),
-            "finding_count": len(findings), "codes": sorted({str(f.code) for f in findings if f.code}),
-            "severity": min((f.severity for f in findings), key=severity_priority),
-        })
-    return sorted(out, key=lambda x: (-int(x["tool_count"]), -int(x["finding_count"]), str(x["path"]), int(x["line"])))
+        out.append(
+            {
+                "path": path,
+                "line": line,
+                "tools": tools,
+                "tool_count": len(tools),
+                "finding_count": len(findings),
+                "codes": sorted({str(f.code) for f in findings if f.code}),
+                "severity": min((f.severity for f in findings), key=severity_priority),
+            }
+        )
+    return sorted(
+        out,
+        key=lambda x: (
+            -int(x["tool_count"]),
+            -int(x["finding_count"]),
+            str(x["path"]),
+            int(x["line"]),
+        ),
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.logical-issue-groups work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     """Build a non-destructive logical dedup view.
 
@@ -1247,9 +1765,17 @@ def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     for result in results:
         for finding in result.findings:
             if finding.path and finding.line:
-                key = (finding.path, int(finding.line), odc_class(result.category, finding))
+                key = (
+                    finding.path,
+                    int(finding.line),
+                    odc_class(result.category, finding),
+                )
             else:
-                key = (f"<unlocated:{finding.fingerprint}>", 0, odc_class(result.category, finding))
+                key = (
+                    f"<unlocated:{finding.fingerprint}>",
+                    0,
+                    odc_class(result.category, finding),
+                )
             buckets.setdefault(key, []).append((result, finding))
 
     groups: list[dict[str, Any]] = []
@@ -1264,19 +1790,24 @@ def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
                 f.tool,
             ),
         )
-        groups.append({
-            "id": "LOG-" + hashlib.sha256(f"{path}|{line}|{defect_class}".encode()).hexdigest()[:12].upper(),
-            "path": None if path.startswith("<unlocated:") else path,
-            "line": line or None,
-            "odc_class": defect_class,
-            "finding_count": len(findings),
-            "tool_count": len(tools),
-            "tools": tools,
-            "codes": sorted({str(f.code) for f in findings if f.code}),
-            "severity": primary.severity,
-            "primary_message": primary.message,
-            "finding_ids": [f.finding_id for f in findings],
-        })
+        groups.append(
+            {
+                "id": "LOG-"
+                + hashlib.sha256(f"{path}|{line}|{defect_class}".encode())
+                .hexdigest()[:12]
+                .upper(),
+                "path": None if path.startswith("<unlocated:") else path,
+                "line": line or None,
+                "odc_class": defect_class,
+                "finding_count": len(findings),
+                "tool_count": len(tools),
+                "tools": tools,
+                "codes": sorted({str(f.code) for f in findings if f.code}),
+                "severity": primary.severity,
+                "primary_message": primary.message,
+                "finding_ids": [f.finding_id for f in findings],
+            }
+        )
     return sorted(
         groups,
         key=lambda g: (
@@ -1289,9 +1820,13 @@ def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     )
 
 
+# trace:v1 id=impl.src-bughunt-cli.odc-class work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def odc_class(category: str, finding: Finding | None = None) -> str:
     text = (category + " " + (finding.code or "") if finding else category).lower()
-    if any(x in text for x in ("seam", "api", "schema", "architecture", "contract", "migration")):
+    if any(
+        x in text
+        for x in ("seam", "api", "schema", "architecture", "contract", "migration")
+    ):
         return "interface"
     if any(x in text for x in ("concurrency", "async", "time", "random", "matrix")):
         return "timing/serialization"
@@ -1301,13 +1836,17 @@ def odc_class(category: str, finding: Finding | None = None) -> str:
         return "documentation"
     if any(x in text for x in ("complexity", "performance", "benchmark", "memory")):
         return "algorithm"
-    if any(x in text for x in ("type", "coverage", "test", "validation", "lint", "static")):
+    if any(
+        x in text for x in ("type", "coverage", "test", "validation", "lint", "static")
+    ):
         return "checking"
     return "function"
 
 
 # trace:v1 id=impl.src-bughunt-cli.build-checks work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
-def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None) -> tuple[list[Check], list[Result]]:
+def build_checks(
+    cfg: Config, profile: str, *, excluded: set[str] | None = None
+) -> tuple[list[Check], list[Result]]:
     root = cfg.root
     timeout = cfg.timeout(profile)
     profile_tools = cfg.tools(profile)
@@ -1322,23 +1861,48 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
     generated_targets = load_generated_targets(root)
     technology = load_technology_inventory(root)
     category_by_tool = {
-        "codeql": "whole-program", "pysa": "taint", "mutmut": "mutation",
-        "semgrep": "semantic-static", "ast-grep": "structural", "bandit": "security",
-        "atheris": "coverage-fuzz", "schemathesis": "api-fuzz", "bugcorpus": "historical/custom-static",
+        "codeql": "whole-program",
+        "pysa": "taint",
+        "mutmut": "mutation",
+        "semgrep": "semantic-static",
+        "ast-grep": "structural",
+        "bandit": "security",
+        "atheris": "coverage-fuzz",
+        "schemathesis": "api-fuzz",
+        "bugcorpus": "historical/custom-static",
         **ENGINE_CATEGORY,
     }
     if not technology.has("python"):
-        for name, category in (("codeql", "whole-program"), ("pysa", "taint"), ("mutmut", "mutation")):
+        for name, category in (
+            ("codeql", "whole-program"),
+            ("pysa", "taint"),
+            ("mutmut", "mutation"),
+        ):
             if name in wanted:
-                skipped.append(Result(name, category, Status.NA, note="not applicable: no first-party Python capability detected"))
+                skipped.append(
+                    Result(
+                        name,
+                        category,
+                        Status.NA,
+                        note="not applicable: no first-party Python capability detected",
+                    )
+                )
     for name in sorted(excluded & set(profile_tools)):
-        skipped.append(Result(name=name, category=category_by_tool.get(name, "excluded"), status=Status.SKIPPED, note="explicitly skipped by user"))
+        skipped.append(
+            Result(
+                name=name,
+                category=category_by_tool.get(name, "excluded"),
+                status=Status.SKIPPED,
+                note="explicitly skipped by user",
+            )
+        )
 
+    # trace:v1 id=impl.src-bughunt-cli-build-checks.add work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add(
         name: str,
         category: str,
         command: Sequence[str] | None,
-        parser: Callable[[str, str, int], list[Finding]] = text_findings,
+        parser: Callable[[str, str, int], list[Finding]] | None = None,
         *,
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
@@ -1350,60 +1914,109 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         if name not in wanted:
             return
         if name in PYTHON_ONLY_TOOLS and not technology.has("python"):
-            skipped.append(Result(
-                name=name, category=category, status=Status.NA,
-                note="not applicable: no first-party Python capability detected",
-            ))
+            skipped.append(
+                Result(
+                    name=name,
+                    category=category,
+                    status=Status.NA,
+                    note="not applicable: no first-party Python capability detected",
+                )
+            )
             return
         if command is None:
-            skipped.append(Result(name=name, category=category, status=Status.SKIPPED, note=reason or "not configured"))
+            skipped.append(
+                Result(
+                    name=name,
+                    category=category,
+                    status=Status.SKIPPED,
+                    note=reason or "not configured",
+                )
+            )
             return
         checks.append(
             Check(
                 name=name,
                 category=category,
                 command=list(command),
-                parser=parser if parser is not text_findings else (lambda o, e, c, n=name: text_findings(n, o, e, c)),
+                parser=(partial(text_findings, name) if parser is None else parser),
                 timeout=check_timeout or timeout,
                 cwd=root,
-                findings_exit_codes=findings_exit_codes if findings_exit_codes is not None else {1},
-                skip_exit_codes=skip_exit_codes if skip_exit_codes is not None else set(),
+                findings_exit_codes=findings_exit_codes
+                if findings_exit_codes is not None
+                else {1},
+                skip_exit_codes=skip_exit_codes
+                if skip_exit_codes is not None
+                else set(),
                 env=env,
                 timeout_is_success=timeout_is_success,
             )
         )
 
-    add("compile", "syntax", [sys.executable, "-m", "compileall", "-q", *py], findings_exit_codes={1})
+    add(
+        "compile",
+        "syntax",
+        [sys.executable, "-m", "compileall", "-q", *py],
+        findings_exit_codes={1},
+    )
     ruff_cfg = generated_config(root, "ruff.toml")
-    ruff_cmd = [executable("ruff"), "check", *py, "--output-format=json"] if executable("ruff") else None
+    ruff_cmd = _optional_cmd(executable("ruff"), ["check", *py, "--output-format=json"])
     if ruff_cmd and ruff_cfg:
         ruff_cmd += ["--config", str(ruff_cfg)]
     add("ruff", "lint", ruff_cmd, parse_ruff, reason="ruff not installed")
     bp_cfg = generated_config(root, "basedpyrightconfig.json")
-    bp_cmd = [executable("basedpyright"), "--outputjson", "--pythonpath", sys.executable] if executable("basedpyright") else None
+    bp_cmd = _optional_cmd(
+        executable("basedpyright"),
+        ["--outputjson", "--pythonpath", sys.executable],
+    )
     if bp_cmd and bp_cfg:
         bp_cmd += ["--project", str(bp_cfg)]
-    add("basedpyright", "types", bp_cmd, parse_basedpyright, reason="basedpyright not installed", findings_exit_codes={1})
+    add(
+        "basedpyright",
+        "types",
+        bp_cmd,
+        parse_basedpyright,
+        reason="basedpyright not installed",
+        findings_exit_codes={1},
+    )
     mypy_cfg = generated_config(root, "mypy.ini")
-    mypy_cmd = [executable("mypy"), *py, "--show-error-codes", "--no-pretty", "--no-color-output"] if executable("mypy") else None
+    mypy_cmd = _optional_cmd(
+        executable("mypy"),
+        [*py, "--show-error-codes", "--no-pretty", "--no-color-output"],
+    )
     if mypy_cmd and mypy_cfg:
         mypy_cmd += ["--config-file", str(mypy_cfg)]
     add("mypy", "types", mypy_cmd, reason="mypy not installed")
     ty_cfg = generated_config(root, "ty.toml")
-    ty_cmd = [executable("ty"), "check", *py] if executable("ty") else None
+    ty_cmd = _optional_cmd(executable("ty"), ["check", *py])
     if ty_cmd and ty_cfg:
         ty_cmd += ["--config-file", str(ty_cfg)]
     add("ty", "types", ty_cmd, reason="ty not installed", findings_exit_codes={1})
     pyrefly_cfg = generated_config(root, "pyrefly.toml")
-    pyrefly_cmd = [executable("pyrefly"), "check", "--output-format=json"] if executable("pyrefly") else None
+    pyrefly_cmd = _optional_cmd(
+        executable("pyrefly"), ["check", "--output-format=json"]
+    )
     if pyrefly_cmd and pyrefly_cfg:
         pyrefly_cmd += ["--config", str(pyrefly_cfg)]
-    add("pyrefly", "types", pyrefly_cmd, parse_pyrefly, reason="pyrefly not installed", findings_exit_codes={1})
+    add(
+        "pyrefly",
+        "types",
+        pyrefly_cmd,
+        parse_pyrefly,
+        reason="pyrefly not installed",
+        findings_exit_codes={1},
+    )
     pylint_cfg = generated_config(root, "pylintrc")
-    pylint_cmd = [executable("pylint"), *py, "--output-format=json2"] if executable("pylint") else None
+    pylint_cmd = _optional_cmd(executable("pylint"), [*py, "--output-format=json2"])
     if pylint_cmd and pylint_cfg:
         pylint_cmd += ["--rcfile", str(pylint_cfg)]
-    add("pylint", "lint", pylint_cmd, parse_pylint, reason="pylint not installed", findings_exit_codes={code for code in range(1, 32)})
+    add(
+        "pylint",
+        "lint",
+        pylint_cmd,
+        parse_pylint,
+        reason="pylint not installed",
+        findings_exit_codes={code for code in range(1, 32)},
+    )
 
     # Built-in policy + complexity scanners are always available with BugHunt.
     policy_cmd = [sys.executable, "-m", "bughunt.policy_scan", "--root", str(root)]
@@ -1411,53 +2024,179 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         policy_cmd += ["--source", path]
     for path in tests:
         policy_cmd += ["--test", path]
-    add("policy", "repository-policy", policy_cmd, lambda o,e,c: parse_json_list("policy", o,e,c), findings_exit_codes={1})
+    add(
+        "policy",
+        "repository-policy",
+        policy_cmd,
+        lambda o, e, c: parse_json_list("policy", o, e, c),
+        findings_exit_codes={1},
+    )
 
     metrics_cmd = [sys.executable, "-m", "bughunt.metrics_scan", "--root", str(root)]
     for path in src:
         metrics_cmd += ["--source", path]
-    add("complexity", "complexity-budgets", metrics_cmd, lambda o,e,c: parse_json_list("complexity", o,e,c), findings_exit_codes={1})
+    add(
+        "complexity",
+        "complexity-budgets",
+        metrics_cmd,
+        lambda o, e, c: parse_json_list("complexity", o, e, c),
+        findings_exit_codes={1},
+    )
 
     complexipy = executable("complexipy")
-    complexipy_cmd = [
-        complexipy, *src,
-        "--plain", "--failed", "--check-script", "--no-ignore", "--report-ignored",
-        "--max-complexity-allowed", str(int(cfg.raw.get("complexity", {}).get("cognitive_max", 10))),
-    ] if complexipy else None
-    add("complexipy", "cognitive-complexity", complexipy_cmd, parse_complexipy, reason="complexipy not installed", findings_exit_codes={1})
+    complexipy_cmd = (
+        [
+            complexipy,
+            *src,
+            "--plain",
+            "--failed",
+            "--check-script",
+            "--no-ignore",
+            "--report-ignored",
+            "--max-complexity-allowed",
+            str(int(cfg.raw.get("complexity", {}).get("cognitive_max", 10))),
+        ]
+        if complexipy
+        else None
+    )
+    add(
+        "complexipy",
+        "cognitive-complexity",
+        complexipy_cmd,
+        parse_complexipy,
+        reason="complexipy not installed",
+        findings_exit_codes={1},
+    )
 
     radon = executable("radon")
     radon_cmd = [radon, "mi", "-j", "-s", *src] if radon else None
-    add("radon", "maintainability", radon_cmd, parse_radon_mi, reason="radon not installed", findings_exit_codes=set())
+    add(
+        "radon",
+        "maintainability",
+        radon_cmd,
+        parse_radon_mi,
+        reason="radon not installed",
+        findings_exit_codes=set(),
+    )
 
     lizard = executable("lizard")
-    lizard_cmd = [lizard, "-w", "-C", str(int(cfg.raw.get("complexity", {}).get("cyclomatic_warn", 10))), "-L", str(int(cfg.raw.get("complexity", {}).get("function_loc_warn", 80))), "-a", "8", "-t", str(max(1, cfg.max_parallel)), *src] if lizard else None
-    add("lizard", "cross-language-complexity", lizard_cmd, parse_lizard, reason="lizard not installed", findings_exit_codes={1})
+    lizard_cmd = (
+        [
+            lizard,
+            "-w",
+            "-C",
+            str(int(cfg.raw.get("complexity", {}).get("cyclomatic_warn", 10))),
+            "-L",
+            str(int(cfg.raw.get("complexity", {}).get("function_loc_warn", 80))),
+            "-a",
+            "8",
+            "-t",
+            str(max(1, cfg.max_parallel)),
+            *src,
+        ]
+        if lizard
+        else None
+    )
+    add(
+        "lizard",
+        "cross-language-complexity",
+        lizard_cmd,
+        parse_lizard,
+        reason="lizard not installed",
+        findings_exit_codes={1},
+    )
 
-    vulture_confidence = "0" if profile in {"deep", "all"} else ("60" if profile == "pr" else "80")
-    add("vulture", "dead-code", [executable("vulture"), *py, "--min-confidence", vulture_confidence] if executable("vulture") else None, reason="vulture not installed", findings_exit_codes={3})
+    vulture_confidence = (
+        "0" if profile in {"deep", "all"} else ("60" if profile == "pr" else "80")
+    )
+    add(
+        "vulture",
+        "dead-code",
+        _optional_cmd(
+            executable("vulture"), [*py, "--min-confidence", vulture_confidence]
+        ),
+        reason="vulture not installed",
+        findings_exit_codes={3},
+    )
     bandit_cfg = generated_config(root, "bandit.yaml")
-    bandit_cmd = [executable("bandit"), "-r", *src, "-f", "json", "-q"] if executable("bandit") else None
+    bandit_cmd = _optional_cmd(executable("bandit"), ["-r", *src, "-f", "json", "-q"])
     if bandit_cmd and bandit_cfg:
         bandit_cmd += ["-c", str(bandit_cfg)]
     add("bandit", "security", bandit_cmd, parse_bandit, reason="bandit not installed")
-    deptry_cmd = [executable("deptry"), *src, "--extend-exclude", r"(^|/)(.bughunt|build|dist|mutants|node_modules)(/|$)", "--experimental-namespace-package", "--no-ansi"] if executable("deptry") else None
-    add("deptry", "dependencies", deptry_cmd, parse_deptry, reason="deptry not installed")
+    deptry_cmd = _optional_cmd(
+        executable("deptry"),
+        [
+            *src,
+            "--extend-exclude",
+            r"(^|/)(.bughunt|build|dist|mutants|node_modules)(/|$)",
+            "--experimental-namespace-package",
+            "--no-ansi",
+        ],
+    )
+    add(
+        "deptry",
+        "dependencies",
+        deptry_cmd,
+        parse_deptry,
+        reason="deptry not installed",
+    )
     import_linter = executable("lint-imports", "import-linter")
     generated_import_cfg = generated_config(root, "importlinter.toml")
     if import_linter and generated_import_cfg:
-        add("import-linter", "architecture", [import_linter, "--config", str(generated_import_cfg), "--no-logo", "--show-timings"], reason="import-linter not installed")
+        add(
+            "import-linter",
+            "architecture",
+            [
+                import_linter,
+                "--config",
+                str(generated_import_cfg),
+                "--no-logo",
+                "--show-timings",
+            ],
+            reason="import-linter not installed",
+        )
     elif import_linter and import_linter_configured(root):
-        add("import-linter", "architecture", [import_linter, "--no-logo", "--show-timings"], reason="import-linter not installed")
+        add(
+            "import-linter",
+            "architecture",
+            [import_linter, "--no-logo", "--show-timings"],
+            reason="import-linter not installed",
+        )
     else:
-        add("import-linter", "architecture", None, reason=("import-linter not installed" if not import_linter else "no safe import contract could be inferred; run configure --auto"))
+        add(
+            "import-linter",
+            "architecture",
+            None,
+            reason=(
+                "import-linter not installed"
+                if not import_linter
+                else "no safe import contract could be inferred; run configure --auto"
+            ),
+        )
 
     sg = ast_grep_executable()
     sgconfig = generated_config(root, "sgconfig.yml")
     if not sgconfig:
-        sgconfig = next((root / p for p in ("sgconfig.yml", "sgconfig.yaml") if (root / p).exists()), None)
-    sg_cmd = [sg, "scan", "--json=compact", "--config", str(sgconfig), *py] if sg and sgconfig else None
-    add("ast-grep", "structural", sg_cmd, parse_ast_grep, reason="ast-grep missing or no generated/project sgconfig.yml")
+        sgconfig = next(
+            (
+                root / p
+                for p in ("sgconfig.yml", "sgconfig.yaml")
+                if (root / p).exists()
+            ),
+            None,
+        )
+    sg_cmd = (
+        [sg, "scan", "--json=compact", "--config", str(sgconfig), *py]
+        if sg and sgconfig
+        else None
+    )
+    add(
+        "ast-grep",
+        "structural",
+        sg_cmd,
+        parse_ast_grep,
+        reason="ast-grep missing or no generated/project sgconfig.yml",
+    )
 
     semgrep = executable("semgrep")
     semgrep_settings = cfg.raw.get("semgrep", {})
@@ -1465,23 +2204,44 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
     # `auto` requires Semgrep's metrics/inventory exchange. BugHunt keeps metrics
     # off, so map it to a deterministic baseline instead. Correctness is the
     # default goal; security-only packs are opt-in rather than forcibly injected.
-    semgrep_cfgs = ["p/default" if str(x) == "auto" else str(x) for x in requested_semgrep]
+    semgrep_cfgs = [
+        "p/default" if str(x) == "auto" else str(x) for x in requested_semgrep
+    ]
     if "p/default" not in semgrep_cfgs:
         semgrep_cfgs.append("p/default")
     if bool(semgrep_settings.get("include_security", False)):
-        semgrep_cfgs.extend(str(x) for x in semgrep_settings.get("security_configs", ["p/security-audit", "p/secrets"]))
+        semgrep_cfgs.extend(
+            str(x)
+            for x in semgrep_settings.get(
+                "security_configs", ["p/security-audit", "p/secrets"]
+            )
+        )
     local_semgrep = config_dir / "semgrep" / "rules"
-    if local_semgrep.exists() and any(path.suffix in {".yml", ".yaml"} for path in local_semgrep.rglob("*")):
+    if local_semgrep.exists() and any(
+        path.suffix in {".yml", ".yaml"} for path in local_semgrep.rglob("*")
+    ):
         semgrep_cfgs.append(str(local_semgrep))
-    semgrep_cmd = [semgrep, "scan", "--json", "--metrics=off", "--disable-version-check"] if semgrep else []
+    semgrep_cmd = (
+        [semgrep, "scan", "--json", "--metrics=off", "--disable-version-check"]
+        if semgrep
+        else []
+    )
     # If the user has authenticated Semgrep Code, spend the extra analysis;
     # otherwise explicitly select CE so behavior is stable and non-interactive.
     if semgrep_cmd:
-        semgrep_cmd.append("--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only")
+        semgrep_cmd.append(
+            "--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only"
+        )
     for c in dict.fromkeys(str(x) for x in semgrep_cfgs):
         semgrep_cmd.extend(["--config", c])
     semgrep_cmd.extend(py)
-    add("semgrep", "semantic-static", semgrep_cmd if semgrep else None, parse_semgrep, reason="semgrep not installed")
+    add(
+        "semgrep",
+        "semantic-static",
+        semgrep_cmd if semgrep else None,
+        parse_semgrep,
+        reason="semgrep not installed",
+    )
 
     deal_ready = python_module_available("deal")
     add(
@@ -1497,10 +2257,31 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
     crosshair_cmd = None
     if crosshair:
         per_path = "8" if profile == "all" else ("5" if profile == "deep" else "3")
-        per_condition = "180" if profile == "all" else ("90" if profile == "deep" else "45")
-        iterations = "1000" if profile == "all" else ("300" if profile == "deep" else "100")
-        crosshair_cmd = [crosshair, "check", "--analysis_kind=asserts,PEP316,deal,icontract", "--max_uninteresting_iterations", iterations, "--per_path_timeout", per_path, "--per_condition_timeout", per_condition, *src]
-    add("crosshair", "symbolic", crosshair_cmd, reason="crosshair not installed", findings_exit_codes={1})
+        per_condition = (
+            "180" if profile == "all" else ("90" if profile == "deep" else "45")
+        )
+        iterations = (
+            "1000" if profile == "all" else ("300" if profile == "deep" else "100")
+        )
+        crosshair_cmd = [
+            crosshair,
+            "check",
+            "--analysis_kind=asserts,PEP316,deal,icontract",
+            "--max_uninteresting_iterations",
+            iterations,
+            "--per_path_timeout",
+            per_path,
+            "--per_condition_timeout",
+            per_condition,
+            *src,
+        ]
+    add(
+        "crosshair",
+        "symbolic",
+        crosshair_cmd,
+        reason="crosshair not installed",
+        findings_exit_codes={1},
+    )
 
     _target_py = target_python(root)
     pytest = target_executable(root, "pytest")
@@ -1508,7 +2289,19 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
     repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
     test_timeout = int(cfg.raw.get("tests", {}).get("timeout_seconds", 300))
     pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
-    pytest_cmd = [pytest, "-q", "--tb=short", "--strict-config", "--strict-markers", "-o", "xfail_strict=true"] if pytest else None
+    pytest_cmd = (
+        [
+            pytest,
+            "-q",
+            "--tb=short",
+            "--strict-config",
+            "--strict-markers",
+            "-o",
+            "xfail_strict=true",
+        ]
+        if pytest
+        else None
+    )
     if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
         pytest_cmd += ["--timeout", str(test_timeout)]
     if pytest_cmd and profile in {"deep", "all"}:
@@ -1519,93 +2312,297 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         pytest_env["PYTHONASYNCIODEBUG"] = "1"
     if pytest_cmd and hypothesis_plugin and target_has_module(_target_py, "hypothesis"):
         pytest_cmd += ["-p", "hypothesis_plugin"]
-        pytest_env["PYTHONPATH"] = str(hypothesis_plugin.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
+        pytest_env["PYTHONPATH"] = (
+            str(hypothesis_plugin.parent)
+            + os.pathsep
+            + os.environ.get("PYTHONPATH", "")
+        )
     if pytest_cmd:
         pytest_cmd += tests
     if "pytest" in wanted:
         if not technology.has("python"):
-            skipped.append(Result("pytest", "tests/property/state", Status.NA, note="not applicable: no first-party Python capability detected"))
+            skipped.append(
+                Result(
+                    "pytest",
+                    "tests/property/state",
+                    Status.NA,
+                    note="not applicable: no first-party Python capability detected",
+                )
+            )
         elif pytest_cmd:
-            checks.append(Check("pytest", "tests/property/state", pytest_cmd, lambda o,e,c: text_findings("pytest", o,e,c), timeout, root, env=pytest_env, findings_exit_codes={1}))
+            checks.append(
+                Check(
+                    "pytest",
+                    "tests/property/state",
+                    pytest_cmd,
+                    lambda o, e, c: text_findings("pytest", o, e, c),
+                    timeout,
+                    root,
+                    env=pytest_env,
+                    findings_exit_codes={1},
+                )
+            )
         else:
-            skipped.append(Result("pytest", "tests/property/state", Status.SKIPPED, note="pytest not installed"))
+            skipped.append(
+                Result(
+                    "pytest",
+                    "tests/property/state",
+                    Status.SKIPPED,
+                    note="pytest not installed",
+                )
+            )
 
     # Structural-hole defenses: execution coverage, runtime annotation truth,
     # environment/order variation, API drift, packaging, docs, and async behavior.
     if technology.has("python"):
-        coverage_cfg = generated_config(root, "coverage.ini")
         if "coverage" in wanted:
-            cov_python = _target_py if target_has_module(_target_py, "bughunt") else sys.executable
+            cov_python = (
+                _target_py
+                if target_has_module(_target_py, "bughunt")
+                else sys.executable
+            )
             if target_has_module(cov_python, "coverage") and pytest:
-                add("coverage", "coverage/branches", [cov_python, "-m", "bughunt.coverage_runner", str(root), *tests],
-                    lambda o,e,c: parse_bughunt_helper("coverage", o,e,c), findings_exit_codes={1})
+                add(
+                    "coverage",
+                    "coverage/branches",
+                    [cov_python, "-m", "bughunt.coverage_runner", str(root), *tests],
+                    lambda o, e, c: parse_bughunt_helper("coverage", o, e, c),
+                    findings_exit_codes={1},
+                )
             else:
-                add("coverage", "coverage/branches", None, reason="coverage.py/pytest not installed")
+                add(
+                    "coverage",
+                    "coverage/branches",
+                    None,
+                    reason="coverage.py/pytest not installed",
+                )
 
         if "seam" in wanted:
-            add("seam", "contract-drift", [sys.executable, "-m", "bughunt.seam_scan", str(root), ",".join(cfg.source_paths), ",".join(cfg.test_paths)],
-                lambda o,e,c: parse_bughunt_helper("seam", o,e,c), findings_exit_codes={1})
+            add(
+                "seam",
+                "contract-drift",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.seam_scan",
+                    str(root),
+                    ",".join(cfg.source_paths),
+                    ",".join(cfg.test_paths),
+                ],
+                lambda o, e, c: parse_bughunt_helper("seam", o, e, c),
+                findings_exit_codes={1},
+            )
 
         if "evidence" in wanted:
-            add("evidence", "evidence-preservation", [sys.executable, "-m", "bughunt.evidence_scan", str(root), *cfg.source_paths],
-                lambda o,e,c: parse_bughunt_helper("evidence", o,e,c), findings_exit_codes={1})
+            add(
+                "evidence",
+                "evidence-preservation",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.evidence_scan",
+                    str(root),
+                    *cfg.source_paths,
+                ],
+                lambda o, e, c: parse_bughunt_helper("evidence", o, e, c),
+                findings_exit_codes={1},
+            )
 
         if "packaging" in wanted:
-            add("packaging", "package-correctness", [sys.executable, "-m", "bughunt.package_checks", str(root)],
-                lambda o,e,c: parse_bughunt_helper("packaging", o,e,c), findings_exit_codes={1})
+            add(
+                "packaging",
+                "package-correctness",
+                [sys.executable, "-m", "bughunt.package_checks", str(root)],
+                lambda o, e, c: parse_bughunt_helper("packaging", o, e, c),
+                findings_exit_codes={1},
+            )
 
         if "runtime-types" in wanted:
             packages = python_package_names(root, cfg.source_paths)
             tg_cmd = None
             if pytest and target_has_module(_target_py, "typeguard") and packages:
-                tg_cmd = [pytest, "-q", "--tb=short", f"--typeguard-packages={','.join(packages)}", *tests]
+                tg_cmd = [
+                    pytest,
+                    "-q",
+                    "--tb=short",
+                    f"--typeguard-packages={','.join(packages)}",
+                    *tests,
+                ]
                 if target_has_module(_target_py, "pytest_timeout"):
                     tg_cmd += ["--timeout", str(test_timeout)]
-            add("runtime-types", "runtime-type-contracts", tg_cmd, reason=("no importable package roots for Typeguard" if not packages else "typeguard/pytest not installed"), env={"PYTHONHASHSEED": str(repro_seed)})
+            add(
+                "runtime-types",
+                "runtime-type-contracts",
+                tg_cmd,
+                reason=(
+                    "no importable package roots for Typeguard"
+                    if not packages
+                    else "typeguard/pytest not installed"
+                ),
+                env={"PYTHONHASHSEED": str(repro_seed)},
+            )
 
         if "doctest" in wanted:
-            doctest_cmd = [pytest, "-q", "--tb=short", "--doctest-modules", *src] if pytest else None
-            add("doctest", "executable-docs", doctest_cmd, reason="pytest not installed", skip_exit_codes={5})
+            doctest_cmd = (
+                [pytest, "-q", "--tb=short", "--doctest-modules", *src]
+                if pytest
+                else None
+            )
+            add(
+                "doctest",
+                "executable-docs",
+                doctest_cmd,
+                reason="pytest not installed",
+                skip_exit_codes={5},
+            )
 
         if "pydoclint" in wanted:
             pd = executable("pydoclint")
-            add("pydoclint", "doc-contracts", [pd, *src] if pd else None, reason="pydoclint not installed", findings_exit_codes={1})
+            add(
+                "pydoclint",
+                "doc-contracts",
+                [pd, *src] if pd else None,
+                reason="pydoclint not installed",
+                findings_exit_codes={1},
+            )
 
         if "refurb" in wanted:
             rb = executable("refurb")
-            add("refurb", "correctness-modernization", [rb, *src] if rb else None, reason="refurb not installed", findings_exit_codes={1})
+            add(
+                "refurb",
+                "correctness-modernization",
+                [rb, *src] if rb else None,
+                reason="refurb not installed",
+                findings_exit_codes={1},
+            )
 
         if "pytest-random" in wanted:
             seed = secrets.randbelow(2**31 - 2) + 1
-            cmd = [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *tests] if pytest and target_has_module(_target_py, "pytest_randomly") else None
-            add("pytest-random", "determinism/order", cmd, reason="pytest-randomly not installed", env={"PYTHONHASHSEED": str(seed), "PYTHONASYNCIODEBUG": "1"}, findings_exit_codes={1})
+            cmd = (
+                [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *tests]
+                if pytest and target_has_module(_target_py, "pytest_randomly")
+                else None
+            )
+            add(
+                "pytest-random",
+                "determinism/order",
+                cmd,
+                reason="pytest-randomly not installed",
+                env={"PYTHONHASHSEED": str(seed), "PYTHONASYNCIODEBUG": "1"},
+                findings_exit_codes={1},
+            )
 
         if "pytest-no-network" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "--disable-socket", "--allow-unix-socket", *tests] if pytest and target_has_module(_target_py, "pytest_socket") else None
-            add("pytest-no-network", "hidden-io", cmd, reason="pytest-socket not installed", env={"PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1})
+            cmd = (
+                [
+                    pytest,
+                    "-q",
+                    "--tb=short",
+                    "--disable-socket",
+                    "--allow-unix-socket",
+                    *tests,
+                ]
+                if pytest and target_has_module(_target_py, "pytest_socket")
+                else None
+            )
+            add(
+                "pytest-no-network",
+                "hidden-io",
+                cmd,
+                reason="pytest-socket not installed",
+                env={"PYTHONHASHSEED": str(repro_seed)},
+                findings_exit_codes={1},
+            )
 
         if "pytest-xdist" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "-n", "auto", "--dist", "loadfile", *tests] if pytest and target_has_module(_target_py, "xdist") else None
-            add("pytest-xdist", "cross-test-state", cmd, reason="pytest-xdist not installed", env={"PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1})
+            cmd = (
+                [pytest, "-q", "--tb=short", "-n", "auto", "--dist", "loadfile", *tests]
+                if pytest and target_has_module(_target_py, "xdist")
+                else None
+            )
+            add(
+                "pytest-xdist",
+                "cross-test-state",
+                cmd,
+                reason="pytest-xdist not installed",
+                env={"PYTHONHASHSEED": str(repro_seed)},
+                findings_exit_codes={1},
+            )
 
         if "pytest-async-blocking" in wanted:
             blocker = generated_config(root, "blockbuster_plugin.py")
-            cmd = [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *tests] if pytest and blocker and target_has_module(_target_py, "blockbuster") else None
+            cmd = (
+                [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *tests]
+                if pytest and blocker and target_has_module(_target_py, "blockbuster")
+                else None
+            )
             env = {"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(repro_seed)}
             if blocker:
-                env["PYTHONPATH"] = str(blocker.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
-            add("pytest-async-blocking", "async-runtime", cmd, reason="Blockbuster plugin not configured/installed", env=env, findings_exit_codes={1})
+                env["PYTHONPATH"] = (
+                    str(blocker.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
+                )
+            add(
+                "pytest-async-blocking",
+                "async-runtime",
+                cmd,
+                reason="Blockbuster plugin not configured/installed",
+                env=env,
+                findings_exit_codes={1},
+            )
 
         if "pytest-parallel" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "--parallel-threads=auto", "--iterations=3", *tests] if pytest and python_module_available("pytest_run_parallel") else None
-            add("pytest-parallel", "thread-safety", cmd, reason="pytest-run-parallel not installed", env={"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1})
+            cmd = (
+                [
+                    pytest,
+                    "-q",
+                    "--tb=short",
+                    "--parallel-threads=auto",
+                    "--iterations=3",
+                    *tests,
+                ]
+                if pytest and python_module_available("pytest_run_parallel")
+                else None
+            )
+            add(
+                "pytest-parallel",
+                "thread-safety",
+                cmd,
+                reason="pytest-run-parallel not installed",
+                env={"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(repro_seed)},
+                findings_exit_codes={1},
+            )
 
         if "hypofuzz" in wanted:
             hypothesis_cli = executable("hypothesis")
-            budget = int(cfg.raw.get("hypofuzz", {}).get(f"{profile}_seconds", 300 if profile == "all" else 120))
+            budget = int(
+                cfg.raw.get("hypofuzz", {}).get(
+                    f"{profile}_seconds", 300 if profile == "all" else 120
+                )
+            )
             workers = int(cfg.raw.get("hypofuzz", {}).get("workers", 2))
-            cmd = [hypothesis_cli, "fuzz", "--no-dashboard", "-n", str(workers), "--", *tests] if hypothesis_cli else None
-            add("hypofuzz", "coverage-guided-property-fuzz", cmd, reason="HypoFuzz/Hypothesis CLI not installed", check_timeout=budget, timeout_is_success=True, env={"PYTHONHASHSEED": str(repro_seed)}, skip_exit_codes={5})
+            cmd = (
+                [
+                    hypothesis_cli,
+                    "fuzz",
+                    "--no-dashboard",
+                    "-n",
+                    str(workers),
+                    "--",
+                    *tests,
+                ]
+                if hypothesis_cli
+                else None
+            )
+            add(
+                "hypofuzz",
+                "coverage-guided-property-fuzz",
+                cmd,
+                reason="HypoFuzz/Hypothesis CLI not installed",
+                check_timeout=budget,
+                timeout_is_success=True,
+                env={"PYTHONHASHSEED": str(repro_seed)},
+                skip_exit_codes={5},
+            )
 
         if "griffe" in wanted:
             griffe = executable("griffe")
@@ -1616,107 +2613,249 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                 cmd = [griffe, "check", *packages, "--against", baseline]
                 for sp in cfg.source_paths:
                     cmd += ["--search", sp]
-                add("griffe", "python-api-compatibility", cmd, reason="griffe unavailable", findings_exit_codes={1})
+                add(
+                    "griffe",
+                    "python-api-compatibility",
+                    cmd,
+                    reason="griffe unavailable",
+                    findings_exit_codes={1},
+                )
             else:
-                reason = "no local Git baseline/public package found" if griffe else "griffe not installed"
+                reason = (
+                    "no local Git baseline/public package found"
+                    if griffe
+                    else "griffe not installed"
+                )
                 add("griffe", "python-api-compatibility", None, reason=reason)
 
         if "importtime" in wanted:
             packages = python_package_names(root, cfg.source_paths)
             threshold = int(cfg.raw.get("performance", {}).get("import_ms_warn", 1000))
-            add("importtime", "startup-performance", [sys.executable, "-m", "bughunt.importtime_runner", str(threshold), *packages] if packages else None,
-                lambda o,e,c: parse_bughunt_helper("importtime", o,e,c), reason="no importable package root", findings_exit_codes={1})
+            add(
+                "importtime",
+                "startup-performance",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.importtime_runner",
+                    str(threshold),
+                    *packages,
+                ]
+                if packages
+                else None,
+                lambda o, e, c: parse_bughunt_helper("importtime", o, e, c),
+                reason="no importable package root",
+                findings_exit_codes={1},
+            )
 
         if "python-matrix" in wanted:
             nox = executable("nox")
             noxfile = root / ".bughunt" / "generated" / "noxfile.py"
-            add("python-matrix", "interpreter-compatibility", [nox, "-f", str(noxfile), "--download-python", "auto"] if nox and noxfile.exists() else None,
-                reason="Nox matrix not configured/installed", check_timeout=cfg.timeout("all"), findings_exit_codes={1})
+            add(
+                "python-matrix",
+                "interpreter-compatibility",
+                [nox, "-f", str(noxfile), "--download-python", "auto"]
+                if nox and noxfile.exists()
+                else None,
+                reason="Nox matrix not configured/installed",
+                check_timeout=cfg.timeout("all"),
+                findings_exit_codes={1},
+            )
 
         if "timezone-matrix" in wanted:
             # Two hostile timezone passes; locale variation is only added when a matching locale exists.
             for tz in ("UTC", "Pacific/Kiritimati"):
                 name = f"timezone-matrix:{tz}"
-                checks.append(Check(name, "environment-variation", [pytest, "-q", "--tb=short", *tests], lambda o,e,c,n=name: text_findings(n,o,e,c), timeout, root,
-                    env={"TZ": tz, "PYTHONHASHSEED": str(repro_seed), "PYTHONASYNCIODEBUG": "1"}, findings_exit_codes={1})) if pytest else None
+                checks.append(
+                    Check(
+                        name,
+                        "environment-variation",
+                        [pytest, "-q", "--tb=short", *tests],
+                        partial(text_findings, name),
+                        timeout,
+                        root,
+                        env={
+                            "TZ": tz,
+                            "PYTHONHASHSEED": str(repro_seed),
+                            "PYTHONASYNCIODEBUG": "1",
+                        },
+                        findings_exit_codes={1},
+                    )
+                ) if pytest else None
             # macOS commonly exposes Turkish as tr_TR.UTF-8/tr_TR.UTF-8-like names; only run it if installed.
             try:
-                locale_lines = subprocess.run(["locale", "-a"], capture_output=True, text=True, timeout=3, check=False).stdout.splitlines()
+                locale_lines = subprocess.run(
+                    ["locale", "-a"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    check=False,
+                ).stdout.splitlines()
             except (OSError, subprocess.SubprocessError):
                 locale_lines = []
-            turkish = next((x.strip() for x in locale_lines if x.strip().lower() in {"tr_tr.utf-8", "tr_tr.utf8", "tr_tr"}), None)
+            turkish = next(
+                (
+                    x.strip()
+                    for x in locale_lines
+                    if x.strip().lower() in {"tr_tr.utf-8", "tr_tr.utf8", "tr_tr"}
+                ),
+                None,
+            )
             if turkish and pytest:
                 name = "locale-matrix:tr_TR"
-                checks.append(Check(name, "environment-variation", [pytest, "-q", "--tb=short", *tests], lambda o,e,c,n=name: text_findings(n,o,e,c), timeout, root,
-                    env={"LC_ALL": turkish, "LANG": turkish, "PYTHONHASHSEED": str(repro_seed)}, findings_exit_codes={1}))
+                checks.append(
+                    Check(
+                        name,
+                        "environment-variation",
+                        [pytest, "-q", "--tb=short", *tests],
+                        partial(text_findings, name),
+                        timeout,
+                        root,
+                        env={
+                            "LC_ALL": turkish,
+                            "LANG": turkish,
+                            "PYTHONHASHSEED": str(repro_seed),
+                        },
+                        findings_exit_codes={1},
+                    )
+                )
 
         if "memray" in wanted:
-            cmd = [pytest, "-q", "--tb=short", "--memray", "--fail-on-increase", *tests] if pytest and target_has_module(_target_py, "pytest_memray") else None
-            add("memray", "memory-runtime", cmd, reason="pytest-memray not installed", check_timeout=cfg.timeout(profile), findings_exit_codes={1})
+            cmd = (
+                [pytest, "-q", "--tb=short", "--memray", "--fail-on-increase", *tests]
+                if pytest and target_has_module(_target_py, "pytest_memray")
+                else None
+            )
+            add(
+                "memray",
+                "memory-runtime",
+                cmd,
+                reason="pytest-memray not installed",
+                check_timeout=cfg.timeout(profile),
+                findings_exit_codes={1},
+            )
 
         if "benchmark" in wanted:
-            if technology.has("benchmark-tests") and pytest and target_has_module(_target_py, "pytest_benchmark"):
+            if (
+                technology.has("benchmark-tests")
+                and pytest
+                and target_has_module(_target_py, "pytest_benchmark")
+            ):
                 cmd = [pytest, "-q", "--benchmark-only", "--benchmark-autosave"]
                 if (root / ".benchmarks").exists():
-                    regression = int(cfg.raw.get("performance", {}).get("benchmark_regression_percent", 10))
-                    cmd += ["--benchmark-compare", f"--benchmark-compare-fail=mean:{regression}%"]
+                    regression = int(
+                        cfg.raw.get("performance", {}).get(
+                            "benchmark_regression_percent", 10
+                        )
+                    )
+                    cmd += [
+                        "--benchmark-compare",
+                        f"--benchmark-compare-fail=mean:{regression}%",
+                    ]
                 cmd += tests
                 add("benchmark", "performance-regression", cmd, findings_exit_codes={1})
             else:
-                skipped.append(Result("benchmark", "performance-regression", Status.NA if not technology.has("benchmark-tests") else Status.SKIPPED,
-                    note="no pytest-benchmark tests detected" if not technology.has("benchmark-tests") else "pytest-benchmark not installed"))
+                skipped.append(
+                    Result(
+                        "benchmark",
+                        "performance-regression",
+                        Status.NA
+                        if not technology.has("benchmark-tests")
+                        else Status.SKIPPED,
+                        note="no pytest-benchmark tests detected"
+                        if not technology.has("benchmark-tests")
+                        else "pytest-benchmark not installed",
+                    )
+                )
 
         if "pyanalyze" in wanted:
             pa = executable("pyanalyze")
-            allowed = bool(cfg.raw.get("execution_imports", {}).get("allow_importing_analyzers", False))
-            add("pyanalyze", "runtime-informed-static", [pa, *src] if pa and allowed else None,
-                reason=("installed but disabled: pyanalyze imports modules; set execution_imports.allow_importing_analyzers=true only in a sandbox" if pa else "pyanalyze not installed"), findings_exit_codes={1})
+            allowed = bool(
+                cfg.raw.get("execution_imports", {}).get(
+                    "allow_importing_analyzers", False
+                )
+            )
+            add(
+                "pyanalyze",
+                "runtime-informed-static",
+                [pa, *src] if pa and allowed else None,
+                reason=(
+                    "installed but disabled: pyanalyze imports modules; set execution_imports.allow_importing_analyzers=true only in a sandbox"
+                    if pa
+                    else "pyanalyze not installed"
+                ),
+                findings_exit_codes={1},
+            )
 
         # These are intentionally represented even when auto-execution would be unsafe.
         if "version-diff" in wanted:
             baseline = technology.git_baseline
-            add("version-diff", "behavior-compatibility", [sys.executable, "-m", "bughunt.version_diff_runner", str(root), baseline, *cfg.source_paths] if baseline else None,
-                lambda o,e,c: parse_bughunt_helper("version-diff", o,e,c),
-                reason="no local Git baseline for behavioral differential", findings_exit_codes={1})
+            add(
+                "version-diff",
+                "behavior-compatibility",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.version_diff_runner",
+                    str(root),
+                    baseline,
+                    *cfg.source_paths,
+                ]
+                if baseline
+                else None,
+                lambda o, e, c: parse_bughunt_helper("version-diff", o, e, c),
+                reason="no local Git baseline for behavioral differential",
+                findings_exit_codes={1},
+            )
         if "ghostwriter" in wanted:
-            skipped.append(Result(
-                "ghostwriter",
-                "test-generation",
-                Status.NA,
-                note="GUARDED: Hypothesis ghostwriter generates candidate tests and may import project callables; BugHunt property discovery runs automatically, while ghostwriter remains an explicit review/generation helper",
-            ))
+            skipped.append(
+                Result(
+                    "ghostwriter",
+                    "test-generation",
+                    Status.NA,
+                    note="GUARDED: Hypothesis ghostwriter generates candidate tests and may import project callables; BugHunt property discovery runs automatically, while ghostwriter remains an explicit review/generation helper",
+                )
+            )
         if "pynguin" in wanted:
-            skipped.append(Result(
-                "pynguin",
-                "search-based-test-generation",
-                Status.NA,
-                note="GUARDED: Pynguin executes modules under test; only run in a throwaway or OS-sandboxed environment, so this candidate does not reduce correctness health",
-            ))
+            skipped.append(
+                Result(
+                    "pynguin",
+                    "search-based-test-generation",
+                    Status.NA,
+                    note="GUARDED: Pynguin executes modules under test; only run in a throwaway or OS-sandboxed environment, so this candidate does not reduce correctness health",
+                )
+            )
 
     # Bug Corpus is the V2 learning subsystem, not a third-party executable.
     # Keep it visible as an intentional blind spot until the integrated engine
     # lands rather than pretending an imaginary `bugcorpus` package is missing.
     if "bugcorpus" in wanted:
-        skipped.append(Result(
-            "bugcorpus",
-            "historical/custom-static",
-            Status.SKIPPED,
-            note="integrated Bug Corpus execution is a V2 feature; see docs/V2_SPEC.md",
-        ))
+        skipped.append(
+            Result(
+                "bugcorpus",
+                "historical/custom-static",
+                Status.SKIPPED,
+                note="integrated Bug Corpus execution is a V2 feature; see docs/V2_SPEC.md",
+            )
+        )
 
     # Target-specific fuzz / API / custom checks. Explicit config and safe
     # auto-discovered targets are merged. Auto-discovery never points at a
     # non-local HTTP server.
     if "schemathesis" in wanted:
         explicit = list(cfg.raw.get("schemathesis", {}).get("targets", []))
-        auto = [t for t in generated_targets if t.kind == "schemathesis" and t.runnable and t.command]
+        auto = [
+            t
+            for t in generated_targets
+            if t.kind == "schemathesis" and t.runnable and t.command
+        ]
         added = 0
         st = executable("st", "schemathesis")
         schemathesis_ready = bool(st) or python_module_available("schemathesis")
         for target in explicit:
             if not st:
                 continue
-            name = f"schemathesis:{target.get('name','api')}"
+            name = f"schemathesis:{target.get('name', 'api')}"
             schema = str(target["schema"])
             st_cfg = generated_config(root, "schemathesis.toml")
             cmd = [st]
@@ -1725,49 +2864,110 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             cmd += ["run", schema]
             if target.get("url"):
                 cmd += ["--url", str(target["url"])]
-            cmd += ["--max-examples", str(target.get("max_examples", 1000)), "--continue-on-failure", "--checks", "all", "--output-truncate", "false"]
-            checks.append(Check(name, "api-fuzz", cmd, lambda o,e,c,n=name: text_findings(n,o,e,c), int(target.get("timeout", timeout)), root))
+            cmd += [
+                "--max-examples",
+                str(target.get("max_examples", 1000)),
+                "--continue-on-failure",
+                "--checks",
+                "all",
+                "--output-truncate",
+                "false",
+            ]
+            checks.append(
+                Check(
+                    name,
+                    "api-fuzz",
+                    cmd,
+                    partial(text_findings, name),
+                    int(target.get("timeout", timeout)),
+                    root,
+                )
+            )
             added += 1
         for target in auto:
             if not schemathesis_ready:
                 continue
             name = f"schemathesis:auto:{target.name}"
-            checks.append(Check(name, "api-fuzz", list(target.command or []), lambda o,e,c,n=name: text_findings(n,o,e,c), timeout, root))
+            checks.append(
+                Check(
+                    name,
+                    "api-fuzz",
+                    list(target.command or []),
+                    partial(text_findings, name),
+                    timeout,
+                    root,
+                )
+            )
             added += 1
         if not added:
-            candidates = sum(t.kind == "schemathesis-candidate" for t in generated_targets)
+            candidates = sum(
+                t.kind == "schemathesis-candidate" for t in generated_targets
+            )
             if (explicit or auto) and not schemathesis_ready:
                 reason = "Schemathesis target exists but the engine is not installed"
             else:
                 reason = "no safe runnable API target discovered/configured"
                 if candidates:
                     reason += f" ({candidates} schema candidate(s) need a local URL)"
-            skipped.append(Result("schemathesis", "api-fuzz", Status.SKIPPED, note=reason))
+            skipped.append(
+                Result("schemathesis", "api-fuzz", Status.SKIPPED, note=reason)
+            )
 
     if "atheris" in wanted and not technology.has("python"):
-        skipped.append(Result("atheris", "coverage-fuzz", Status.NA, note="not applicable: no first-party Python capability detected"))
+        skipped.append(
+            Result(
+                "atheris",
+                "coverage-fuzz",
+                Status.NA,
+                note="not applicable: no first-party Python capability detected",
+            )
+        )
     elif "atheris" in wanted:
         explicit = list(cfg.raw.get("atheris", {}).get("targets", []))
-        auto = [t for t in generated_targets if t.kind == "atheris" and t.runnable and t.command]
+        auto = [
+            t
+            for t in generated_targets
+            if t.kind == "atheris" and t.runnable and t.command
+        ]
         added = 0
         atheris_ready = atheris_available(root)
         for target in explicit:
-            name = f"atheris:{target.get('name','fuzzer')}"
+            name = f"atheris:{target.get('name', 'fuzzer')}"
             cmd = [str(x) for x in target["command"]]
-            checks.append(Check(name, "coverage-fuzz", cmd, lambda o,e,c,n=name: text_findings(n,o,e,c), int(target.get("timeout", timeout)), root))
+            checks.append(
+                Check(
+                    name,
+                    "coverage-fuzz",
+                    cmd,
+                    partial(text_findings, name),
+                    int(target.get("timeout", timeout)),
+                    root,
+                )
+            )
             added += 1
         for target in auto:
             if not atheris_ready:
                 continue
             name = f"atheris:auto:{target.name}"
-            checks.append(Check(name, "coverage-fuzz", list(target.command or []), lambda o,e,c,n=name: text_findings(n,o,e,c), timeout, root))
+            checks.append(
+                Check(
+                    name,
+                    "coverage-fuzz",
+                    list(target.command or []),
+                    partial(text_findings, name),
+                    timeout,
+                    root,
+                )
+            )
             added += 1
         if not added:
             if auto and not atheris_ready:
                 reason = "Atheris target discovered, but the Atheris engine is not importable"
             else:
                 reason = "no safe one-argument parser/decoder fuzz target discovered/configured"
-            skipped.append(Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason))
+            skipped.append(
+                Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason)
+            )
 
     if "custom" in wanted:
         explicit_custom = list(cfg.raw.get("custom", {}).get("checks", []))
@@ -1782,7 +2982,10 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                 "confidence": target.confidence,
             }
             for target in generated_targets
-            if target.kind.startswith("custom-") and target.runnable and target.command and target.confidence == "high"
+            if target.kind.startswith("custom-")
+            and target.runnable
+            and target.command
+            and target.confidence == "high"
         ]
         merged_custom: list[dict[str, Any]] = []
         seen_custom: set[tuple[str, tuple[str, ...]]] = set()
@@ -1794,7 +2997,14 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             seen_custom.add(key)
             merged_custom.append(item)
         if not merged_custom:
-            skipped.append(Result("custom", "custom", Status.SKIPPED, note="no high-confidence repository-specific semantic campaign could be inferred"))
+            skipped.append(
+                Result(
+                    "custom",
+                    "custom",
+                    Status.SKIPPED,
+                    note="no high-confidence repository-specific semantic campaign could be inferred",
+                )
+            )
         else:
             rank = {"fast": 0, "pr": 1, "deep": 2, "all": 3}
             for item in merged_custom:
@@ -1802,16 +3012,25 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                 if rank[profile] < rank.get(required, 2):
                     continue
                 name = f"custom:{item['name']}"
-                checks.append(Check(name, str(item.get("category", "custom")), [str(x) for x in item["command"]], lambda o,e,c,n=name: text_findings(n,o,e,c), int(item.get("timeout", timeout)), root))
-
+                checks.append(
+                    Check(
+                        name,
+                        str(item.get("category", "custom")),
+                        [str(x) for x in item["command"]],
+                        partial(text_findings, name),
+                        int(item.get("timeout", timeout)),
+                        root,
+                    )
+                )
 
     # Technology-aware correctness engines. Absence of the technology itself is
     # N/A, not a blind spot. An applicable technology with a missing engine is
     # a real skipped defense and lowers coverage health.
+    # trace:v1 id=impl.src-bughunt-cli-build-checks.add-technology work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add_technology(
         engine: str,
         command: Sequence[str] | None,
-        parser_fn: Callable[[str, str, int], list[Finding]] = text_findings,
+        parser_fn: Callable[[str, str, int], list[Finding]] | None = None,
         *,
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
@@ -1827,41 +3046,96 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             # multiple per-file checks (oasdiff etc.).
             if not any(x.name == engine and x.status == Status.NA for x in skipped):
                 cap = ENGINE_CAPABILITY[engine]
-                skipped.append(Result(engine, category, Status.NA, note=f"not applicable: no {cap} capability detected"))
+                skipped.append(
+                    Result(
+                        engine,
+                        category,
+                        Status.NA,
+                        note=f"not applicable: no {cap} capability detected",
+                    )
+                )
             return
         if command is None:
-            skipped.append(Result(logical, category, Status.SKIPPED, note=reason or f"{engine} not installed/configured"))
+            skipped.append(
+                Result(
+                    logical,
+                    category,
+                    Status.SKIPPED,
+                    note=reason or f"{engine} not installed/configured",
+                )
+            )
             return
-        checks.append(Check(
-            logical, category, list(command),
-            parser_fn if parser_fn is not text_findings else (lambda o,e,c,n=logical: text_findings(n,o,e,c)),
-            check_timeout or timeout, root,
-            findings_exit_codes=findings_exit_codes if findings_exit_codes is not None else {1},
-        ))
+        checks.append(
+            Check(
+                logical,
+                category,
+                list(command),
+                partial(text_findings, logical) if parser_fn is None else parser_fn,
+                check_timeout or timeout,
+                root,
+                findings_exit_codes=findings_exit_codes
+                if findings_exit_codes is not None
+                else {1},
+            )
+        )
 
     # GitHub Actions: semantic workflow checking plus embedded shell/Python
     # checks when actionlint can find those helpers.
     actionlint = project_executable(root, "actionlint")
     action_files = technology.files.get("github-actions", [])
-    action_cmd = [actionlint, "-format", "{{json .}}", *action_files] if actionlint else None
-    add_technology("actionlint", action_cmd, parse_actionlint, reason="GitHub Actions detected but actionlint is not installed", findings_exit_codes={1})
+    action_cmd = (
+        [actionlint, "-format", "{{json .}}", *action_files] if actionlint else None
+    )
+    add_technology(
+        "actionlint",
+        action_cmd,
+        parse_actionlint,
+        reason="GitHub Actions detected but actionlint is not installed",
+        findings_exit_codes={1},
+    )
 
     shellcheck = project_executable(root, "shellcheck")
     shell_files = technology.files.get("shell", [])
-    shell_cmd = [shellcheck, "-f", "json1", *shell_files] if shellcheck and shell_files else None
-    add_technology("shellcheck", shell_cmd, parse_shellcheck, reason="shell scripts detected but ShellCheck is not installed", findings_exit_codes={1})
+    shell_cmd = (
+        [shellcheck, "-f", "json1", *shell_files]
+        if shellcheck and shell_files
+        else None
+    )
+    add_technology(
+        "shellcheck",
+        shell_cmd,
+        parse_shellcheck,
+        reason="shell scripts detected but ShellCheck is not installed",
+        findings_exit_codes={1},
+    )
 
     dotenv = project_executable(root, "dotenv-linter")
     env_files = technology.files.get("dotenv", [])
     dotenv_cmd = [dotenv, "check", *env_files] if dotenv and env_files else None
-    add_technology("dotenv-linter", dotenv_cmd, reason="environment files detected but dotenv-linter is not installed", findings_exit_codes={1})
-    if "dotenv-linter" in wanted and technology.has("dotenv") and dotenv and ".env" in env_files and ".env.example" in env_files:
-        checks.append(Check(
-            "dotenv-linter:contract", ENGINE_CATEGORY["dotenv-linter"],
-            [dotenv, "diff", ".env", ".env.example"],
-            lambda o,e,c: text_findings("dotenv-linter", o,e,c), timeout, root,
-            findings_exit_codes={1},
-        ))
+    add_technology(
+        "dotenv-linter",
+        dotenv_cmd,
+        reason="environment files detected but dotenv-linter is not installed",
+        findings_exit_codes={1},
+    )
+    if (
+        "dotenv-linter" in wanted
+        and technology.has("dotenv")
+        and dotenv
+        and ".env" in env_files
+        and ".env.example" in env_files
+    ):
+        checks.append(
+            Check(
+                "dotenv-linter:contract",
+                ENGINE_CATEGORY["dotenv-linter"],
+                [dotenv, "diff", ".env", ".env.example"],
+                lambda o, e, c: text_findings("dotenv-linter", o, e, c),
+                timeout,
+                root,
+                findings_exit_codes={1},
+            )
+        )
 
     # OpenAPI: validate HEAD and, when the file existed at the selected local
     # Git baseline, test backwards compatibility. This catches temporal bugs
@@ -1872,56 +3146,124 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         if not technology.has("openapi"):
             add_technology("oasdiff", None)
         elif not oasdiff:
-            add_technology("oasdiff", None, reason="OpenAPI detected but oasdiff is not installed")
+            add_technology(
+                "oasdiff", None, reason="OpenAPI detected but oasdiff is not installed"
+            )
         else:
             for spec in openapi_files:
                 safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", spec)
-                checks.append(Check(
-                    f"oasdiff:validate:{safe_name}", ENGINE_CATEGORY["oasdiff"],
-                    [oasdiff, "validate", spec], lambda o,e,c,n=f"oasdiff:validate:{safe_name}": text_findings(n,o,e,c),
-                    timeout, root, findings_exit_codes={1},
-                ))
-                if technology.git_baseline and git_path_exists(root, technology.git_baseline, spec):
-                    checks.append(Check(
-                        f"oasdiff:breaking:{safe_name}", ENGINE_CATEGORY["oasdiff"],
-                        [oasdiff, "breaking", "--format", "json", f"{technology.git_baseline}:{spec}", spec],
-                        lambda o,e,c,n=f"oasdiff:breaking:{safe_name}": parse_json_list(n,o,e,c),
-                        timeout, root, findings_exit_codes={1},
-                    ))
+                checks.append(
+                    Check(
+                        f"oasdiff:validate:{safe_name}",
+                        ENGINE_CATEGORY["oasdiff"],
+                        [oasdiff, "validate", spec],
+                        partial(text_findings, f"oasdiff:validate:{safe_name}"),
+                        timeout,
+                        root,
+                        findings_exit_codes={1},
+                    )
+                )
+                if technology.git_baseline and git_path_exists(
+                    root, technology.git_baseline, spec
+                ):
+                    checks.append(
+                        Check(
+                            f"oasdiff:breaking:{safe_name}",
+                            ENGINE_CATEGORY["oasdiff"],
+                            [
+                                oasdiff,
+                                "breaking",
+                                "--format",
+                                "json",
+                                f"{technology.git_baseline}:{spec}",
+                                spec,
+                            ],
+                            partial(parse_json_list, f"oasdiff:breaking:{safe_name}"),
+                            timeout,
+                            root,
+                            findings_exit_codes={1},
+                        )
+                    )
 
     buf = project_executable(root, "buf")
     if "buf" in wanted:
         if not technology.has("protobuf"):
             add_technology("buf", None)
         elif not buf:
-            add_technology("buf", None, reason="Protocol Buffers detected but buf is not installed")
+            add_technology(
+                "buf", None, reason="Protocol Buffers detected but buf is not installed"
+            )
         else:
             buf_cfg = generated_config(root, "buf.yaml")
             lint_cmd = [buf, "lint", ".", "--error-format=json"]
             if buf_cfg:
                 lint_cmd += ["--config", str(buf_cfg)]
-            checks.append(Check("buf:lint", ENGINE_CATEGORY["buf"], lint_cmd, parse_buf_json_lines, timeout, root, findings_exit_codes={1,100}))
+            checks.append(
+                Check(
+                    "buf:lint",
+                    ENGINE_CATEGORY["buf"],
+                    lint_cmd,
+                    parse_buf_json_lines,
+                    timeout,
+                    root,
+                    findings_exit_codes={1, 100},
+                )
+            )
             if technology.git_baseline:
-                breaking_cmd = [buf, "breaking", ".", "--against", f".git#ref={technology.git_baseline}", "--error-format=json"]
+                breaking_cmd = [
+                    buf,
+                    "breaking",
+                    ".",
+                    "--against",
+                    f".git#ref={technology.git_baseline}",
+                    "--error-format=json",
+                ]
                 if buf_cfg:
                     breaking_cmd += ["--config", str(buf_cfg)]
-                checks.append(Check(
-                    "buf:breaking", ENGINE_CATEGORY["buf"], breaking_cmd,
-                    parse_buf_json_lines, timeout, root, findings_exit_codes={1,100},
-                ))
+                checks.append(
+                    Check(
+                        "buf:breaking",
+                        ENGINE_CATEGORY["buf"],
+                        breaking_cmd,
+                        parse_buf_json_lines,
+                        timeout,
+                        root,
+                        findings_exit_codes={1, 100},
+                    )
+                )
 
     sqlfluff = project_executable(root, "sqlfluff")
     sql_files = technology.files.get("sql", [])
     sql_cfg = generated_config(root, "sqlfluff.ini")
-    sql_cmd = [sqlfluff, "lint", *sql_files, "--format", "json"] if sqlfluff and sql_files else None
+    sql_cmd = (
+        [sqlfluff, "lint", *sql_files, "--format", "json"]
+        if sqlfluff and sql_files
+        else None
+    )
     if sql_cmd and sql_cfg:
         sql_cmd += ["--config", str(sql_cfg)]
-    add_technology("sqlfluff", sql_cmd, parse_sqlfluff, reason="SQL detected but SQLFluff is not installed", findings_exit_codes={1})
+    add_technology(
+        "sqlfluff",
+        sql_cmd,
+        parse_sqlfluff,
+        reason="SQL detected but SQLFluff is not installed",
+        findings_exit_codes={1},
+    )
 
     squawk = project_executable(root, "squawk")
     migration_files = technology.files.get("postgres-migrations", [])
-    squawk_cmd = [squawk, "--reporter", "json", *migration_files] if squawk and migration_files else None
-    add_technology("squawk", squawk_cmd, parse_squawk, reason="PostgreSQL migrations detected but Squawk is not installed", findings_exit_codes={1})
+    squawk_cmd = (
+        [squawk, "--reporter", "json", *migration_files]
+        if squawk and migration_files
+        else None
+    )
+    add_technology(
+        "squawk",
+        squawk_cmd,
+        parse_squawk,
+        reason="PostgreSQL migrations detected but Squawk is not installed",
+        findings_exit_codes={1},
+    )
 
     hadolint = project_executable(root, "hadolint")
     docker_files = technology.files.get("docker", [])
@@ -1931,105 +3273,294 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
         hadolint_cmd += ["--config", str(hadolint_cfg)]
     if hadolint_cmd:
         hadolint_cmd += docker_files
-    add_technology("hadolint", hadolint_cmd, parse_hadolint, reason="Dockerfiles detected but Hadolint is not installed", findings_exit_codes={1})
+    add_technology(
+        "hadolint",
+        hadolint_cmd,
+        parse_hadolint,
+        reason="Dockerfiles detected but Hadolint is not installed",
+        findings_exit_codes={1},
+    )
 
     tflint = project_executable(root, "tflint")
     tflint_cfg = generated_config(root, "tflint.hcl")
     tflint_cmd = [tflint, "--recursive", "--format=json"] if tflint else None
     if tflint_cmd and tflint_cfg:
         tflint_cmd += [f"--config={tflint_cfg}"]
-    add_technology("tflint", tflint_cmd, parse_tflint, reason="Terraform detected but TFLint is not installed", findings_exit_codes={1})
+    add_technology(
+        "tflint",
+        tflint_cmd,
+        parse_tflint,
+        reason="Terraform detected but TFLint is not installed",
+        findings_exit_codes={1},
+    )
 
     golangci = project_executable(root, "golangci-lint")
     go_linters = [
-        "errcheck", "govet", "staticcheck", "ineffassign", "unused", "bodyclose",
-        "durationcheck", "errorlint", "exhaustive", "makezero", "rowserrcheck", "sqlclosecheck",
+        "errcheck",
+        "govet",
+        "staticcheck",
+        "ineffassign",
+        "unused",
+        "bodyclose",
+        "durationcheck",
+        "errorlint",
+        "exhaustive",
+        "makezero",
+        "rowserrcheck",
+        "sqlclosecheck",
     ]
     go_cmd = [golangci, "run", "--default=none"] if golangci else None
     if go_cmd:
         for linter in go_linters:
             go_cmd += ["--enable", linter]
-        go_cmd += ["--output.json.path=stdout", "--output.text.path=", "--show-stats=false", "--issues-exit-code=1"]
-    add_technology("golangci-lint", go_cmd, parse_golangci, reason="Go detected but golangci-lint is not installed", findings_exit_codes={1})
+        go_cmd += [
+            "--output.json.path=stdout",
+            "--output.text.path=",
+            "--show-stats=false",
+            "--issues-exit-code=1",
+        ]
+    add_technology(
+        "golangci-lint",
+        go_cmd,
+        parse_golangci,
+        reason="Go detected but golangci-lint is not installed",
+        findings_exit_codes={1},
+    )
 
     cargo = project_executable(root, "cargo")
-    clippy_cmd = [
-        cargo, "clippy", "--workspace", "--all-targets", "--all-features", "--message-format=json", "--",
-        "-D", "clippy::correctness", "-D", "clippy::suspicious", "-W", "clippy::complexity", "-W", "clippy::perf",
-    ] if cargo else None
-    add_technology("clippy", clippy_cmd, parse_clippy, reason="Rust detected but cargo/clippy is not installed", findings_exit_codes={1,101})
+    clippy_cmd = (
+        [
+            cargo,
+            "clippy",
+            "--workspace",
+            "--all-targets",
+            "--all-features",
+            "--message-format=json",
+            "--",
+            "-D",
+            "clippy::correctness",
+            "-D",
+            "clippy::suspicious",
+            "-W",
+            "clippy::complexity",
+            "-W",
+            "clippy::perf",
+        ]
+        if cargo
+        else None
+    )
+    add_technology(
+        "clippy",
+        clippy_cmd,
+        parse_clippy,
+        reason="Rust detected but cargo/clippy is not installed",
+        findings_exit_codes={1, 101},
+    )
 
     compile_db = technology.files.get("cpp-compile-db", [])
     cpp_files = technology.files.get("cpp", [])
     cppcheck = project_executable(root, "cppcheck")
     cppcheck_cmd: list[str] | None = None
     if cppcheck:
-        cppcheck_cmd = [cppcheck, "--xml", "--xml-version=2", "--error-exitcode=1", "--enable=warning,performance,portability", "--inconclusive"]
+        cppcheck_cmd = [
+            cppcheck,
+            "--xml",
+            "--xml-version=2",
+            "--error-exitcode=1",
+            "--enable=warning,performance,portability",
+            "--inconclusive",
+        ]
         if compile_db:
             cppcheck_cmd += [f"--project={compile_db[0]}"]
         else:
             cppcheck_cmd += cpp_files
-    add_technology("cppcheck", cppcheck_cmd, parse_cppcheck, reason="C/C++ detected but Cppcheck is not installed", findings_exit_codes={1})
+    add_technology(
+        "cppcheck",
+        cppcheck_cmd,
+        parse_cppcheck,
+        reason="C/C++ detected but Cppcheck is not installed",
+        findings_exit_codes={1},
+    )
 
-    run_clang_tidy = llvm_executable(root, "run-clang-tidy") or llvm_executable(root, "run-clang-tidy.py")
+    run_clang_tidy = llvm_executable(root, "run-clang-tidy") or llvm_executable(
+        root, "run-clang-tidy.py"
+    )
     clang_cmd = None
     if run_clang_tidy and compile_db:
-        clang_cmd = [run_clang_tidy, f"-p={Path(compile_db[0]).parent or Path('.')}", "-checks=-*,clang-analyzer-*,bugprone-*,concurrency-*", "-warnings-as-errors=*"]
-    add_technology("clang-tidy", clang_cmd, reason=("C/C++ compile_commands.json detected but run-clang-tidy is not installed" if compile_db else "clang-tidy requires compile_commands.json"), findings_exit_codes={1})
+        clang_cmd = [
+            run_clang_tidy,
+            f"-p={Path(compile_db[0]).parent or Path('.')}",
+            "-checks=-*,clang-analyzer-*,bugprone-*,concurrency-*",
+            "-warnings-as-errors=*",
+        ]
+    add_technology(
+        "clang-tidy",
+        clang_cmd,
+        reason=(
+            "C/C++ compile_commands.json detected but run-clang-tidy is not installed"
+            if compile_db
+            else "clang-tidy requires compile_commands.json"
+        ),
+        findings_exit_codes={1},
+    )
 
     infer = project_executable(root, "infer")
-    infer_cmd = [infer, "run", "--compilation-database", compile_db[0], "--fail-on-issue", "--results-dir", str(root / ".bughunt" / "cache" / "infer")] if infer and compile_db else None
-    add_technology("infer", infer_cmd, reason="C/C++ compilation database detected but Infer is not installed", findings_exit_codes={2})
+    infer_cmd = (
+        [
+            infer,
+            "run",
+            "--compilation-database",
+            compile_db[0],
+            "--fail-on-issue",
+            "--results-dir",
+            str(root / ".bughunt" / "cache" / "infer"),
+        ]
+        if infer and compile_db
+        else None
+    )
+    add_technology(
+        "infer",
+        infer_cmd,
+        reason="C/C++ compilation database detected but Infer is not installed",
+        findings_exit_codes={2},
+    )
 
     phpstan = project_executable(root, "phpstan")
     php_cfg = generated_config(root, "phpstan.neon")
-    php_cmd = [phpstan, "analyse", "--no-progress", "--error-format=json"] if phpstan else None
+    php_cmd = (
+        [phpstan, "analyse", "--no-progress", "--error-format=json"]
+        if phpstan
+        else None
+    )
     if php_cmd and php_cfg:
         php_cmd += ["--configuration", str(php_cfg)]
-    add_technology("phpstan", php_cmd, parse_phpstan, reason="PHP detected but PHPStan is not installed", findings_exit_codes={1})
+    add_technology(
+        "phpstan",
+        php_cmd,
+        parse_phpstan,
+        reason="PHP detected but PHPStan is not installed",
+        findings_exit_codes={1},
+    )
 
     oxlint = project_executable(root, "oxlint")
     oxlint_cfg = generated_config(root, "oxlintrc.json")
     oxlint_cmd = [oxlint, "--format=json", "--deny-warnings"] if oxlint else None
     if oxlint_cmd and oxlint_cfg:
         oxlint_cmd += ["--config", str(oxlint_cfg)]
-    add_technology("oxlint", oxlint_cmd, parse_oxlint, reason="JavaScript/TypeScript detected but Oxlint is not installed", findings_exit_codes={1})
+    add_technology(
+        "oxlint",
+        oxlint_cmd,
+        parse_oxlint,
+        reason="JavaScript/TypeScript detected but Oxlint is not installed",
+        findings_exit_codes={1},
+    )
 
     eslint = project_executable(root, "eslint")
     eslint_cfg = generated_config(root, "eslint.config.mjs")
-    existing_eslint = next((p for p in ("eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", ".eslintrc", ".eslintrc.json", ".eslintrc.js") if (root / p).exists()), None)
-    chosen_eslint = eslint_cfg or ((root / existing_eslint) if existing_eslint else None)
+    existing_eslint = next(
+        (
+            p
+            for p in (
+                "eslint.config.js",
+                "eslint.config.mjs",
+                "eslint.config.cjs",
+                ".eslintrc",
+                ".eslintrc.json",
+                ".eslintrc.js",
+            )
+            if (root / p).exists()
+        ),
+        None,
+    )
+    chosen_eslint = eslint_cfg or (
+        (root / existing_eslint) if existing_eslint else None
+    )
     eslint_cmd = [eslint, ".", "--format", "json"] if eslint and chosen_eslint else None
     if eslint_cmd and eslint_cfg:
         eslint_cmd += ["--config", str(eslint_cfg)]
-    add_technology("eslint", eslint_cmd, parse_eslint, reason=("JavaScript/TypeScript detected but ESLint is not installed" if not eslint else "ESLint detected but no safe config is available"), findings_exit_codes={1})
+    add_technology(
+        "eslint",
+        eslint_cmd,
+        parse_eslint,
+        reason=(
+            "JavaScript/TypeScript detected but ESLint is not installed"
+            if not eslint
+            else "ESLint detected but no safe config is available"
+        ),
+        findings_exit_codes={1},
+    )
 
     react_doctor = project_executable(root, "react-doctor")
-    react_cmd = [react_doctor, ".", "--json", "--no-supply-chain"] if react_doctor else None
-    add_technology("react-doctor", react_cmd, lambda o,e,c: parse_eslint(o,e,c,tool="react-doctor"), reason="React detected but React Doctor is not installed", findings_exit_codes={1})
+    react_cmd = (
+        [react_doctor, ".", "--json", "--no-supply-chain"] if react_doctor else None
+    )
+    add_technology(
+        "react-doctor",
+        react_cmd,
+        lambda o, e, c: parse_eslint(o, e, c, tool="react-doctor"),
+        reason="React detected but React Doctor is not installed",
+        findings_exit_codes={1},
+    )
 
     # Additional configuration/contract/language surfaces. These are selected only
     # when technology.py proves the corresponding capability exists.
     tsc = project_executable(root, "tsc")
-    add_technology("tsc", [tsc, "--noEmit", "--pretty", "false"] if tsc else None, reason="TypeScript detected but tsc is not installed", findings_exit_codes={1,2})
+    add_technology(
+        "tsc",
+        [tsc, "--noEmit", "--pretty", "false"] if tsc else None,
+        reason="TypeScript detected but tsc is not installed",
+        findings_exit_codes={1, 2},
+    )
 
     knip = project_executable(root, "knip")
-    add_technology("knip", [knip, "--strict"] if knip else None, reason="JavaScript/TypeScript detected but Knip is not installed", findings_exit_codes={1})
+    add_technology(
+        "knip",
+        [knip, "--strict"] if knip else None,
+        reason="JavaScript/TypeScript detected but Knip is not installed",
+        findings_exit_codes={1},
+    )
 
     madge = project_executable(root, "madge")
-    add_technology("madge", [madge, "--circular", "."] if madge else None, reason="JavaScript/TypeScript detected but Madge is not installed", findings_exit_codes={1})
+    add_technology(
+        "madge",
+        [madge, "--circular", "."] if madge else None,
+        reason="JavaScript/TypeScript detected but Madge is not installed",
+        findings_exit_codes={1},
+    )
 
     publint = project_executable(root, "publint")
     package_json = root / "package.json"
-    add_technology("publint", [publint, str(package_json)] if publint and package_json.exists() else None, reason="JavaScript package detected but publint is not installed/package.json missing", findings_exit_codes={1})
+    add_technology(
+        "publint",
+        [publint, str(package_json)] if publint and package_json.exists() else None,
+        reason="JavaScript package detected but publint is not installed/package.json missing",
+        findings_exit_codes={1},
+    )
 
     taplo = project_executable(root, "taplo")
     toml_files = technology.files.get("toml", [])
-    add_technology("taplo", [taplo, "lint", *toml_files] if taplo and toml_files else None, reason="TOML detected but Taplo is not installed", findings_exit_codes={1})
+    add_technology(
+        "taplo",
+        [taplo, "lint", *toml_files] if taplo and toml_files else None,
+        reason="TOML detected but Taplo is not installed",
+        findings_exit_codes={1},
+    )
 
     yamllint = project_executable(root, "yamllint")
     yaml_files = technology.files.get("yaml", [])
-    add_technology("yamllint", [yamllint, "-d", "{extends: default, rules: {line-length: disable, truthy: disable, document-start: disable}}", *yaml_files] if yamllint and yaml_files else None, reason="YAML detected but yamllint is not installed", findings_exit_codes={1})
+    add_technology(
+        "yamllint",
+        [
+            yamllint,
+            "-d",
+            "{extends: default, rules: {line-length: disable, truthy: disable, document-start: disable}}",
+            *yaml_files,
+        ]
+        if yamllint and yaml_files
+        else None,
+        reason="YAML detected but yamllint is not installed",
+        findings_exit_codes={1},
+    )
 
     if "check-jsonschema" in wanted:
         if not technology.has("schema-ref"):
@@ -2040,40 +3571,87 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
             if checker and pairs:
                 for instance, schema in pairs:
                     safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", instance)
-                    checks.append(Check(
-                        f"check-jsonschema:{safe}", ENGINE_CATEGORY["check-jsonschema"],
-                        [checker, "--schemafile", schema, "--output-format", "JSON", instance],
-                        lambda o,e,c,n=f"check-jsonschema:{safe}": text_findings(n,o,e,c),
-                        timeout, root, findings_exit_codes={1},
-                    ))
+                    checks.append(
+                        Check(
+                            f"check-jsonschema:{safe}",
+                            ENGINE_CATEGORY["check-jsonschema"],
+                            [
+                                checker,
+                                "--schemafile",
+                                schema,
+                                "--output-format",
+                                "JSON",
+                                instance,
+                            ],
+                            partial(text_findings, f"check-jsonschema:{safe}"),
+                            timeout,
+                            root,
+                            findings_exit_codes={1},
+                        )
+                    )
             elif not checker:
-                add_technology("check-jsonschema", None, reason="local schema reference detected but check-jsonschema is not installed")
+                add_technology(
+                    "check-jsonschema",
+                    None,
+                    reason="local schema reference detected but check-jsonschema is not installed",
+                )
             else:
-                skipped.append(Result(
-                    "check-jsonschema", ENGINE_CATEGORY["check-jsonschema"], Status.SKIPPED,
-                    note="schema references exist, but none resolve to a repository-local schema; BugHunt refuses to fetch arbitrary remote schemas",
-                ))
+                skipped.append(
+                    Result(
+                        "check-jsonschema",
+                        ENGINE_CATEGORY["check-jsonschema"],
+                        Status.SKIPPED,
+                        note="schema references exist, but none resolve to a repository-local schema; BugHunt refuses to fetch arbitrary remote schemas",
+                    )
+                )
 
     alembic = project_executable(root, "alembic")
-    add_technology("alembic-check", [alembic, "check"] if alembic else None, reason="Alembic project detected but alembic is not installed", findings_exit_codes={1})
+    add_technology(
+        "alembic-check",
+        [alembic, "check"] if alembic else None,
+        reason="Alembic project detected but alembic is not installed",
+        findings_exit_codes={1},
+    )
 
     manage = root / "manage.py"
-    add_technology("django-migrations", [sys.executable, str(manage), "makemigrations", "--check", "--dry-run"] if manage.exists() else None, reason="Django detected but manage.py is unavailable", findings_exit_codes={1})
+    add_technology(
+        "django-migrations",
+        [sys.executable, str(manage), "makemigrations", "--check", "--dry-run"]
+        if manage.exists()
+        else None,
+        reason="Django detected but manage.py is unavailable",
+        findings_exit_codes={1},
+    )
 
     if "pact-contracts" in wanted:
         if not technology.has("pact"):
             add_technology("pact-contracts", None)
         else:
             pacts = pact_json_files(root, technology.files.get("pact", []))
-            asgi = [t for t in generated_targets if t.kind == "schemathesis" and (t.metadata or {}).get("transport") == "asgi"]
-            pact_ready = python_module_available("pact") and python_module_available("uvicorn")
+            asgi = [
+                t
+                for t in generated_targets
+                if t.kind == "schemathesis"
+                and (t.metadata or {}).get("transport") == "asgi"
+            ]
+            pact_ready = python_module_available("pact") and python_module_available(
+                "uvicorn"
+            )
             if len(asgi) == 1 and pacts and pact_ready:
                 app = asgi[0].name
                 add_technology(
                     "pact-contracts",
-                    [sys.executable, "-m", "bughunt.pact_runner", str(root), app, *pacts],
-                    lambda o,e,c: parse_bughunt_helper("pact-contracts", o,e,c),
-                    reason="Pact contract/provider target unavailable", findings_exit_codes={1},
+                    [
+                        sys.executable,
+                        "-m",
+                        "bughunt.pact_runner",
+                        str(root),
+                        app,
+                        *pacts,
+                    ],
+                    lambda o, e, c: parse_bughunt_helper("pact-contracts", o, e, c),
+                    reason="Pact contract/provider target unavailable",
+                    findings_exit_codes={1},
                     check_timeout=cfg.timeout(profile),
                 )
             else:
@@ -2081,17 +3659,25 @@ def build_checks(cfg: Config, profile: str, *, excluded: set[str] | None = None)
                 if not pacts:
                     reasons.append("no concrete local Pact JSON files")
                 if len(asgi) != 1:
-                    reasons.append(f"need exactly one high-confidence local ASGI provider target (found {len(asgi)})")
+                    reasons.append(
+                        f"need exactly one high-confidence local ASGI provider target (found {len(asgi)})"
+                    )
                 if not pact_ready:
                     reasons.append("pact-python/uvicorn not installed")
-                skipped.append(Result(
-                    "pact-contracts", ENGINE_CATEGORY["pact-contracts"], Status.SKIPPED,
-                    note="Pact capability detected but auto-verification is guarded: " + "; ".join(reasons),
-                ))
+                skipped.append(
+                    Result(
+                        "pact-contracts",
+                        ENGINE_CATEGORY["pact-contracts"],
+                        Status.SKIPPED,
+                        note="Pact capability detected but auto-verification is guarded: "
+                        + "; ".join(reasons),
+                    )
+                )
 
     return checks, skipped
 
 
+# trace:v1 id=impl.src-bughunt-cli.liverunstate work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 class LiveRunState:
     """Live heartbeat for long scans; state is updated by async check tasks."""
 
@@ -2129,6 +3715,7 @@ class LiveRunState:
             self.running.pop("codeql-db", None)
         self.completed.append(result)
 
+    # trace:v1 id=impl.src-bughunt-cli-liverunstate.render work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def render(self) -> Table:
         elapsed = time.perf_counter() - self.started_at
         table = Table(
@@ -2143,7 +3730,9 @@ class LiveRunState:
         table.add_column("ACTIVITY", ratio=3)
 
         now = time.perf_counter()
-        for name, entry in sorted(self.running.items(), key=lambda kv: float(kv[1]["started"])):
+        for name, entry in sorted(
+            self.running.items(), key=lambda kv: float(kv[1]["started"])
+        ):
             age = now - float(entry["started"])
             quiet = now - float(entry["last_activity"])
             timeout = int(entry["timeout"])
@@ -2171,8 +3760,16 @@ class LiveRunState:
                 Status.SKIPPED: "[dim]○ SKIP[/]",
                 Status.NA: "[dim cyan]— N/A[/]",
             }[result.status]
-            detail = result.note or (f"{result.count} finding(s)" if result.count else "complete")
-            table.add_row(glyph, result.name, result.category, f"{result.duration:.1f}s", escape(detail[:120]))
+            detail = result.note or (
+                f"{result.count} finding(s)" if result.count else "complete"
+            )
+            table.add_row(
+                glyph,
+                result.name,
+                result.category,
+                f"{result.duration:.1f}s",
+                escape(detail[:120]),
+            )
 
         completed = len(self.completed)
         queued = max(0, self.total - completed - len(self.running))
@@ -2180,7 +3777,10 @@ class LiveRunState:
         return table
 
 
-async def run_process(check: Check, raw_limit: int, progress: LiveRunState | None = None) -> Result:
+# trace:v1 id=impl.src-bughunt-cli.run-process work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_process(
+    check: Check, raw_limit: int, progress: LiveRunState | None = None
+) -> Result:
     started = time.perf_counter()
     if progress:
         progress.start(check)
@@ -2195,6 +3795,7 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
     stdout_chunks: list[bytes] = []
     stderr_chunks: list[bytes] = []
 
+    # trace:v1 id=impl.src-bughunt-cli-run-process.drain work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     async def drain(stream: asyncio.StreamReader | None, chunks: list[bytes]) -> None:
         if stream is None:
             return
@@ -2214,7 +3815,9 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
                     activity_tail = parts.pop()[-300:] if parts else text[-300:]
                 else:
                     activity_tail = ""
-                meaningful = next((line.strip() for line in reversed(parts) if line.strip()), "")
+                meaningful = next(
+                    (line.strip() for line in reversed(parts) if line.strip()), ""
+                )
                 if not meaningful and activity_tail.strip():
                     meaningful = activity_tail.strip()
                 if meaningful:
@@ -2235,34 +3838,52 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
         try:
             await asyncio.wait_for(proc.wait(), timeout=check.timeout)
             await asyncio.gather(out_task, err_task)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.wait()
             await asyncio.gather(out_task, err_task, return_exceptions=True)
             stdout = b"".join(stdout_chunks).decode(errors="replace")
             stderr = b"".join(stderr_chunks).decode(errors="replace")
-            findings: list[Finding] = []
+            timeout_findings: list[Finding] = []
             try:
-                findings = check.parser(stdout, stderr, 0)
-            except Exception:
-                findings = []
-            status = (Status.FINDINGS if findings else Status.PASS) if check.timeout_is_success else Status.ERROR
-            note = (f"search budget exhausted after {check.timeout}s" if check.timeout_is_success else f"timed out after {check.timeout}s")
-            return finish(Result(
-                name=check.name, category=check.category, status=status,
-                duration=time.perf_counter() - started, command=check.command,
-                stdout=stdout[-raw_limit:], stderr=stderr[-raw_limit:],
-                findings=findings, note=note, environment=dict(check.env or {}),
-            ))
+                timeout_findings = check.parser(stdout, stderr, 0)
+            except Exception:  # noqa: BLE001 - parser isolation: a parser crash must not kill the runner
+                timeout_findings = []
+            status = (
+                (Status.FINDINGS if timeout_findings else Status.PASS)
+                if check.timeout_is_success
+                else Status.ERROR
+            )
+            note = (
+                f"search budget exhausted after {check.timeout}s"
+                if check.timeout_is_success
+                else f"timed out after {check.timeout}s"
+            )
+            return finish(
+                Result(
+                    name=check.name,
+                    category=check.category,
+                    status=status,
+                    duration=time.perf_counter() - started,
+                    command=check.command,
+                    stdout=stdout[-raw_limit:],
+                    stderr=stderr[-raw_limit:],
+                    findings=timeout_findings,
+                    note=note,
+                    environment=dict(check.env or {}),
+                )
+            )
     except (FileNotFoundError, PermissionError, OSError) as exc:
-        return finish(Result(
-            name=check.name,
-            category=check.category,
-            status=Status.ERROR,
-            duration=time.perf_counter() - started,
-            command=check.command,
-            note=f"could not execute: {exc}",
-        ))
+        return finish(
+            Result(
+                name=check.name,
+                category=check.category,
+                status=Status.ERROR,
+                duration=time.perf_counter() - started,
+                command=check.command,
+                note=f"could not execute: {exc}",
+            )
+        )
 
     stdout = b"".join(stdout_chunks).decode(errors="replace")
     stderr = b"".join(stderr_chunks).decode(errors="replace")
@@ -2271,7 +3892,7 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
     parse_error: str | None = None
     try:
         findings = check.parser(stdout, stderr, exit_code)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - parser isolation: failure is recorded in the result note
         parse_error = f"output parser failed: {type(exc).__name__}: {exc}"
 
     if parse_error:
@@ -2281,29 +3902,42 @@ async def run_process(check: Check, raw_limit: int, progress: LiveRunState | Non
     elif exit_code in check.findings_exit_codes:
         status = Status.FINDINGS
         if not findings:
-            findings = [Finding(tool=check.name, message=f"{check.name} exited {exit_code} with findings")]
+            findings = [
+                Finding(
+                    tool=check.name,
+                    message=f"{check.name} exited {exit_code} with findings",
+                )
+            ]
     elif exit_code in check.skip_exit_codes:
         status = Status.SKIPPED
         parse_error = f"exited {exit_code}: nothing collected"
     else:
         status = Status.ERROR
 
-    return finish(Result(
-        name=check.name,
-        category=check.category,
-        status=status,
-        duration=time.perf_counter() - started,
-        exit_code=exit_code,
-        findings=findings,
-        command=check.command,
-        stdout=stdout[-raw_limit:],
-        stderr=stderr[-raw_limit:],
-        note=parse_error,
-        environment=dict(check.env or {}),
-    ))
+    return finish(
+        Result(
+            name=check.name,
+            category=check.category,
+            status=status,
+            duration=time.perf_counter() - started,
+            exit_code=exit_code,
+            findings=findings,
+            command=check.command,
+            stdout=stdout[-raw_limit:],
+            stderr=stderr[-raw_limit:],
+            note=parse_error,
+            environment=dict(check.env or {}),
+        )
+    )
 
 
-async def run_parallel(checks: list[Check], max_parallel: int, raw_limit: int, progress: LiveRunState | None = None) -> list[Result]:
+# trace:v1 id=impl.src-bughunt-cli.run-parallel work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_parallel(
+    checks: list[Check],
+    max_parallel: int,
+    raw_limit: int,
+    progress: LiveRunState | None = None,
+) -> list[Result]:
     sem = asyncio.Semaphore(max_parallel)
 
     async def one(check: Check) -> Result:
@@ -2325,18 +3959,28 @@ def _reset_tool_dir(path: Path) -> None:
     if not path.exists():
         return
     try:
-        subprocess.run(["chmod", "-R", "u+w", str(path)], capture_output=True, check=False, timeout=60)
+        subprocess.run(
+            ["chmod", "-R", "u+w", str(path)],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
     except (OSError, subprocess.SubprocessError):
         pass
     shutil.rmtree(path, ignore_errors=True)
 
 
-async def run_codeql(cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None) -> Result:
+# trace:v1 id=impl.src-bughunt-cli.run-codeql work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_codeql(
+    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+) -> Result:
     if "codeql" not in cfg.tools(profile):
         return Result("codeql", "whole-program", Status.SKIPPED, note="not in profile")
     ql = executable("codeql")
     if not ql:
-        return Result("codeql", "whole-program", Status.SKIPPED, note="codeql CLI not installed")
+        return Result(
+            "codeql", "whole-program", Status.SKIPPED, note="codeql CLI not installed"
+        )
 
     language = "python"
     db = cfg.root / CACHE_DIR / "codeql" / language
@@ -2351,13 +3995,26 @@ async def run_codeql(cfg: Config, profile: str, raw_limit: int, progress: LiveRu
     started = time.perf_counter()
 
     source_roots = [cfg.root / p for p in cfg.source_paths if (cfg.root / p).exists()]
-    codeql_source_root = source_roots[0] if len(source_roots) == 1 and source_roots[0].is_dir() else cfg.root
+    codeql_source_root = (
+        source_roots[0]
+        if len(source_roots) == 1 and source_roots[0].is_dir()
+        else cfg.root
+    )
 
     create = Check(
         "codeql-db",
         "whole-program",
-        [ql, "database", "create", str(db), "--language=python", "--source-root", str(codeql_source_root), "--overwrite"],
-        lambda o,e,c: [],
+        [
+            ql,
+            "database",
+            "create",
+            str(db),
+            "--language=python",
+            "--source-root",
+            str(codeql_source_root),
+            "--overwrite",
+        ],
+        lambda o, e, c: [],
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes=set(),
@@ -2370,13 +4027,26 @@ async def run_codeql(cfg: Config, profile: str, raw_limit: int, progress: LiveRu
         return cr
 
     custom_query_dir = cfg.root / ".bughunt" / "configs" / "codeql" / "queries"
-    custom_queries = sorted(str(path) for path in custom_query_dir.rglob("*.ql")) if custom_query_dir.exists() else []
+    custom_queries = (
+        sorted(str(path) for path in custom_query_dir.rglob("*.ql"))
+        if custom_query_dir.exists()
+        else []
+    )
     analyze_targets = [str(suite), *custom_queries]
     analyze = Check(
         "codeql",
         "whole-program",
-        [ql, "database", "analyze", str(db), *analyze_targets, "--format=sarif-latest", f"--output={sarif}", "--download"],
-        lambda o,e,c: [],
+        [
+            ql,
+            "database",
+            "analyze",
+            str(db),
+            *analyze_targets,
+            "--format=sarif-latest",
+            f"--output={sarif}",
+            "--download",
+        ],
+        lambda o, e, c: [],
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes=set(),
@@ -2400,14 +4070,27 @@ def pysa_executable(root: Path) -> str | None:
     return executable("pyre")
 
 
-async def run_pysa(cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None) -> Result:
+# trace:v1 id=impl.src-bughunt-cli.run-pysa work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_pysa(
+    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+) -> Result:
     if "pysa" not in cfg.tools(profile):
         return Result("pysa", "taint", Status.SKIPPED, note="not in profile")
     pyre = pysa_executable(cfg.root)
     if not pyre:
-        return Result("pysa", "taint", Status.SKIPPED, note="Pysa/Pyre not installed; run `uv run bughunt install --only pysa`")
+        return Result(
+            "pysa",
+            "taint",
+            Status.SKIPPED,
+            note="Pysa/Pyre not installed; run `uv run bughunt install --only pysa`",
+        )
     if not (cfg.root / ".pyre_configuration").exists():
-        return Result("pysa", "taint", Status.SKIPPED, note="no .pyre_configuration / Pysa models configured")
+        return Result(
+            "pysa",
+            "taint",
+            Status.SKIPPED,
+            note="no .pyre_configuration / Pysa models configured",
+        )
 
     out_dir = cfg.root / CACHE_DIR / "pysa"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -2420,14 +4103,15 @@ async def run_pysa(cfg: Config, profile: str, raw_limit: int, progress: LiveRunS
         "--noninteractive",
         "analyze",
         "--version=none",
-        "--save-results-to", str(out_dir),
+        "--save-results-to",
+        str(out_dir),
     ]
 
     check = Check(
         "pysa",
         "taint",
         cmd,
-        lambda o,e,c: parse_json_list("pysa", o,e,c),
+        lambda o, e, c: parse_json_list("pysa", o, e, c),
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes={1},
@@ -2441,7 +4125,7 @@ async def run_pysa(cfg: Config, profile: str, raw_limit: int, progress: LiveRunS
         first, last = text.find("["), text.rfind("]")
         if 0 <= first < last:
             try:
-                payload = json.loads(text[first:last+1])
+                payload = json.loads(text[first : last + 1])
                 result.findings = parse_json_list("pysa", json.dumps(payload), "", 0)
                 if result.findings:
                     result.status = Status.FINDINGS
@@ -2450,21 +4134,44 @@ async def run_pysa(cfg: Config, profile: str, raw_limit: int, progress: LiveRunS
     return result
 
 
-async def run_mutmut(cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None) -> Result:
+# trace:v1 id=impl.src-bughunt-cli.run-mutmut work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_mutmut(
+    cfg: Config, profile: str, raw_limit: int, progress: LiveRunState | None = None
+) -> Result:
     if "mutmut" not in cfg.tools(profile):
         return Result("mutmut", "mutation", Status.SKIPPED, note="not in profile")
     mm = executable("mutmut")
     if not mm:
         return Result("mutmut", "mutation", Status.SKIPPED, note="mutmut not installed")
     if not cfg.raw.get("mutmut", {}).get("enabled", True):
-        return Result("mutmut", "mutation", Status.SKIPPED, note="disabled in bughunt.toml")
+        return Result(
+            "mutmut", "mutation", Status.SKIPPED, note="disabled in bughunt.toml"
+        )
 
-    run = Check("mutmut", "mutation", [mm, "run"], lambda o,e,c: [], cfg.timeout(profile), cfg.root, findings_exit_codes=set(), record_progress=False)
+    run = Check(
+        "mutmut",
+        "mutation",
+        [mm, "run"],
+        lambda o, e, c: [],
+        cfg.timeout(profile),
+        cfg.root,
+        findings_exit_codes=set(),
+        record_progress=False,
+    )
     rr = await run_process(run, raw_limit, progress)
     if rr.status == Status.ERROR:
         return rr
 
-    result_check = Check("mutmut-results", "mutation", [mm, "results"], lambda o,e,c: [], 120, cfg.root, findings_exit_codes=set(), record_progress=False)
+    result_check = Check(
+        "mutmut-results",
+        "mutation",
+        [mm, "results"],
+        lambda o, e, c: [],
+        120,
+        cfg.root,
+        findings_exit_codes=set(),
+        record_progress=False,
+    )
     rs = await run_process(result_check, raw_limit, progress)
     combined = (rs.stdout + "\n" + rs.stderr).strip()
     findings: list[Finding] = []
@@ -2474,7 +4181,9 @@ async def run_mutmut(cfg: Config, profile: str, raw_limit: int, progress: LiveRu
     for line in combined.splitlines():
         low = line.lower()
         if "survived" in low or "suspicious" in low:
-            findings.append(Finding(tool="mutmut", message=line.strip(), severity="warning"))
+            findings.append(
+                Finding(tool="mutmut", message=line.strip(), severity="warning")
+            )
 
     return Result(
         name="mutmut",
@@ -2514,6 +4223,7 @@ def overall_score(results: list[Result]) -> int:
     return round(100 * sum(weight[r.status] for r in applicable) / len(applicable))
 
 
+# trace:v1 id=impl.src-bughunt-cli.canonical-finding-path work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def canonical_finding_path(root: Path, raw: str | None) -> str | None:
     """Canonicalize tool paths so absolute/relative spellings collapse together."""
     if not raw:
@@ -2522,7 +4232,11 @@ def canonical_finding_path(root: Path, raw: str | None) -> str | None:
     path = Path(value)
     try:
         if path.is_absolute():
-            return path.resolve(strict=False).relative_to(root.resolve(strict=False)).as_posix()
+            return (
+                path.resolve(strict=False)
+                .relative_to(root.resolve(strict=False))
+                .as_posix()
+            )
     except ValueError:
         return path.as_posix()
     normalized = path.as_posix().lstrip("./")
@@ -2541,10 +4255,21 @@ def canonicalize_findings(root: Path, results: list[Result]) -> None:
             finding.path = canonical_finding_path(root, finding.path)
 
 
+# trace:v1 id=impl.src-bughunt-cli.severity-priority work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def severity_priority(value: str) -> int:
-    return {"critical": 0, "high": 0, "error": 0, "warning": 1, "medium": 1, "note": 2, "low": 2, "info": 3}.get(value.lower(), 1)
+    return {
+        "critical": 0,
+        "high": 0,
+        "error": 0,
+        "warning": 1,
+        "medium": 1,
+        "note": 2,
+        "low": 2,
+        "info": 3,
+    }.get(value.lower(), 1)
 
 
+# trace:v1 id=impl.src-bughunt-cli.signal-groups work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def signal_groups(results: list[Result]) -> list[dict[str, Any]]:
     grouped: dict[str, list[Finding]] = {}
     for result in results:
@@ -2557,21 +4282,34 @@ def signal_groups(results: list[Result]) -> list[dict[str, Any]]:
         for f in findings[:8]:
             if f.path:
                 locations.append(f"{f.path}:{f.line or '?'}")
-        out.append({
-            "key": key,
-            "count": len(findings),
-            "tool": first.tool,
-            "code": first.code,
-            "message": first.message,
-            "severity": first.severity,
-            "locations": locations,
-            "finding_ids": [f.finding_id for f in findings],
-        })
-    return sorted(out, key=lambda g: (severity_priority(str(g["severity"])), -g["count"], g["tool"], g.get("code") or g["message"]))
+        out.append(
+            {
+                "key": key,
+                "count": len(findings),
+                "tool": first.tool,
+                "code": first.code,
+                "message": first.message,
+                "severity": first.severity,
+                "locations": locations,
+                "finding_ids": [f.finding_id for f in findings],
+            }
+        )
+    return sorted(
+        out,
+        key=lambda g: (
+            severity_priority(str(g["severity"])),
+            -g["count"],
+            g["tool"],
+            g.get("code") or g["message"],
+        ),
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.signal-label work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def signal_label(group: dict[str, Any], max_len: int = 88) -> str:
-    base = f"{group['tool']}:{group['code']}" if group.get("code") else str(group["tool"])
+    base = (
+        f"{group['tool']}:{group['code']}" if group.get("code") else str(group["tool"])
+    )
     key = str(group.get("key") or base)
     label = key if key != base else base
     return label if len(label) <= max_len else label[: max_len - 1] + "…"
@@ -2586,11 +4324,20 @@ def hotspot_files(results: list[Result]) -> list[tuple[str, int]]:
     return counter.most_common(20)
 
 
+# trace:v1 id=impl.src-bughunt-cli.autofix-summary work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def autofix_summary(results: list[Result]) -> dict[str, Any]:
-    fixable = [finding for result in results for finding in result.findings if finding.fixable]
-    safe = [finding for finding in fixable if (finding.fix_safety or "").lower() == "safe"]
-    unsafe = [finding for finding in fixable if (finding.fix_safety or "").lower() == "unsafe"]
-    review = [finding for finding in fixable if finding not in safe and finding not in unsafe]
+    fixable = [
+        finding for result in results for finding in result.findings if finding.fixable
+    ]
+    safe = [
+        finding for finding in fixable if (finding.fix_safety or "").lower() == "safe"
+    ]
+    unsafe = [
+        finding for finding in fixable if (finding.fix_safety or "").lower() == "unsafe"
+    ]
+    review = [
+        finding for finding in fixable if finding not in safe and finding not in unsafe
+    ]
     by_tool = Counter(finding.tool for finding in fixable)
     return {
         "total": len(fixable),
@@ -2602,50 +4349,78 @@ def autofix_summary(results: list[Result]) -> dict[str, Any]:
     }
 
 
+# trace:v1 id=impl.src-bughunt-cli.agent-queue work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
     command_by_tool: dict[str, list[str]] = {}
     correlations = correlated_issue_groups(results)
-    correlation_ids = {(str(g["path"]), int(g["line"])): f"CORR-{i:04d}" for i, g in enumerate(correlations, 1)}
+    correlation_ids = {
+        (str(g["path"]), int(g["line"])): f"CORR-{i:04d}"
+        for i, g in enumerate(correlations, 1)
+    }
     for result in results:
         command_by_tool[result.name] = result.command
         command_by_tool.setdefault(result.name.split(":", 1)[0], result.command)
-    severity_rank = {"error": 0, "high": 0, "warning": 1, "medium": 1, "note": 2, "low": 2}
+    severity_rank = {
+        "error": 0,
+        "high": 0,
+        "warning": 1,
+        "medium": 1,
+        "note": 2,
+        "low": 2,
+    }
     items: list[dict[str, Any]] = []
     for result in results:
         for finding in result.findings:
-            verify = command_by_tool.get(result.name) or command_by_tool.get(finding.tool) or []
-            items.append({
-                "id": finding.finding_id,
-                "state": "todo",
-                "tool": finding.tool,
-                "result": result.name,
-                "category": result.category,
-                "odc_class": odc_class(result.category, finding),
-                "signal_key": finding.signal_key,
-                "severity": finding.severity,
-                "code": finding.code,
-                "path": finding.path,
-                "line": finding.line,
-                "column": finding.column,
-                "message": finding.message,
-                "fingerprint": finding.fingerprint,
-                "correlation_id": correlation_ids.get((finding.path or "", finding.line or 0)),
-                "fixable": finding.fixable,
-                "fix_safety": finding.fix_safety,
-                "fix_preview": finding.fix_preview,
-                "verification_command": verify,
-                "workflow": [
-                    "inspect the finding and surrounding code",
-                    "determine whether it is a true defect, duplicate, or analyzer false positive",
-                    "fix the root cause rather than suppressing the symptom",
-                    "run verification_command",
-                    "run the narrowest relevant tests",
-                    "if this is a real escaped bug, teach Bug Corpus the bug family/detector",
-                ],
-            })
-    return sorted(items, key=lambda x: (severity_rank.get(str(x["severity"]).lower(), 1), x["path"] or "", x["line"] or 0, x["tool"]))
+            verify = (
+                command_by_tool.get(result.name)
+                or command_by_tool.get(finding.tool)
+                or []
+            )
+            items.append(
+                {
+                    "id": finding.finding_id,
+                    "state": "todo",
+                    "tool": finding.tool,
+                    "result": result.name,
+                    "category": result.category,
+                    "odc_class": odc_class(result.category, finding),
+                    "signal_key": finding.signal_key,
+                    "severity": finding.severity,
+                    "code": finding.code,
+                    "path": finding.path,
+                    "line": finding.line,
+                    "column": finding.column,
+                    "message": finding.message,
+                    "fingerprint": finding.fingerprint,
+                    "correlation_id": correlation_ids.get(
+                        (finding.path or "", finding.line or 0)
+                    ),
+                    "fixable": finding.fixable,
+                    "fix_safety": finding.fix_safety,
+                    "fix_preview": finding.fix_preview,
+                    "verification_command": verify,
+                    "workflow": [
+                        "inspect the finding and surrounding code",
+                        "determine whether it is a true defect, duplicate, or analyzer false positive",
+                        "fix the root cause rather than suppressing the symptom",
+                        "run verification_command",
+                        "run the narrowest relevant tests",
+                        "if this is a real escaped bug, teach Bug Corpus the bug family/detector",
+                    ],
+                }
+            )
+    return sorted(
+        items,
+        key=lambda x: (
+            severity_rank.get(str(x["severity"]).lower(), 1),
+            x["path"] or "",
+            x["line"] or 0,
+            x["tool"],
+        ),
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.coverage-summary-from-results work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def coverage_summary_from_results(results: list[Result]) -> dict[str, Any]:
     result = next((r for r in results if r.name == "coverage"), None)
     if not result or not result.stdout:
@@ -2654,9 +4429,14 @@ def coverage_summary_from_results(results: list[Result]) -> dict[str, Any]:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
         return {}
-    return dict(payload.get("summary", {})) if isinstance(payload, dict) and isinstance(payload.get("summary"), dict) else {}
+    return (
+        dict(payload.get("summary", {}))
+        if isinstance(payload, dict) and isinstance(payload.get("summary"), dict)
+        else {}
+    )
 
 
+# trace:v1 id=impl.src-bughunt-cli.risk-map work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def risk_map(results: list[Result]) -> list[dict[str, Any]]:
     """Coverage-weighted per-file risk map for agents/V2.
 
@@ -2664,12 +4444,33 @@ def risk_map(results: list[Result]) -> list[dict[str, Any]]:
     independent-tool agreement and complexity raise a file's attention score.
     """
     by_file: dict[str, dict[str, Any]] = {}
-    sev_weight = {"critical": 8, "high": 8, "error": 6, "warning": 3, "medium": 3, "note": 1, "low": 1, "info": 1}
+    sev_weight = {
+        "critical": 8,
+        "high": 8,
+        "error": 6,
+        "warning": 3,
+        "medium": 3,
+        "note": 1,
+        "low": 1,
+        "info": 1,
+    }
     for result in results:
         for f in result.findings:
             if not f.path:
                 continue
-            row = by_file.setdefault(f.path, {"path": f.path, "score": 0, "findings": 0, "tools": set(), "coverage_gaps": 0, "branch_gaps": 0, "complexity_signals": 0, "odc": Counter()})
+            row = by_file.setdefault(
+                f.path,
+                {
+                    "path": f.path,
+                    "score": 0,
+                    "findings": 0,
+                    "tools": set(),
+                    "coverage_gaps": 0,
+                    "branch_gaps": 0,
+                    "complexity_signals": 0,
+                    "odc": Counter(),
+                },
+            )
             row["findings"] += 1
             row["tools"].add(f.tool)
             row["score"] += sev_weight.get(f.severity.lower(), 3)
@@ -2691,10 +4492,19 @@ def risk_map(results: list[Result]) -> list[dict[str, Any]]:
         row["tool_count"] = diversity
         row["odc"] = dict(row["odc"].most_common())
         out.append(row)
-    return sorted(out, key=lambda x: (-int(x["score"]), -int(x["tool_count"]), str(x["path"])))
+    return sorted(
+        out, key=lambda x: (-int(x["score"]), -int(x["tool_count"]), str(x["path"]))
+    )
 
 
-def render_terminal(results: list[Result], profile: str, elapsed: float, report_md: Path, report_json: Path) -> None:
+# trace:v1 id=impl.src-bughunt-cli.render-terminal work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def render_terminal(
+    results: list[Result],
+    profile: str,
+    elapsed: float,
+    report_md: Path,
+    report_json: Path,
+) -> None:
     counts = Counter(r.status for r in results)
     findings_total = sum(r.count for r in results)
     score = overall_score(results)
@@ -2724,7 +4534,11 @@ def render_terminal(results: list[Result], profile: str, elapsed: float, report_
         f"[bold green]{fixes['safe']} safe auto-fixable[/]  •  "
         f"[yellow]{fixes['unsafe'] + fixes['review']} review/unsafe auto-fixable[/]  •  "
         f"[bold]{fixes['total']} total deterministic fixes[/]"
-        + (f" [dim]({fixes['total'] / findings_total * 100:.1f}% of findings)[/]" if findings_total else "")
+        + (
+            f" [dim]({fixes['total'] / findings_total * 100:.1f}% of findings)[/]"
+            if findings_total
+            else ""
+        )
         + (
             f"\n[bold]Coverage[/] {float(coverage_summary.get('percent_covered', 0.0)):.1f}%"
             f"  •  {coverage_summary.get('missing_lines', '?')} missing lines"
@@ -2734,17 +4548,29 @@ def render_terminal(results: list[Result], profile: str, elapsed: float, report_
         )
     )
     console.print()
-    console.print(Panel(subtitle, title=title, border_style="bright_cyan", padding=(1, 2)))
+    console.print(
+        Panel(subtitle, title=title, border_style="bright_cyan", padding=(1, 2))
+    )
 
     bar = ProgressBar(total=100, completed=score, width=60)
     health = Table.grid(expand=True)
     health.add_column(ratio=1)
     health.add_column(justify="right")
-    health.add_row(Text("DEFENSE HEALTH", style="bold"), Text(f"{score}/100", style="bold bright_cyan"))
-    health.add_row(bar, Text("execution coverage, not bug-free probability", style="dim italic"))
+    health.add_row(
+        Text("DEFENSE HEALTH", style="bold"),
+        Text(f"{score}/100", style="bold bright_cyan"),
+    )
+    health.add_row(
+        bar, Text("execution coverage, not bug-free probability", style="dim italic")
+    )
     console.print(Panel(health, border_style="blue"))
 
-    table = Table(title="Defense Rings", box=box.ROUNDED, header_style="bold bright_cyan", expand=True)
+    table = Table(
+        title="Defense Rings",
+        box=box.ROUNDED,
+        header_style="bold bright_cyan",
+        expand=True,
+    )
     table.add_column("STATUS", width=11)
     table.add_column("DEFENSE", min_width=16)
     table.add_column("CLASS", min_width=14)
@@ -2752,50 +4578,93 @@ def render_terminal(results: list[Result], profile: str, elapsed: float, report_
     table.add_column("FIX", justify="right", width=7)
     table.add_column("TIME", justify="right", width=9)
     table.add_column("NOTE", ratio=2)
-    order = {Status.ERROR: 0, Status.FINDINGS: 1, Status.PASS: 2, Status.SKIPPED: 3, Status.NA: 4}
+    order = {
+        Status.ERROR: 0,
+        Status.FINDINGS: 1,
+        Status.PASS: 2,
+        Status.SKIPPED: 3,
+        Status.NA: 4,
+    }
     for r in sorted(results, key=lambda x: (order[x.status], x.category, x.name)):
-        glyph = {Status.PASS: "✓ PASS", Status.FINDINGS: "◆ FOUND", Status.ERROR: "✕ ERROR", Status.SKIPPED: "○ SKIP", Status.NA: "— N/A"}[r.status]
+        glyph = {
+            Status.PASS: "✓ PASS",
+            Status.FINDINGS: "◆ FOUND",
+            Status.ERROR: "✕ ERROR",
+            Status.SKIPPED: "○ SKIP",
+            Status.NA: "— N/A",
+        }[r.status]
         note = r.note or ""
         if r.status == Status.FINDINGS and r.findings:
             first = r.findings[0]
-            where = f"{first.path}:{first.line}" if first.path and first.line else (first.path or "")
+            where = (
+                f"{first.path}:{first.line}"
+                if first.path and first.line
+                else (first.path or "")
+            )
             note = f"{where} {first.message}".strip()
             if len(note) > 96:
                 note = note[:93] + "..."
         fix_count = sum(1 for finding in r.findings if finding.fixable)
-        table.add_row(Text(glyph, style=status_style(r.status)), r.name, r.category, str(r.count) if r.count else "—", str(fix_count) if fix_count else "—", f"{r.duration:.1f}s" if r.duration else "—", Text(note, style="dim" if r.status in {Status.SKIPPED, Status.NA} else None))
+        table.add_row(
+            Text(glyph, style=status_style(r.status)),
+            r.name,
+            r.category,
+            str(r.count) if r.count else "—",
+            str(fix_count) if fix_count else "—",
+            f"{r.duration:.1f}s" if r.duration else "—",
+            Text(
+                note, style="dim" if r.status in {Status.SKIPPED, Status.NA} else "none"
+            ),
+        )
     console.print(table)
 
     if fixes["total"]:
-        tool_bits = "  •  ".join(f"{count}× {tool}" for tool, count in list(fixes["by_tool"].items())[:6])
+        tool_bits = "  •  ".join(
+            f"{count}× {tool}" for tool, count in list(fixes["by_tool"].items())[:6]
+        )
         fix_text = (
             f"[bold green]{fixes['safe']} safe[/] can be applied by deterministic tool fixes  •  "
             f"[yellow]{fixes['unsafe']} unsafe[/]  •  [yellow]{fixes['review']} rule/review[/]\n"
             f"[dim]{tool_bits}[/]"
         )
-        console.print(Panel(fix_text, title="[bold]Auto-fix Availability[/]", border_style="green"))
+        console.print(
+            Panel(
+                fix_text, title="[bold]Auto-fix Availability[/]", border_style="green"
+            )
+        )
 
     if groups:
-        freq = Table(title="Top Bug Signals (severity, then frequency)", box=box.SIMPLE_HEAVY, expand=True)
+        freq = Table(
+            title="Top Bug Signals (severity, then frequency)",
+            box=box.SIMPLE_HEAVY,
+            expand=True,
+        )
         freq.add_column("COUNT", justify="right", style="bold yellow", width=7)
         freq.add_column("SIGNAL", min_width=28)
         freq.add_column("EXAMPLE", ratio=2)
         for g in groups[:10]:
             label = signal_label(g)
-            example = g['message']
-            if g['locations']:
+            example = g["message"]
+            if g["locations"]:
                 example += f"  [dim]({g['locations'][0]})[/]"
             freq.add_row(f"×{g['count']}", label, example[:160])
         console.print(freq)
-        low = sorted((g for g in groups if severity_priority(str(g["severity"])) >= 2), key=lambda g: (-g["count"], g["tool"]))[:5]
+        low = sorted(
+            (g for g in groups if severity_priority(str(g["severity"])) >= 2),
+            key=lambda g: (-g["count"], g["tool"]),
+        )[:5]
         if low:
-            noise = Table(title="Most Frequent Low-Priority / Style Diagnostics", box=box.SIMPLE, expand=True)
+            noise = Table(
+                title="Most Frequent Low-Priority / Style Diagnostics",
+                box=box.SIMPLE,
+                expand=True,
+            )
             noise.add_column("COUNT", justify="right", width=7)
             noise.add_column("SIGNAL", min_width=28)
             noise.add_column("EXAMPLE", ratio=2)
             for g in low:
                 label = signal_label(g)
-                noise.add_row(f"×{g['count']}", label, str(g['message'])[:140])
+                noise.add_row(f"×{g['count']}", label, str(g["message"])[:140])
             console.print(noise)
 
     if hotspots:
@@ -2808,9 +4677,19 @@ def render_terminal(results: list[Result], profile: str, elapsed: float, report_
         errors.add_column("DEFENSE")
         errors.add_column("DETAIL")
         for r in failures[:10]:
-            errors.add_row(f"[red]{r.name}[/]", r.note or (r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "tool failed"))
+            errors.add_row(
+                f"[red]{r.name}[/]",
+                r.note
+                or (
+                    r.stderr.strip().splitlines()[-1]
+                    if r.stderr.strip()
+                    else "tool failed"
+                ),
+            )
         console.print(errors)
-        console.print("[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] skill before weakening or disabling the defense.")
+        console.print(
+            "[yellow]CI/debugging hint:[/] if a tool/test is hanging, flaky, environment-dependent, or failing for unclear infrastructure reasons, use the [bold]ci-fix-dont-freeze[/] skill before weakening or disabling the defense."
+        )
 
     verdict = "CLEAN ACROSS EXECUTED DEFENSES"
     style = "bold green"
@@ -2828,7 +4707,10 @@ def render_terminal(results: list[Result], profile: str, elapsed: float, report_
     footer.append(verdict + "\n", style=style)
     footer.append(f"Human report    {report_md}\n", style="dim")
     footer.append(f"Machine report  {report_json}\n", style="dim")
-    footer.append(f"Agent queue     {report_md.parent / 'agent' / 'FIX_QUEUE.md'}", style="bold bright_cyan")
+    footer.append(
+        f"Agent queue     {report_md.parent / 'agent' / 'FIX_QUEUE.md'}",
+        style="bold bright_cyan",
+    )
     console.print(Panel(footer, border_style="bright_magenta", padding=(1, 2)))
     console.print(
         "[dim]Debugging protocol:[/] if a defense is hanging, flaky, environment-dependent, "
@@ -2844,7 +4726,10 @@ def result_to_dict(r: Result) -> dict[str, Any]:
     return d
 
 
-def write_reports(cfg: Config, results: list[Result], profile: str, elapsed: float) -> tuple[Path, Path]:
+# trace:v1 id=impl.src-bughunt-cli.write-reports work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def write_reports(
+    cfg: Config, results: list[Result], profile: str, elapsed: float
+) -> tuple[Path, Path]:
     now = dt.datetime.now().astimezone()
     stamp = now.strftime("%Y%m%d-%H%M%S")
     out = cfg.root / REPORT_DIR / stamp
@@ -2863,7 +4748,7 @@ def write_reports(cfg: Config, results: list[Result], profile: str, elapsed: flo
     for result in results:
         for finding in result.findings:
             odc_counts[odc_class(result.category, finding)] += 1
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": 2,
         "generated_at": now.isoformat(),
         "profile": profile,
@@ -2885,7 +4770,11 @@ def write_reports(cfg: Config, results: list[Result], profile: str, elapsed: flo
             "review_autofixable": fixes["review"],
             "correlated_issue_locations": len(correlations),
             "logical_issue_clusters": len(logical_issues),
-            "raw_to_logical_ratio": (sum(r.count for r in results) / len(logical_issues)) if logical_issues else 0.0,
+            "raw_to_logical_ratio": (
+                sum(r.count for r in results) / len(logical_issues)
+            )
+            if logical_issues
+            else 0.0,
         },
         "coverage": coverage_summary_from_results(results),
         "odc_taxonomy": dict(odc_counts.most_common()),
@@ -2901,12 +4790,37 @@ def write_reports(cfg: Config, results: list[Result], profile: str, elapsed: flo
 
     json_path = out / "report.json"
     json_path.write_text(json.dumps(payload, indent=2, default=str))
-    (out / "findings.jsonl").write_text("\n".join(json.dumps(item, default=str) for item in queue) + ("\n" if queue else ""))
-    (agent_dir / "queue.json").write_text(json.dumps({"schema_version": 3, "autofix": fixes, "correlated_issues": correlations, "risk_map": risks, "items": queue}, indent=2))
-    (agent_dir / "risk-map.json").write_text(json.dumps({"schema_version": 1, "files": risks}, indent=2))
-    risk_lines = ["# BugHunt Coverage-weighted Risk Map", "", "This is a prioritization score, not a probability of bugs. Coverage/branch gaps, complexity and independent-tool agreement raise priority.", "", "| Rank | Score | File | Tools | Findings | Coverage | Branch |", "|---:|---:|---|---:|---:|---:|---:|"]
+    (out / "findings.jsonl").write_text(
+        "\n".join(json.dumps(item, default=str) for item in queue)
+        + ("\n" if queue else "")
+    )
+    (agent_dir / "queue.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 3,
+                "autofix": fixes,
+                "correlated_issues": correlations,
+                "risk_map": risks,
+                "items": queue,
+            },
+            indent=2,
+        )
+    )
+    (agent_dir / "risk-map.json").write_text(
+        json.dumps({"schema_version": 1, "files": risks}, indent=2)
+    )
+    risk_lines = [
+        "# BugHunt Coverage-weighted Risk Map",
+        "",
+        "This is a prioritization score, not a probability of bugs. Coverage/branch gaps, complexity and independent-tool agreement raise priority.",
+        "",
+        "| Rank | Score | File | Tools | Findings | Coverage | Branch |",
+        "|---:|---:|---|---:|---:|---:|---:|",
+    ]
     for i, item in enumerate(risks[:200], 1):
-        risk_lines.append(f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | {item['findings']} | {item['coverage_gaps']} | {item['branch_gaps']} |")
+        risk_lines.append(
+            f"| {i} | {item['score']} | `{item['path']}` | {item['tool_count']} | {item['findings']} | {item['coverage_gaps']} | {item['branch_gaps']} |"
+        )
     (agent_dir / "RISK_MAP.md").write_text("\n".join(risk_lines) + "\n")
 
     agent_instructions = """# BugHunt Agent Instructions
@@ -2956,9 +4870,13 @@ Useful files:
         if not item.get("fixable"):
             continue
         loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
-        autofix_lines.append(f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — `{loc}` — safety `{item.get('fix_safety') or 'review'}`")
+        autofix_lines.append(
+            f"- `{item['id']}` **{item['tool']}** `{item.get('code') or ''}` — `{loc}` — safety `{item.get('fix_safety') or 'review'}`"
+        )
         if item.get("fix_preview"):
-            autofix_lines.append(f"  - Preview: `{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`")
+            autofix_lines.append(
+                f"  - Preview: `{str(item['fix_preview']).replace(chr(96), chr(39))[:300]}`"
+            )
     (agent_dir / "AUTOFIX.md").write_text("\n".join(autofix_lines) + "\n")
 
     blindspots = [r for r in results if r.status in {Status.ERROR, Status.SKIPPED}]
@@ -3020,7 +4938,12 @@ Useful files:
     # One task per repeated semantic/rule signal. Agents can often fix these much
     # faster as a coherent family while still validating individual locations.
     for index, group in enumerate(groups[:500], 1):
-        safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", (group.get("code") or group["tool"]))[:60].strip("-") or "signal"
+        safe = (
+            re.sub(r"[^A-Za-z0-9_.-]+", "-", (group.get("code") or group["tool"]))[
+                :60
+            ].strip("-")
+            or "signal"
+        )
         relevant = [q for q in queue if q["signal_key"] == group["key"]]
         lines = [
             f"# Task {index:04d}: {group['tool']} {group.get('code') or ''}".rstrip(),
@@ -3037,10 +4960,23 @@ Useful files:
             "",
         ]
         for item in relevant:
-            lines.append(f"- `{item['id']}` — `{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}`")
-        lines += ["", "## Repair protocol", "", "Fix the root cause, run the verification command for the affected analyzer, then re-run BugHunt to refresh the queue.", ""]
+            lines.append(
+                f"- `{item['id']}` — `{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}`"
+            )
+        lines += [
+            "",
+            "## Repair protocol",
+            "",
+            "Fix the root cause, run the verification command for the affected analyzer, then re-run BugHunt to refresh the queue.",
+            "",
+        ]
         if relevant and relevant[0]["verification_command"]:
-            lines += ["```bash", " ".join(relevant[0]["verification_command"]), "```", ""]
+            lines += [
+                "```bash",
+                " ".join(relevant[0]["verification_command"]),
+                "```",
+                "",
+            ]
         (tasks_dir / f"{index:04d}-{safe}.md").write_text("\n".join(lines))
 
     fix_lines = [
@@ -3065,15 +5001,20 @@ Useful files:
     ]
     for i, g in enumerate(groups[:100], 1):
         label = signal_label(g)
-        msg = g['message'].replace('|', '\\|').replace('\n', ' ')
+        msg = g["message"].replace("|", "\\|").replace("\n", " ")
         fix_lines.append(f"| {i} | {g['count']} | `{label}` | {msg[:180]} |")
     fix_lines += ["", "## One-by-one queue", ""]
     for i, item in enumerate(queue[:2000], 1):
         loc = f"{item['path'] or '<unknown>'}:{item['line'] or '?'}:{item['column'] or '?'}"
-        code = f"/{item['code']}" if item['code'] else ""
-        fix_lines.append(f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — {item['message']}")
+        code = f"/{item['code']}" if item["code"] else ""
+        fix_lines.append(
+            f"- [ ] **{i}. `{item['id']}`** `{item['tool']}{code}` — `{loc}` — {item['message']}"
+        )
     if len(queue) > 2000:
-        fix_lines += ["", f"_Queue truncated in Markdown at 2000 items; all {len(queue)} items remain in `queue.json` and `../findings.jsonl`._"]
+        fix_lines += [
+            "",
+            f"_Queue truncated in Markdown at 2000 items; all {len(queue)} items remain in `queue.json` and `../findings.jsonl`._",
+        ]
     (agent_dir / "FIX_QUEUE.md").write_text("\n".join(fix_lines) + "\n")
 
     md_path = out / "report.md"
@@ -3089,11 +5030,11 @@ Useful files:
         f"- Distinct repeated signals: **{len(groups)}**",
         f"- Cross-tool correlated locations: **{len(correlations)}**",
         f"- Deterministic auto-fixes: **{fixes['total']}** total (**{fixes['safe']} safe**, {fixes['unsafe']} unsafe, {fixes['review']} review-required)",
-        f"- Agent repair queue: [`agent/FIX_QUEUE.md`](agent/FIX_QUEUE.md)",
-        f"- Auto-fix inventory: [`agent/AUTOFIX.md`](agent/AUTOFIX.md)",
-        f"- Coverage-weighted risk map: [`agent/RISK_MAP.md`](agent/RISK_MAP.md)",
-        f"- Deduplicated repair queue: [`agent/DEDUPLICATED_QUEUE.md`](agent/DEDUPLICATED_QUEUE.md)",
-        f"- Repair checklist: [`agent/CHECKLIST.md`](agent/CHECKLIST.md)",
+        "- Agent repair queue: [`agent/FIX_QUEUE.md`](agent/FIX_QUEUE.md)",
+        "- Auto-fix inventory: [`agent/AUTOFIX.md`](agent/AUTOFIX.md)",
+        "- Coverage-weighted risk map: [`agent/RISK_MAP.md`](agent/RISK_MAP.md)",
+        "- Deduplicated repair queue: [`agent/DEDUPLICATED_QUEUE.md`](agent/DEDUPLICATED_QUEUE.md)",
+        "- Repair checklist: [`agent/CHECKLIST.md`](agent/CHECKLIST.md)",
         "",
         "## ODC-style defect taxonomy",
         "",
@@ -3106,14 +5047,23 @@ Useful files:
     ]
     for g in groups[:25]:
         label = signal_label(g)
-        lines.append(f"| {g['count']} | `{label}` | {g['message'].replace('|', '\\|').replace(chr(10), ' ')[:200]} |")
+        message = g["message"].replace("|", "\\|").replace(chr(10), " ")[:200]
+        lines.append(f"| {g['count']} | `{label}` | {message} |")
     lines += ["", "## Hot files", ""]
     for path, count in hotspots[:20]:
         lines.append(f"- **{count}** findings — `{path}`")
-    lines += ["", "## Defense results", "", "| Status | Tool | Class | Findings | Time | Note |", "|---|---|---|---:|---:|---|"]
+    lines += [
+        "",
+        "## Defense results",
+        "",
+        "| Status | Tool | Class | Findings | Time | Note |",
+        "|---|---|---|---:|---:|---|",
+    ]
     for r in results:
         note = (r.note or "").replace("|", "\\|").replace("\n", " ")
-        lines.append(f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | {r.duration:.1f}s | {note} |")
+        lines.append(
+            f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | {r.duration:.1f}s | {note} |"
+        )
     lines += ["", "## Findings", ""]
     if queue:
         for item in queue:
@@ -3126,49 +5076,84 @@ Useful files:
                 f"- Signal: `{item['signal_key']}`",
                 f"- Fingerprint: `{item['fingerprint']}`",
                 "",
-                item['message'],
+                item["message"],
                 "",
             ]
     else:
-        lines += ["_No normalized findings from defenses that successfully executed._", ""]
+        lines += [
+            "_No normalized findings from defenses that successfully executed._",
+            "",
+        ]
     lines += ["## Execution failures / unavailable defenses", ""]
     for r in results:
         if r.status in {Status.ERROR, Status.SKIPPED}:
-            lines.append(f"- **{r.name}** — {r.status.value}: {r.note or 'see raw output'}")
+            lines.append(
+                f"- **{r.name}** — {r.status.value}: {r.note or 'see raw output'}"
+            )
     lines += ["", "## Raw output", ""]
     for r in results:
         if r.stdout or r.stderr:
-            lines += [f"### {r.name}", "", "```text", (r.stdout + ("\n[stderr]\n" + r.stderr if r.stderr else "")).strip(), "```", ""]
+            lines += [
+                f"### {r.name}",
+                "",
+                "```text",
+                (r.stdout + ("\n[stderr]\n" + r.stderr if r.stderr else "")).strip(),
+                "```",
+                "",
+            ]
     md_path.write_text("\n".join(lines))
     return md_path, json_path
 
 
+# trace:v1 id=impl.src-bughunt-cli.show-default-rules work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def show_default_rules() -> int:
-    table = Table(title=f"BugHunt Default Rule Pack — {len(DEFAULT_RULES)} rules", box=box.ROUNDED, expand=True)
+    table = Table(
+        title=f"BugHunt Default Rule Pack — {len(DEFAULT_RULES)} rules",
+        box=box.ROUNDED,
+        expand=True,
+    )
     table.add_column("CODE", style="cyan", no_wrap=True)
     table.add_column("SEVERITY", width=14)
     table.add_column("CLASS", width=22)
     table.add_column("RULE", ratio=3)
     table.add_column("REDUNDANCY", ratio=2)
     for rule in DEFAULT_RULES:
-        style = "red" if "error" in rule.severity else ("yellow" if "warning" in rule.severity else "dim")
-        table.add_row(rule.code, f"[{style}]{rule.severity}[/]", rule.category, rule.summary, rule.overlap or "—")
+        style = (
+            "red"
+            if "error" in rule.severity
+            else ("yellow" if "warning" in rule.severity else "dim")
+        )
+        table.add_row(
+            rule.code,
+            f"[{style}]{rule.severity}[/]",
+            rule.category,
+            rule.summary,
+            rule.overlap or "—",
+        )
     console.print(table)
-    console.print("[dim]These are BugHunt-native defaults. Ruff ALL, type checkers, Pylint extensions, Semgrep packs, CodeQL, and other analyzers add their own rule sets on top.[/]")
+    console.print(
+        "[dim]These are BugHunt-native defaults. Ruff ALL, type checkers, Pylint extensions, Semgrep packs, CodeQL, and other analyzers add their own rule sets on top.[/]"
+    )
     return 0
 
 
+# trace:v1 id=impl.src-bughunt-cli.doctor work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def doctor(cfg: Config) -> int:
     technology = discover_technologies(cfg.root, persist=True)
     has_python = technology.has("python")
     engine_rows: list[tuple[str, str, str]] = []
 
+    # trace:v1 id=impl.src-bughunt-cli-doctor.cli-row work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def cli_row(label: str, *names: str, python_only: bool = False) -> None:
         if python_only and not has_python:
-            engine_rows.append((label, "N/A", "no first-party Python capability detected"))
+            engine_rows.append(
+                (label, "N/A", "no first-party Python capability detected")
+            )
             return
         path = executable(*names)
-        engine_rows.append((label, "READY" if path else "MISSING", path or "not on PATH"))
+        engine_rows.append(
+            (label, "READY" if path else "MISSING", path or "not on PATH")
+        )
 
     cli_row("ruff", "ruff", python_only=True)
     cli_row("basedpyright", "basedpyright", python_only=True)
@@ -3176,9 +5161,23 @@ def doctor(cfg: Config) -> int:
     cli_row("ty", "ty", python_only=True)
     cli_row("pyrefly", "pyrefly", python_only=True)
     cli_row("pylint", "pylint", python_only=True)
-    engine_rows.append(("BugHunt policy pack", "READY", "built-in repository policy scanner"))
-    engine_rows.append(("BugHunt complexity", "READY", "built-in cyclomatic/LOC/ABC/asset budget scanner"))
-    engine_rows.append(("BugHunt default rules", "READY", f"{len(DEFAULT_RULES)} shipped rules; inspect with `uv run bughunt rules`"))
+    engine_rows.append(
+        ("BugHunt policy pack", "READY", "built-in repository policy scanner")
+    )
+    engine_rows.append(
+        (
+            "BugHunt complexity",
+            "READY",
+            "built-in cyclomatic/LOC/ABC/asset budget scanner",
+        )
+    )
+    engine_rows.append(
+        (
+            "BugHunt default rules",
+            "READY",
+            f"{len(DEFAULT_RULES)} shipped rules; inspect with `uv run bughunt rules`",
+        )
+    )
     cli_row("complexipy", "complexipy", python_only=True)
     cli_row("radon", "radon", python_only=True)
     cli_row("lizard", "lizard")
@@ -3193,78 +5192,202 @@ def doctor(cfg: Config) -> int:
 
     pyre = pysa_executable(cfg.root) if has_python else None
     if not has_python:
-        engine_rows.append(("Pysa runner", "N/A", "no first-party Python capability detected"))
+        engine_rows.append(
+            ("Pysa runner", "N/A", "no first-party Python capability detected")
+        )
     elif pyre:
         private = str(cfg.root / ".bughunt" / "runtime" / "pysa-venv") in pyre
-        probe_cmd = [pyre, "--version=none", "--noninteractive", "analyze", "--version=none", "--help"]
+        probe_cmd = [
+            pyre,
+            "--version=none",
+            "--noninteractive",
+            "analyze",
+            "--version=none",
+            "--help",
+        ]
         try:
-            probe = subprocess.run(probe_cmd, cwd=cfg.root, capture_output=True, text=True, timeout=15, check=False)
+            probe = subprocess.run(
+                probe_cmd,
+                cwd=cfg.root,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
         except (OSError, subprocess.SubprocessError) as exc:
-            engine_rows.append(("Pysa runner", "BROKEN", f"{pyre}: probe failed: {exc}"))
+            engine_rows.append(
+                ("Pysa runner", "BROKEN", f"{pyre}: probe failed: {exc}")
+            )
         else:
             if probe.returncode == 0:
                 detail = f"{'private compatibility runtime' if private else 'project runtime'}: {pyre}"
                 engine_rows.append(("Pysa runner", "READY", detail))
             else:
                 tail = (probe.stderr or probe.stdout).strip().splitlines()
-                detail = (tail[-1] if tail else "CLI probe failed") + "; run `uv run bughunt install --only pysa`"
+                detail = (
+                    tail[-1] if tail else "CLI probe failed"
+                ) + "; run `uv run bughunt install --only pysa`"
                 engine_rows.append(("Pysa runner", "BROKEN", detail))
     else:
-        engine_rows.append(("Pysa runner", "MISSING", "run `uv run bughunt install --only pysa`"))
+        engine_rows.append(
+            ("Pysa runner", "MISSING", "run `uv run bughunt install --only pysa`")
+        )
 
-    engine_rows.append((
-        "deal",
-        "N/A" if not has_python else ("READY" if python_module_available("deal") else "MISSING"),
-        "no first-party Python capability detected" if not has_python else (f"{sys.executable} -m deal" if python_module_available("deal") else "Python module not importable"),
-    ))
+    engine_rows.append(
+        (
+            "deal",
+            "N/A"
+            if not has_python
+            else ("READY" if python_module_available("deal") else "MISSING"),
+            "no first-party Python capability detected"
+            if not has_python
+            else (
+                f"{sys.executable} -m deal"
+                if python_module_available("deal")
+                else "Python module not importable"
+            ),
+        )
+    )
     cli_row("CrossHair", "crosshair", python_only=True)
     cli_row("pytest", "pytest", python_only=True)
-    engine_rows.append((
-        "Hypothesis",
-        "N/A" if not has_python else ("READY" if python_module_available("hypothesis") else "MISSING"),
-        "no first-party Python capability detected" if not has_python else ("Python module importable" if python_module_available("hypothesis") else "Python module not importable"),
-    ))
+    engine_rows.append(
+        (
+            "Hypothesis",
+            "N/A"
+            if not has_python
+            else ("READY" if python_module_available("hypothesis") else "MISSING"),
+            "no first-party Python capability detected"
+            if not has_python
+            else (
+                "Python module importable"
+                if python_module_available("hypothesis")
+                else "Python module not importable"
+            ),
+        )
+    )
     for label, module in (
-        ("coverage.py branch coverage", "coverage"), ("Typeguard runtime contracts", "typeguard"),
-        ("pytest-randomly", "pytest_randomly"), ("pytest-timeout", "pytest_timeout"),
-        ("pytest-socket", "pytest_socket"), ("pytest-xdist", "xdist"),
-        ("pytest-run-parallel", "pytest_run_parallel"), ("Blockbuster asyncio", "blockbuster"),
-        ("pytest-memray", "pytest_memray"), ("pytest-benchmark", "pytest_benchmark"),
+        ("coverage.py branch coverage", "coverage"),
+        ("Typeguard runtime contracts", "typeguard"),
+        ("pytest-randomly", "pytest_randomly"),
+        ("pytest-timeout", "pytest_timeout"),
+        ("pytest-socket", "pytest_socket"),
+        ("pytest-xdist", "xdist"),
+        ("pytest-run-parallel", "pytest_run_parallel"),
+        ("Blockbuster asyncio", "blockbuster"),
+        ("pytest-memray", "pytest_memray"),
+        ("pytest-benchmark", "pytest_benchmark"),
     ):
-        engine_rows.append((label, "N/A" if not has_python else ("READY" if python_module_available(module) else "MISSING"),
-                            "no first-party Python capability detected" if not has_python else ("Python module importable" if python_module_available(module) else "Python module not importable")))
-    engine_rows.append((
-        "HypoFuzz",
-        "N/A" if not has_python else ("READY" if python_module_available("hypofuzz") and executable("hypothesis") else "MISSING"),
-        "no first-party Python capability detected" if not has_python else ("hypofuzz module + Hypothesis CLI available" if python_module_available("hypofuzz") and executable("hypothesis") else "install hypofuzz; the base Hypothesis CLI alone is not sufficient"),
-    ))
+        engine_rows.append(
+            (
+                label,
+                "N/A"
+                if not has_python
+                else ("READY" if python_module_available(module) else "MISSING"),
+                "no first-party Python capability detected"
+                if not has_python
+                else (
+                    "Python module importable"
+                    if python_module_available(module)
+                    else "Python module not importable"
+                ),
+            )
+        )
+    engine_rows.append(
+        (
+            "HypoFuzz",
+            "N/A"
+            if not has_python
+            else (
+                "READY"
+                if python_module_available("hypofuzz") and executable("hypothesis")
+                else "MISSING"
+            ),
+            "no first-party Python capability detected"
+            if not has_python
+            else (
+                "hypofuzz module + Hypothesis CLI available"
+                if python_module_available("hypofuzz") and executable("hypothesis")
+                else "install hypofuzz; the base Hypothesis CLI alone is not sufficient"
+            ),
+        )
+    )
     for label, names in (
-        ("Nox matrix", ("nox",)), ("Griffe API drift", ("griffe",)),
-        ("pydoclint", ("pydoclint",)), ("refurb", ("refurb",)), ("pyanalyze", ("pyanalyze",)),
-        ("validate-pyproject", ("validate-pyproject",)), ("twine", ("twine",)), ("check-manifest", ("check-manifest",)),
+        ("Nox matrix", ("nox",)),
+        ("Griffe API drift", ("griffe",)),
+        ("pydoclint", ("pydoclint",)),
+        ("refurb", ("refurb",)),
+        ("pyanalyze", ("pyanalyze",)),
+        ("validate-pyproject", ("validate-pyproject",)),
+        ("twine", ("twine",)),
+        ("check-manifest", ("check-manifest",)),
         ("py-spy diagnostics", ("py-spy",)),
     ):
         cli_row(label, *names, python_only=True)
-    engine_rows.append(("BugHunt seam/contract drift", "READY" if has_python else "N/A", "built-in BHSEAM/BHDB/BHTIME scanner" if has_python else "no first-party Python capability detected"))
-    engine_rows.append(("Version differential", "READY" if has_python and technology.git_baseline else ("N/A" if not has_python else "BASELINE NEEDED"),
-                        f"safe pure-function differential against {technology.git_baseline[:12]}" if has_python and technology.git_baseline else "requires first-party Python plus local Git baseline"))
+    engine_rows.append(
+        (
+            "BugHunt seam/contract drift",
+            "READY" if has_python else "N/A",
+            "built-in BHSEAM/BHDB/BHTIME scanner"
+            if has_python
+            else "no first-party Python capability detected",
+        )
+    )
+    engine_rows.append(
+        (
+            "Version differential",
+            "READY"
+            if has_python and technology.git_baseline
+            else ("N/A" if not has_python else "BASELINE NEEDED"),
+            f"safe pure-function differential against {technology.git_baseline[:12]}"
+            if has_python and technology.git_baseline
+            else "requires first-party Python plus local Git baseline",
+        )
+    )
     cli_row("mutmut", "mutmut", python_only=True)
     cli_row("Schemathesis", "st", "schemathesis")
     a_ready = atheris_available(cfg.root) if has_python else False
-    engine_rows.append((
-        "Atheris",
-        "N/A" if not has_python else ("READY" if a_ready else "MISSING"),
-        "no first-party Python capability detected" if not has_python else (f"private runtime: {cfg.root / '.bughunt' / 'runtime' / 'atheris'}" if not python_module_available("atheris") and a_ready else ("Python module importable" if python_module_available("atheris") else "not importable; run `uv run bughunt install --only atheris`")),
-    ))
+    engine_rows.append(
+        (
+            "Atheris",
+            "N/A" if not has_python else ("READY" if a_ready else "MISSING"),
+            "no first-party Python capability detected"
+            if not has_python
+            else (
+                f"private runtime: {cfg.root / '.bughunt' / 'runtime' / 'atheris'}"
+                if not python_module_available("atheris") and a_ready
+                else (
+                    "Python module importable"
+                    if python_module_available("atheris")
+                    else "not importable; run `uv run bughunt install --only atheris`"
+                )
+            ),
+        )
+    )
 
     tech_exec_names = {
-        "actionlint": ("actionlint",), "shellcheck": ("shellcheck",), "dotenv-linter": ("dotenv-linter",),
-        "oasdiff": ("oasdiff",), "buf": ("buf",), "sqlfluff": ("sqlfluff",), "squawk": ("squawk",),
-        "hadolint": ("hadolint",), "tflint": ("tflint",), "golangci-lint": ("golangci-lint",),
-        "cppcheck": ("cppcheck",), "infer": ("infer",), "phpstan": ("phpstan",), "oxlint": ("oxlint",),
-        "eslint": ("eslint",), "react-doctor": ("react-doctor",),
-        "tsc": ("tsc",), "knip": ("knip",), "madge": ("madge",), "publint": ("publint",),
-        "taplo": ("taplo",), "yamllint": ("yamllint",), "check-jsonschema": ("check-jsonschema",),
+        "actionlint": ("actionlint",),
+        "shellcheck": ("shellcheck",),
+        "dotenv-linter": ("dotenv-linter",),
+        "oasdiff": ("oasdiff",),
+        "buf": ("buf",),
+        "sqlfluff": ("sqlfluff",),
+        "squawk": ("squawk",),
+        "hadolint": ("hadolint",),
+        "tflint": ("tflint",),
+        "golangci-lint": ("golangci-lint",),
+        "cppcheck": ("cppcheck",),
+        "infer": ("infer",),
+        "phpstan": ("phpstan",),
+        "oxlint": ("oxlint",),
+        "eslint": ("eslint",),
+        "react-doctor": ("react-doctor",),
+        "tsc": ("tsc",),
+        "knip": ("knip",),
+        "madge": ("madge",),
+        "publint": ("publint",),
+        "taplo": ("taplo",),
+        "yamllint": ("yamllint",),
+        "check-jsonschema": ("check-jsonschema",),
         "alembic-check": ("alembic",),
     }
     for engine in TECH_DEEP_TOOLS:
@@ -3276,30 +5399,55 @@ def doctor(cfg: Config) -> int:
             cargo = project_executable(cfg.root, "cargo")
             path = cargo if cargo else None
         elif engine == "django-migrations":
-            path = str(cfg.root / "manage.py") if (cfg.root / "manage.py").exists() else None
+            path = (
+                str(cfg.root / "manage.py")
+                if (cfg.root / "manage.py").exists()
+                else None
+            )
         elif engine == "clang-tidy":
-            path = llvm_executable(cfg.root, "run-clang-tidy") or llvm_executable(cfg.root, "clang-tidy")
+            path = llvm_executable(cfg.root, "run-clang-tidy") or llvm_executable(
+                cfg.root, "clang-tidy"
+            )
         elif engine == "pact-contracts":
-            ready = python_module_available("pact") and python_module_available("uvicorn")
+            ready = python_module_available("pact") and python_module_available(
+                "uvicorn"
+            )
             path = "pact-python + local Uvicorn verifier" if ready else None
         else:
             path = project_executable(cfg.root, *tech_exec_names.get(engine, (engine,)))
-        engine_rows.append((engine, "READY" if path else "MISSING", path or f"applicable ({capability}) but not installed"))
+        engine_rows.append(
+            (
+                engine,
+                "READY" if path else "MISSING",
+                path or f"applicable ({capability}) but not installed",
+            )
+        )
 
     engines = Table(title="BugHunt Engines", box=box.ROUNDED, expand=True)
     engines.add_column("ENGINE", min_width=24)
     engines.add_column("STATUS", width=13)
     engines.add_column("EXECUTABLE / MODULE", ratio=2)
-    styles = {"READY": "green", "MISSING": "red", "BROKEN": "red", "DEGRADED": "yellow", "N/A": "cyan"}
+    styles = {
+        "READY": "green",
+        "MISSING": "red",
+        "BROKEN": "red",
+        "DEGRADED": "yellow",
+        "N/A": "cyan",
+    }
     for label, state, detail in engine_rows:
-        engines.add_row(label, f"[{styles.get(state, 'yellow')}]{state}[/]", escape(detail))
+        engines.add_row(
+            label, f"[{styles.get(state, 'yellow')}]{state}[/]", escape(detail)
+        )
     console.print(engines)
 
-    guarded = Table(title="Guarded / Advisory Correctness Helpers", box=box.ROUNDED, expand=True)
+    guarded = Table(
+        title="Guarded / Advisory Correctness Helpers", box=box.ROUNDED, expand=True
+    )
     guarded.add_column("HELPER", min_width=26)
     guarded.add_column("STATE", width=13)
     guarded.add_column("ROLE / WHY GUARDED", ratio=3)
 
+    # trace:v1 id=impl.src-bughunt-cli-doctor.helper-module work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def helper_module(
         label: str,
         module: str,
@@ -3315,54 +5463,131 @@ def doctor(cfg: Config) -> int:
         detail = role
         if not ready and install_name:
             detail += f"; install explicitly with `bughunt install --only {install_name}` when desired"
-        guarded.add_row(label, "[green]READY[/]" if ready else "[yellow]OPTIONAL[/]", detail)
+        guarded.add_row(
+            label, "[green]READY[/]" if ready else "[yellow]OPTIONAL[/]", detail
+        )
 
-    helper_module("time-machine", "time_machine", "time-boundary test helper; BHTIME001 detects missing boundary evidence rather than inventing expected clock behavior", install_name="time-machine")
-    helper_module("freezegun", "freezegun", "alternative time-control helper; not required when time-machine or equivalent evidence exists", install_name="freezegun")
-    helper_module("VCR.py", "vcr", "recorded external-payload corpus helper for BHSEAM006", install_name="vcrpy")
-    helper_module("openapi-core", "openapi_core", "client/server OpenAPI response/request runtime validation library; seam rule recommends validation rather than auto-rewriting application code", install_name="openapi-core")
-    helper_module("nplusone", "nplusone", "optional ORM runtime N+1 detector; BugHunt also ships static BHDB001", install_name="nplusone")
-    helper_module("icontract-hypothesis", "icontract_hypothesis", "contract-derived property generation; guarded because compatibility varies with current Hypothesis/Python", install_name="icontract-hypothesis")
-    helper_module("Slipcover", "slipcover", "optional fast coverage engine; coverage.py branch coverage remains the canonical portable baseline", install_name="slipcover")
-    helper_module("beartype", "beartype", "alternative runtime type checker; Typeguard is the canonical pytest verification layer", install_name="beartype")
-    helper_module("sqlglot", "sqlglot", "optional SQL parser second opinion; SQLFluff is the configured correctness scanner", install_name="sqlglot")
+    helper_module(
+        "time-machine",
+        "time_machine",
+        "time-boundary test helper; BHTIME001 detects missing boundary evidence rather than inventing expected clock behavior",
+        install_name="time-machine",
+    )
+    helper_module(
+        "freezegun",
+        "freezegun",
+        "alternative time-control helper; not required when time-machine or equivalent evidence exists",
+        install_name="freezegun",
+    )
+    helper_module(
+        "VCR.py",
+        "vcr",
+        "recorded external-payload corpus helper for BHSEAM006",
+        install_name="vcrpy",
+    )
+    helper_module(
+        "openapi-core",
+        "openapi_core",
+        "client/server OpenAPI response/request runtime validation library; seam rule recommends validation rather than auto-rewriting application code",
+        install_name="openapi-core",
+    )
+    helper_module(
+        "nplusone",
+        "nplusone",
+        "optional ORM runtime N+1 detector; BugHunt also ships static BHDB001",
+        install_name="nplusone",
+    )
+    helper_module(
+        "icontract-hypothesis",
+        "icontract_hypothesis",
+        "contract-derived property generation; guarded because compatibility varies with current Hypothesis/Python",
+        install_name="icontract-hypothesis",
+    )
+    helper_module(
+        "Slipcover",
+        "slipcover",
+        "optional fast coverage engine; coverage.py branch coverage remains the canonical portable baseline",
+        install_name="slipcover",
+    )
+    helper_module(
+        "beartype",
+        "beartype",
+        "alternative runtime type checker; Typeguard is the canonical pytest verification layer",
+        install_name="beartype",
+    )
+    helper_module(
+        "sqlglot",
+        "sqlglot",
+        "optional SQL parser second opinion; SQLFluff is the configured correctness scanner",
+        install_name="sqlglot",
+    )
     pynguin = executable("pynguin")
-    guarded.add_row("Pynguin", "[green]READY[/]" if pynguin else "[yellow]GUARDED[/]", "search-based test generation executes modules under test; only enable in a throwaway/OS-sandboxed environment")
+    guarded.add_row(
+        "Pynguin",
+        "[green]READY[/]" if pynguin else "[yellow]GUARDED[/]",
+        "search-based test generation executes modules under test; only enable in a throwaway/OS-sandboxed environment",
+    )
     wemake = python_module_available("wemake_python_styleguide")
-    guarded.add_row("wemake-python-styleguide", "[green]READY[/]" if wemake else "[yellow]ADVISORY[/]", "Ruff companion with additional Python rules; deliberately outside correctness-health because many WPS rules are opinionated/style-heavy")
+    guarded.add_row(
+        "wemake-python-styleguide",
+        "[green]READY[/]" if wemake else "[yellow]ADVISORY[/]",
+        "Ruff companion with additional Python rules; deliberately outside correctness-health because many WPS rules are opinionated/style-heavy",
+    )
     joern = executable("joern", "joern-parse")
-    guarded.add_row("Joern", "[green]READY[/]" if joern else "[yellow]MANUAL[/]", "optional CodeQL-style CPG/dataflow second opinion; not auto-installed because it is a heavyweight external platform")
+    guarded.add_row(
+        "Joern",
+        "[green]READY[/]" if joern else "[yellow]MANUAL[/]",
+        "optional CodeQL-style CPG/dataflow second opinion; not auto-installed because it is a heavyweight external platform",
+    )
     shfmt = executable("shfmt")
-    guarded.add_row("shfmt", "[green]READY[/]" if shfmt else "[dim]QUALITY[/]", "shell formatter only; ShellCheck owns shell correctness and shfmt does not affect correctness health")
+    guarded.add_row(
+        "shfmt",
+        "[green]READY[/]" if shfmt else "[dim]QUALITY[/]",
+        "shell formatter only; ShellCheck owns shell correctness and shfmt does not affect correctness health",
+    )
     asv = executable("asv")
-    guarded.add_row("asv", "[green]READY[/]" if asv else "[dim]ALTERNATIVE[/]", "long-horizon performance benchmark alternative; pytest-benchmark is the default regression ring")
+    guarded.add_row(
+        "asv",
+        "[green]READY[/]" if asv else "[dim]ALTERNATIVE[/]",
+        "long-horizon performance benchmark alternative; pytest-benchmark is the default regression ring",
+    )
     xdoc = executable("xdoctest")
-    guarded.add_row("xdoctest", "[green]READY[/]" if xdoc else "[dim]ALTERNATIVE[/]", "alternative executable-doc engine; pytest --doctest-modules is the default")
+    guarded.add_row(
+        "xdoctest",
+        "[green]READY[/]" if xdoc else "[dim]ALTERNATIVE[/]",
+        "alternative executable-doc engine; pytest --doctest-modules is the default",
+    )
     console.print(guarded)
 
-    capability_table = Table(title="Repository Capabilities", box=box.ROUNDED, expand=True)
+    capability_table = Table(
+        title="Repository Capabilities", box=box.ROUNDED, expand=True
+    )
     capability_table.add_column("CAPABILITY", min_width=24)
     capability_table.add_column("STATE", width=12)
     capability_table.add_column("EVIDENCE", ratio=3)
-    for capability in technology.capabilities.values():
-        evidence = capability.evidence
+    for cap in technology.capabilities.values():
+        evidence = cap.evidence
         detail = ", ".join(evidence[:4])
         if len(evidence) > 4:
             detail += f" (+{len(evidence) - 4} more)"
         capability_table.add_row(
-            capability.id,
-            "[green]DETECTED[/]" if capability.detected else "[dim cyan]N/A[/]",
-            escape(detail or capability.detail),
+            cap.id,
+            "[green]DETECTED[/]" if cap.detected else "[dim cyan]N/A[/]",
+            escape(detail or cap.detail),
         )
     if technology.git_baseline:
-        capability_table.caption = f"Local Git compatibility baseline: {technology.git_baseline[:12]}"
+        capability_table.caption = (
+            f"Local Git compatibility baseline: {technology.git_baseline[:12]}"
+        )
     console.print(capability_table)
 
     manifest_path = cfg.root / ".bughunt" / "configs" / "manifest.json"
     if manifest_path.exists():
         try:
             manifest = json.loads(manifest_path.read_text())
-            configured = Table(title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True)
+            configured = Table(
+                title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True
+            )
             configured.add_column("STATE", width=11)
             configured.add_column("TOOL", min_width=20)
             configured.add_column("CONFIG", min_width=25)
@@ -3370,12 +5595,21 @@ def doctor(cfg: Config) -> int:
             for item in manifest.get("artifacts", []):
                 state = str(item.get("state", "UNKNOWN"))
                 style = "green" if state in {"READY", "EXISTING", "AUTO"} else "yellow"
-                configured.add_row(f"[{style}]{state}[/]", str(item.get("name", "?")), str(item.get("path") or "—"), str(item.get("detail") or ""))
+                configured.add_row(
+                    f"[{style}]{state}[/]",
+                    str(item.get("name", "?")),
+                    str(item.get("path") or "—"),
+                    str(item.get("detail") or ""),
+                )
             console.print(configured)
         except (OSError, json.JSONDecodeError, TypeError):
-            console.print("[yellow]Strict config manifest is unreadable; run `uv run bughunt configure --auto`.[/]")
+            console.print(
+                "[yellow]Strict config manifest is unreadable; run `uv run bughunt configure --auto`.[/]"
+            )
     else:
-        console.print("[yellow]Strict analyzer overlays are not generated yet. Run `uv run bughunt configure --auto`.[/]")
+        console.print(
+            "[yellow]Strict analyzer overlays are not generated yet. Run `uv run bughunt configure --auto`.[/]"
+        )
 
     generated = load_generated_targets(cfg.root)
     atheris_targets = [t for t in generated if t.kind == "atheris" and t.runnable]
@@ -3393,37 +5627,70 @@ def doctor(cfg: Config) -> int:
     coverage.add_row(
         "Atheris fuzz targets",
         "[green]READY[/]" if a_count else "[yellow]TARGET NEEDED[/]",
-        f"{a_count} runnable target(s)" if a_count else "run `uv run bughunt configure --auto`; only safe one-input parser/decoder targets are generated",
+        f"{a_count} runnable target(s)"
+        if a_count
+        else "run `uv run bughunt configure --auto`; only safe one-input parser/decoder targets are generated",
     )
     s_count = len(schema_targets) + len(explicit_schema)
-    schema_detail = f"{s_count} runnable target(s)" if s_count else "run `uv run bughunt configure --auto`; FastAPI apps can be fuzzed in-process"
+    schema_detail = (
+        f"{s_count} runnable target(s)"
+        if s_count
+        else "run `uv run bughunt configure --auto`; FastAPI apps can be fuzzed in-process"
+    )
     if not s_count and schema_candidates:
-        schema_detail += f"; {len(schema_candidates)} OpenAPI candidate(s) need a local base URL"
+        schema_detail += (
+            f"; {len(schema_candidates)} OpenAPI candidate(s) need a local base URL"
+        )
     coverage.add_row(
         "Schemathesis API targets",
         "[green]READY[/]" if s_count else "[yellow]TARGET NEEDED[/]",
         schema_detail,
     )
-    pysa_base = (cfg.root / ".pyre_configuration").exists() and (cfg.root / ".bughunt" / "configs" / "pysa" / "taint.config").exists()
+    pysa_base = (cfg.root / ".pyre_configuration").exists() and (
+        cfg.root / ".bughunt" / "configs" / "pysa" / "taint.config"
+    ).exists()
     pysa_models = cfg.root / ".bughunt" / "configs" / "pysa" / "bughunt.pysa"
     semantic_lines = 0
     if pysa_models.exists():
-        semantic_lines = sum(1 for line in pysa_models.read_text(errors="replace").splitlines() if line.strip() and not line.lstrip().startswith("#"))
+        semantic_lines = sum(
+            1
+            for line in pysa_models.read_text(errors="replace").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
     coverage.add_row(
         "Pysa taint framework",
         "[green]CONFIGURED[/]" if pysa_base else "[yellow]CONFIG NEEDED[/]",
-        (f"base taint config ready; {semantic_lines} project semantic model line(s)" if pysa_base else "run `uv run bughunt configure --auto`"),
+        (
+            f"base taint config ready; {semantic_lines} project semantic model line(s)"
+            if pysa_base
+            else "run `uv run bughunt configure --auto`"
+        ),
     )
     sgconfig = generated_config(cfg.root, "sgconfig.yml")
     if not sgconfig:
-        sgconfig = next((cfg.root / p for p in ("sgconfig.yml", "sgconfig.yaml") if (cfg.root / p).exists()), None)
+        sgconfig = next(
+            (
+                cfg.root / p
+                for p in ("sgconfig.yml", "sgconfig.yaml")
+                if (cfg.root / p).exists()
+            ),
+            None,
+        )
     coverage.add_row(
         "ast-grep project rules",
         "[green]CONFIGURED[/]" if sgconfig else "[yellow]CONFIG NEEDED[/]",
-        str(sgconfig.relative_to(cfg.root)) if sgconfig else "run `uv run bughunt configure --auto`",
+        str(sgconfig.relative_to(cfg.root))
+        if sgconfig
+        else "run `uv run bughunt configure --auto`",
     )
-    custom_targets = [target for target in generated if target.kind.startswith("custom-") and target.runnable]
-    custom_counts = Counter(target.kind.removeprefix("custom-") for target in custom_targets)
+    custom_targets = [
+        target
+        for target in generated
+        if target.kind.startswith("custom-") and target.runnable
+    ]
+    custom_counts = Counter(
+        target.kind.removeprefix("custom-") for target in custom_targets
+    )
     for category, label in (
         ("differential", "Differential oracles"),
         ("roundtrip", "Round-trip properties"),
@@ -3434,7 +5701,9 @@ def doctor(cfg: Config) -> int:
         coverage.add_row(
             label,
             "[green]READY[/]" if count else "[dim]NONE INFERRED[/]",
-            f"{count} high-confidence generated campaign(s)" if count else "auto-configure found no high-confidence repository evidence for this campaign class",
+            f"{count} high-confidence generated campaign(s)"
+            if count
+            else "auto-configure found no high-confidence repository evidence for this campaign class",
         )
     configured_custom = list(cfg.raw.get("custom", {}).get("checks", []))
     coverage.add_row(
@@ -3447,27 +5716,43 @@ def doctor(cfg: Config) -> int:
     coverage.add_row(
         "Environment contract / .env.example",
         "[green]CONFIGURED[/]" if env_contract.exists() else "[dim]N/A[/]",
-        ("static env inventory + managed .env.example generated" if env_contract.exists() and env_example.exists() else "no static environment-variable use inferred"),
+        (
+            "static env inventory + managed .env.example generated"
+            if env_contract.exists() and env_example.exists()
+            else "no static environment-variable use inferred"
+        ),
     )
-    policy_roundtrip = [t for t in generated if t.kind == "custom-roundtrip" and t.runnable]
+    policy_roundtrip = [
+        t for t in generated if t.kind == "custom-roundtrip" and t.runnable
+    ]
     coverage.add_row(
         "Export/import round-trip enforcement",
         "[green]READY[/]" if policy_roundtrip else "[cyan]POLICY[/]",
-        (f"{len(policy_roundtrip)} executable round-trip property campaign(s); policy scan also flags untested export/import and backup/restore pairs" if policy_roundtrip else "policy scan flags supported export/import or backup/restore pairs lacking round-trip coverage"),
+        (
+            f"{len(policy_roundtrip)} executable round-trip property campaign(s); policy scan also flags untested export/import and backup/restore pairs"
+            if policy_roundtrip
+            else "policy scan flags supported export/import or backup/restore pairs lacking round-trip coverage"
+        ),
     )
     coverage.add_row(
         "Branch/line execution coverage",
-        "[green]CONFIGURED[/]" if generated_config(cfg.root, "coverage.ini") else "[yellow]CONFIG NEEDED[/]",
+        "[green]CONFIGURED[/]"
+        if generated_config(cfg.root, "coverage.ini")
+        else "[yellow]CONFIG NEEDED[/]",
         "coverage.py branch instrumentation; uncovered lines/edges become BHCOV findings and feed the risk map",
     )
     coverage.add_row(
         "Runtime annotation verification",
-        "[green]READY[/]" if has_python and python_module_available("typeguard") else ("[cyan]N/A[/]" if not has_python else "[yellow]MISSING[/]"),
+        "[green]READY[/]"
+        if has_python and python_module_available("typeguard")
+        else ("[cyan]N/A[/]" if not has_python else "[yellow]MISSING[/]"),
         "Typeguard pytest pass checks annotation truth where dynamic/untyped values enter",
     )
     coverage.add_row(
         "Environment/order/interpreter variation",
-        "[green]CONFIGURED[/]" if (cfg.root / ".bughunt" / "generated" / "noxfile.py").exists() else "[yellow]CONFIG NEEDED[/]",
+        "[green]CONFIGURED[/]"
+        if (cfg.root / ".bughunt" / "generated" / "noxfile.py").exists()
+        else "[yellow]CONFIG NEEDED[/]",
         "fixed + random hash/order seeds, hostile TZ/locale passes, Nox 3.11-3.14 + free-threaded candidate",
     )
     coverage.add_row(
@@ -3481,16 +5766,33 @@ def doctor(cfg: Config) -> int:
         "validate-pyproject + uv lock/pip check + manifest + build/twine where applicable",
     )
     pact_files = pact_json_files(cfg.root, technology.files.get("pact", []))
-    pact_asgi = [t for t in generated if t.kind == "schemathesis" and (t.metadata or {}).get("transport") == "asgi"]
+    pact_asgi = [
+        t
+        for t in generated
+        if t.kind == "schemathesis" and (t.metadata or {}).get("transport") == "asgi"
+    ]
     if technology.has("pact"):
-        pact_ready = bool(pact_files) and len(pact_asgi) == 1 and python_module_available("pact") and python_module_available("uvicorn")
+        pact_ready = (
+            bool(pact_files)
+            and len(pact_asgi) == 1
+            and python_module_available("pact")
+            and python_module_available("uvicorn")
+        )
         coverage.add_row(
             "Consumer/provider contract verification",
             "[green]READY[/]" if pact_ready else "[yellow]TARGET NEEDED[/]",
-            (f"{len(pact_files)} Pact file(s) + one local ASGI provider; deep/all can verify locally" if pact_ready else "Pact detected, but automatic verification requires concrete local Pact JSON plus exactly one high-confidence local provider; remote deployed providers are never auto-targeted"),
+            (
+                f"{len(pact_files)} Pact file(s) + one local ASGI provider; deep/all can verify locally"
+                if pact_ready
+                else "Pact detected, but automatic verification requires concrete local Pact JSON plus exactly one high-confidence local provider; remote deployed providers are never auto-targeted"
+            ),
         )
     else:
-        coverage.add_row("Consumer/provider contract verification", "[dim cyan]N/A[/]", "no Pact contract capability detected")
+        coverage.add_row(
+            "Consumer/provider contract verification",
+            "[dim cyan]N/A[/]",
+            "no Pact contract capability detected",
+        )
     coverage.add_row(
         "Cross-tool disagreement",
         "[green]ACTIVE[/]" if has_python else "[cyan]N/A[/]",
@@ -3520,6 +5822,7 @@ def doctor(cfg: Config) -> int:
     return 0
 
 
+# trace:v1 id=impl.src-bughunt-cli.auto-configure work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
     autod = cfg.raw.get("autodiscovery", {})
     schemathesis_examples = max(1000, int(autod.get("schemathesis_max_examples", 1000)))
@@ -3545,48 +5848,76 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             pysa_count = len(json.loads(pysa_evidence.read_text()).get("models", []))
         except (OSError, json.JSONDecodeError, TypeError):
             pysa_count = 0
-    artifacts.append(type(custom_artifact)(
-        "Pysa inferred semantic models",
-        ".bughunt/configs/pysa/bughunt.pysa",
-        "READY",
-        f"{pysa_count} high-confidence direct source/sink wrapper model(s) inferred; evidence in .bughunt/generated/pysa-models.json",
-    ))
+    artifacts.append(
+        type(custom_artifact)(
+            "Pysa inferred semantic models",
+            ".bughunt/configs/pysa/bughunt.pysa",
+            "READY",
+            f"{pysa_count} high-confidence direct source/sink wrapper model(s) inferred; evidence in .bughunt/generated/pysa-models.json",
+        )
+    )
     generated_checks = []
     for target in targets:
-        if target.kind.startswith("custom-") and target.runnable and target.command and target.confidence == "high":
-            generated_checks.append({
-                "name": target.name,
-                "category": target.kind.removeprefix("custom-"),
-                "profile": "deep",
-                "command": list(target.command),
-                "timeout": int((target.metadata or {}).get("timeout", 3600)),
-                "generated": True,
-                "confidence": target.confidence,
-            })
-    existing_checks = [x for x in cfg.raw.get("custom", {}).get("checks", []) if not x.get("generated")]
+        if (
+            target.kind.startswith("custom-")
+            and target.runnable
+            and target.command
+            and target.confidence == "high"
+        ):
+            generated_checks.append(
+                {
+                    "name": target.name,
+                    "category": target.kind.removeprefix("custom-"),
+                    "profile": "deep",
+                    "command": list(target.command),
+                    "timeout": int((target.metadata or {}).get("timeout", 3600)),
+                    "generated": True,
+                    "confidence": target.confidence,
+                }
+            )
+    existing_checks = [
+        x for x in cfg.raw.get("custom", {}).get("checks", []) if not x.get("generated")
+    ]
     cfg.raw.setdefault("custom", {})["checks"] = [*existing_checks, *generated_checks]
     manifest_path = cfg.root / ".bughunt" / "configs" / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps({"schema_version": 3, "artifacts": [dataclasses.asdict(item) for item in artifacts]}, indent=2) + "\n")
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 3,
+                "artifacts": [dataclasses.asdict(item) for item in artifacts],
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     if not quiet:
-        ctable = Table(title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True)
+        ctable = Table(
+            title="Strict Analyzer Configuration", box=box.ROUNDED, expand=True
+        )
         ctable.add_column("STATE", width=11)
         ctable.add_column("TOOL", min_width=18)
         ctable.add_column("CONFIG", min_width=24)
         ctable.add_column("DETAIL", ratio=2)
         for item in artifacts:
             style = "green" if item.state in {"READY", "EXISTING", "AUTO"} else "yellow"
-            ctable.add_row(f"[{style}]{item.state}[/]", item.name, item.path or "—", item.detail)
+            ctable.add_row(
+                f"[{style}]{item.state}[/]", item.name, item.path or "—", item.detail
+            )
         console.print(ctable)
 
         inventory = discover_technologies(cfg.root, persist=True)
-        cap_table = Table(title="Repository Capability Auto-selection", box=box.ROUNDED, expand=True)
+        cap_table = Table(
+            title="Repository Capability Auto-selection", box=box.ROUNDED, expand=True
+        )
         cap_table.add_column("CAPABILITY", min_width=24)
         cap_table.add_column("STATE", width=12)
         cap_table.add_column("APPLICABLE ENGINES", ratio=2)
         cap_table.add_column("EVIDENCE", ratio=3)
         for capability in inventory.capabilities.values():
-            engines = [name for name, cap in ENGINE_CAPABILITY.items() if cap == capability.id]
+            engines = [
+                name for name, cap in ENGINE_CAPABILITY.items() if cap == capability.id
+            ]
             evidence = ", ".join(capability.evidence[:3])
             if len(capability.evidence) > 3:
                 evidence += f" (+{len(capability.evidence) - 3} more)"
@@ -3598,7 +5929,9 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             )
         console.print(cap_table)
 
-        table = Table(title="Auto-discovered Targets & Campaigns", box=box.ROUNDED, expand=True)
+        table = Table(
+            title="Auto-discovered Targets & Campaigns", box=box.ROUNDED, expand=True
+        )
         table.add_column("STATE", width=11)
         table.add_column("ENGINE", width=18)
         table.add_column("TARGET", min_width=28)
@@ -3606,16 +5939,35 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
         table.add_column("WHY", ratio=2)
         for target in targets:
             state = "[green]READY[/]" if target.runnable else "[yellow]REVIEW[/]"
-            engine = "schemathesis" if target.kind.startswith("schemathesis") else target.kind.removeprefix("custom-")
+            engine = (
+                "schemathesis"
+                if target.kind.startswith("schemathesis")
+                else target.kind.removeprefix("custom-")
+            )
             table.add_row(state, engine, target.name, target.confidence, target.reason)
         if not targets:
-            table.add_row("[dim]NONE[/]", "—", "—", "—", "No high-confidence fuzz/API/semantic targets discovered")
+            table.add_row(
+                "[dim]NONE[/]",
+                "—",
+                "—",
+                "—",
+                "No high-confidence fuzz/API/semantic targets discovered",
+            )
         console.print(table)
-        console.print(f"[dim]Registry: {cfg.root / '.bughunt' / 'generated' / 'targets.json'}[/]")
+        console.print(
+            f"[dim]Registry: {cfg.root / '.bughunt' / 'generated' / 'targets.json'}[/]"
+        )
     return targets
 
 
-async def run_all(cfg: Config, profile: str, *, auto_discover: bool = True, excluded: set[str] | None = None) -> tuple[list[Result], float]:
+# trace:v1 id=impl.src-bughunt-cli.run-all work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+async def run_all(
+    cfg: Config,
+    profile: str,
+    *,
+    auto_discover: bool = True,
+    excluded: set[str] | None = None,
+) -> tuple[list[Result], float]:
     started = time.perf_counter()
     raw_limit = int(cfg.raw.get("execution", {}).get("raw_output_limit_kb", 512)) * 1024
 
@@ -3628,28 +5980,37 @@ async def run_all(cfg: Config, profile: str, *, auto_discover: bool = True, excl
     if not load_technology_inventory(cfg.root).has("python"):
         effective_tools -= {"codeql", "pysa", "mutmut"}
     # Count logical defenses, not internal CodeQL database/mutmut-results phases.
-    special_names = [name for name in ("codeql", "pysa", "mutmut") if name in effective_tools]
+    special_names = [
+        name for name in ("codeql", "pysa", "mutmut") if name in effective_tools
+    ]
     progress = LiveRunState(total=len(checks) + len(skipped) + len(special_names))
     for item in skipped:
         progress.finish(item)
 
     stop_refresh = asyncio.Event()
 
+    # trace:v1 id=impl.src-bughunt-cli-run-all.refresher work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     async def refresher(live: Live) -> None:
         while not stop_refresh.is_set():
             live.update(progress.render(), refresh=True)
             try:
                 await asyncio.wait_for(stop_refresh.wait(), timeout=0.5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
     results: list[Result] = []
-    with Live(progress.render(), console=console, refresh_per_second=4, transient=False) as live:
+    with Live(
+        progress.render(), console=console, refresh_per_second=4, transient=False
+    ) as live:
         refresh_task = asyncio.create_task(refresher(live))
         try:
             normal = await run_parallel(checks, cfg.max_parallel, raw_limit, progress)
             special = []
-            for runner, logical_name in ((run_codeql, "codeql"), (run_pysa, "pysa"), (run_mutmut, "mutmut")):
+            for runner, logical_name in (
+                (run_codeql, "codeql"),
+                (run_pysa, "pysa"),
+                (run_mutmut, "mutmut"),
+            ):
                 if logical_name not in effective_tools:
                     continue
                 result = await runner(cfg, profile, raw_limit, progress)
@@ -3673,16 +6034,30 @@ async def run_all(cfg: Config, profile: str, *, auto_discover: bool = True, excl
     if "type-disagreement" in effective_tools:
         disagreement = type_disagreement_result(results)
         if disagreement is not None:
-            results = [r for r in results if r.name != "type-disagreement"] + [disagreement]
+            results = [r for r in results if r.name != "type-disagreement"] + [
+                disagreement
+            ]
     by_name = {result.name: result for result in results}
     pysa_result = by_name.get("pysa")
     pyrefly_result = by_name.get("pyrefly")
-    if pysa_result and pyrefly_result and pyrefly_result.status in {Status.FINDINGS, Status.ERROR}:
+    if (
+        pysa_result
+        and pyrefly_result
+        and pyrefly_result.status in {Status.FINDINGS, Status.ERROR}
+    ):
         dependency_note = (
             f"Pysa type-provider coverage degraded: Pyrefly is {pyrefly_result.status.value.lower()}"
-            + (f" with {pyrefly_result.count} finding(s)" if pyrefly_result.count else "")
+            + (
+                f" with {pyrefly_result.count} finding(s)"
+                if pyrefly_result.count
+                else ""
+            )
         )
-        pysa_result.note = f"{pysa_result.note}; {dependency_note}" if pysa_result.note else dependency_note
+        pysa_result.note = (
+            f"{pysa_result.note}; {dependency_note}"
+            if pysa_result.note
+            else dependency_note
+        )
         # A clean taint result cannot be called coverage-clean while its current
         # type-information provider is known not to check cleanly.
         if pysa_result.status == Status.PASS:
@@ -3701,6 +6076,7 @@ def exit_code_for(cfg: Config, results: list[Result]) -> int:
     return 0
 
 
+# trace:v1 id=impl.src-bughunt-cli.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="bughunt",
@@ -3712,32 +6088,78 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     run_p = sub.add_parser("run", help="run a bug-hunting profile")
-    run_p.add_argument("profile_positional", nargs="?", choices=("fast", "pr", "deep", "all"), help="profile (also accepted as --profile)")
+    run_p.add_argument(
+        "profile_positional",
+        nargs="?",
+        choices=("fast", "pr", "deep", "all"),
+        help="profile (also accepted as --profile)",
+    )
     run_p.add_argument("--profile", choices=("fast", "pr", "deep", "all"), default=None)
-    run_p.add_argument("--skip", action="append", default=[], metavar="DEFENSE", help="skip a defense while keeping the selected profile (repeatable)")
-    run_p.add_argument("--skip-mutmut", action="store_true", help="skip mutation testing")
-    run_p.add_argument("--no-auto-config", action="store_true", help="do not refresh strict configs or auto-discovered targets")
+    run_p.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="DEFENSE",
+        help="skip a defense while keeping the selected profile (repeatable)",
+    )
+    run_p.add_argument(
+        "--skip-mutmut", action="store_true", help="skip mutation testing"
+    )
+    run_p.add_argument(
+        "--no-auto-config",
+        action="store_true",
+        help="do not refresh strict configs or auto-discovered targets",
+    )
 
-    for alias, help_text in (("quick", "run the fast feedback profile"), ("pr", "run the pull-request profile"), ("deep", "run the deep profile")):
+    for alias, help_text in (
+        ("quick", "run the fast feedback profile"),
+        ("pr", "run the pull-request profile"),
+        ("deep", "run the deep profile"),
+    ):
         alias_p = sub.add_parser(alias, help=help_text)
         alias_p.add_argument("--no-auto-config", action="store_true")
 
+    # trace:v1 id=impl.src-bughunt-cli-main.add-all-options work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add_all_options(target: argparse.ArgumentParser) -> None:
-        target.add_argument("--install-missing", action=argparse.BooleanOptionalAction, default=True, help="install missing analyzers before running (default: true)")
-        target.add_argument("--skip", action="append", default=[], metavar="DEFENSE", help="skip a defense while keeping all other all-profile defenses")
-        target.add_argument("--skip-mutmut", action="store_true", help="skip mutation testing (same as --skip mutmut)")
+        target.add_argument(
+            "--install-missing",
+            action=argparse.BooleanOptionalAction,
+            default=True,
+            help="install missing analyzers before running (default: true)",
+        )
+        target.add_argument(
+            "--skip",
+            action="append",
+            default=[],
+            metavar="DEFENSE",
+            help="skip a defense while keeping all other all-profile defenses",
+        )
+        target.add_argument(
+            "--skip-mutmut",
+            action="store_true",
+            help="skip mutation testing (same as --skip mutmut)",
+        )
         target.add_argument("--no-auto-config", action="store_true")
 
-    all_p = sub.add_parser("all", help="bootstrap, auto-configure, and run every available defense")
+    all_p = sub.add_parser(
+        "all", help="bootstrap, auto-configure, and run every available defense"
+    )
     add_all_options(all_p)
 
-    full_p = sub.add_parser("full", help="alias for `all`: bootstrap, configure, and run everything")
+    full_p = sub.add_parser(
+        "full", help="alias for `all`: bootstrap, configure, and run everything"
+    )
     add_all_options(full_p)
 
-    skipmutmut_p = sub.add_parser("skipmutmut", help="run the all profile but explicitly skip mutation testing")
+    skipmutmut_p = sub.add_parser(
+        "skipmutmut", help="run the all profile but explicitly skip mutation testing"
+    )
     add_all_options(skipmutmut_p)
 
-    install_p = sub.add_parser("install", help="auto-install the analysis stack using uv (plus CodeQL/Watchman on macOS)")
+    install_p = sub.add_parser(
+        "install",
+        help="auto-install the analysis stack using uv (plus CodeQL/Watchman on macOS)",
+    )
     install_p.add_argument("--dry-run", action="store_true")
     install_p.add_argument(
         "--only",
@@ -3746,7 +6168,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="install/repair only this component (repeatable; e.g. --only atheris)",
     )
 
-    config_p = sub.add_parser("configure", help="discover and generate safe deep-analysis targets")
+    config_p = sub.add_parser(
+        "configure", help="discover and generate safe deep-analysis targets"
+    )
     config_p.add_argument("--auto", action="store_true", default=True)
 
     sub.add_parser("rules", help="list the shipped BugHunt-native default rule pack")
@@ -3768,7 +6192,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "install":
         selected = ", ".join(args.only) if args.only else "full analysis stack"
-        console.print(Panel.fit(f"[bold bright_cyan]Installing BugHunt: {escape(selected)} with uv[/]", border_style="bright_cyan"))
+        console.print(
+            Panel.fit(
+                f"[bold bright_cyan]Installing BugHunt: {escape(selected)} with uv[/]",
+                border_style="bright_cyan",
+            )
+        )
         results = install_all(
             root,
             dry_run=args.dry_run,
@@ -3780,7 +6209,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         table.add_column("COMPONENT", min_width=24)
         table.add_column("DETAIL", ratio=2)
         for item in results:
-            style = "green" if item.status == "PASS" else ("yellow" if item.status in {"SKIPPED", "DRY-RUN"} else "red")
+            style = (
+                "green"
+                if item.status == "PASS"
+                else ("yellow" if item.status in {"SKIPPED", "DRY-RUN"} else "red")
+            )
             table.add_row(f"[{style}]{item.status}[/]", item.name, item.note)
         console.print(table)
         return 1 if any(item.status == "ERROR" for item in results) else 0
@@ -3789,14 +6222,33 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {"all", "full", "skipmutmut"}:
         profile = "all"
     elif args.command == "run":
-        profile = getattr(args, "profile_positional", None) or getattr(args, "profile", None) or "pr"
+        profile = (
+            getattr(args, "profile_positional", None)
+            or getattr(args, "profile", None)
+            or "pr"
+        )
     else:
         profile = alias_profiles.get(args.command, "pr")
 
     excluded = set(getattr(args, "skip", []) or [])
     if bool(getattr(args, "skip_mutmut", False)) or args.command == "skipmutmut":
         excluded.add("mutmut")
-    known_defenses = set(cfg.tools(profile)) | set(TECH_DEEP_TOOLS) | {"mutmut", "codeql", "pysa", "atheris", "schemathesis", "semgrep", "ast-grep", "bandit", "bugcorpus", "custom"}
+    known_defenses = (
+        set(cfg.tools(profile))
+        | set(TECH_DEEP_TOOLS)
+        | {
+            "mutmut",
+            "codeql",
+            "pysa",
+            "atheris",
+            "schemathesis",
+            "semgrep",
+            "ast-grep",
+            "bandit",
+            "bugcorpus",
+            "custom",
+        }
+    )
     unknown_skips = sorted(excluded - known_defenses)
     if unknown_skips:
         parser.error("unknown defense(s) for --skip: " + ", ".join(unknown_skips))
@@ -3805,13 +6257,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         suffix = " (mutmut skipped)" if "mutmut" in excluded else ""
         inventory = discover_technologies(root, persist=True)
         detected = sum(1 for item in inventory.capabilities.values() if item.detected)
-        console.print(f"[bold]Detected {detected} repository capability class(es); installing only applicable analysis engines{suffix}...[/]")
+        console.print(
+            f"[bold]Detected {detected} repository capability class(es); installing only applicable analysis engines{suffix}...[/]"
+        )
         if excluded:
-            install_results = install_all(root, dry_run=False, emit=lambda line: console.print(f"[dim]{line}[/]"), exclude=excluded)
+            install_results = install_all(
+                root,
+                dry_run=False,
+                emit=lambda line: console.print(f"[dim]{line}[/]"),
+                exclude=excluded,
+            )
         else:
-            install_results = install_all(root, dry_run=False, emit=lambda line: console.print(f"[dim]{line}[/]"))
+            install_results = install_all(
+                root, dry_run=False, emit=lambda line: console.print(f"[dim]{line}[/]")
+            )
         if any(x.status == "ERROR" for x in install_results):
-            console.print("[yellow]Some installers failed; continuing so the final report records the remaining blind spots.[/]")
+            console.print(
+                "[yellow]Some installers failed; continuing so the final report records the remaining blind spots.[/]"
+            )
         # Reload config/environment view after uv modified the project.
         cfg = load_config(root, args.config)
 
@@ -3819,18 +6282,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not no_auto:
         auto_configure(cfg, quiet=True)
 
-    profile_display = profile + (" - " + ", ".join(f"no {name}" for name in sorted(excluded)) if excluded else "")
-    console.print(Panel.fit(
-        f"[bold bright_cyan]Scanning[/] [bold]{root.name}[/] with [bright_magenta]{profile_display}[/] defenses",
-        border_style="bright_cyan",
-    ))
+    profile_display = profile + (
+        " - " + ", ".join(f"no {name}" for name in sorted(excluded)) if excluded else ""
+    )
+    console.print(
+        Panel.fit(
+            f"[bold bright_cyan]Scanning[/] [bold]{root.name}[/] with [bright_magenta]{profile_display}[/] defenses",
+            border_style="bright_cyan",
+        )
+    )
     if excluded:
-        results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False, excluded=excluded))
+        scan_results, elapsed = asyncio.run(
+            run_all(cfg, profile, auto_discover=False, excluded=excluded)
+        )
     else:
-        results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))
-    md, js = write_reports(cfg, results, profile, elapsed)
-    render_terminal(results, profile, elapsed, md, js)
-    return exit_code_for(cfg, results)
+        scan_results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))
+    md, js = write_reports(cfg, scan_results, profile, elapsed)
+    render_terminal(scan_results, profile, elapsed, md, js)
+    return exit_code_for(cfg, scan_results)
 
 
 if __name__ == "__main__":

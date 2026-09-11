@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from bughunt.metrics_scan import scan as scan_metrics
-from bughunt.policy_scan import ensure_env_example, scan as scan_policy
+from bughunt.policy_scan import ensure_env_example
+from bughunt.policy_scan import scan as scan_policy
 
 
 def _pkg(tmp_path: Path) -> Path:
@@ -14,7 +15,9 @@ def _pkg(tmp_path: Path) -> Path:
     return src
 
 
-def test_env_example_is_generated_from_static_environment_contract(tmp_path: Path) -> None:
+def test_env_example_is_generated_from_static_environment_contract(
+    tmp_path: Path,
+) -> None:
     src = _pkg(tmp_path)
     (src / "config_use.py").write_text(
         "import os\n"
@@ -39,12 +42,18 @@ def test_env_example_is_generated_from_static_environment_contract(tmp_path: Pat
 def test_env_example_real_looking_secret_is_flagged(tmp_path: Path) -> None:
     src = _pkg(tmp_path)
     (src / "x.py").write_text("import os\nTOKEN = os.environ['API_TOKEN']\n")
-    (tmp_path / ".env.example").write_text("API_TOKEN=sk-abcdefghijklmnopqrstuvwxyz123456\n")
+    (tmp_path / ".env.example").write_text(
+        "API_TOKEN=sk-abcdefghijklmnopqrstuvwxyz123456\n"
+    )
     findings = scan_policy(tmp_path, ["src"], ["tests"])
-    assert any(item.code == "BHCFG003" and item.severity == "error" for item in findings)
+    assert any(
+        item.code == "BHCFG003" and item.severity == "error" for item in findings
+    )
 
 
-def test_policy_flags_private_and_persistence_implementation_cross_layer_imports(tmp_path: Path) -> None:
+def test_policy_flags_private_and_persistence_implementation_cross_layer_imports(
+    tmp_path: Path,
+) -> None:
     src = _pkg(tmp_path)
     api = src / "api"
     api.mkdir()
@@ -79,8 +88,7 @@ def test_export_import_pair_requires_roundtrip_test(tmp_path: Path) -> None:
 def test_implementation_coupled_mock_sequence_is_flagged(tmp_path: Path) -> None:
     _pkg(tmp_path)
     (tmp_path / "tests" / "test_calls.py").write_text(
-        "def test_internal_order(mock):\n"
-        "    mock.assert_has_calls([])\n"
+        "def test_internal_order(mock):\n    mock.assert_has_calls([])\n"
     )
     findings = scan_policy(tmp_path, ["src"], ["tests"])
     assert any(item.code == "BHTEST002" for item in findings)
@@ -116,7 +124,9 @@ def test_metrics_enforce_cyclomatic_loc_and_abc_budgets(tmp_path: Path) -> None:
 
 def test_metrics_enforce_built_asset_budget(tmp_path: Path) -> None:
     _pkg(tmp_path)
-    (tmp_path / "bughunt.toml").write_text("[complexity]\njs_file_kb_warn=1\nbundle_kb_warn=1\n")
+    (tmp_path / "bughunt.toml").write_text(
+        "[complexity]\njs_file_kb_warn=1\nbundle_kb_warn=1\n"
+    )
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "app.js").write_bytes(b"x" * 2048)
@@ -138,7 +148,10 @@ def test_env_example_documents_inferred_numeric_range(tmp_path: Path) -> None:
     assert path is not None
     text = path.read_text()
     assert "accepted range: >=1 and <=65535" in text
-    assert next(item for item in uses if item.name == "PORT").accepted_range == ">=1 and <=65535"
+    assert (
+        next(item for item in uses if item.name == "PORT").accepted_range
+        == ">=1 and <=65535"
+    )
 
 
 def test_finally_jump_is_default_builtin_error(tmp_path: Path) -> None:
@@ -174,10 +187,14 @@ def test_one_sided_export_is_reported_as_roundtrip_contract_gap(tmp_path: Path) 
         "def export_project(value: str) -> bytes:\n    return value.encode()\n"
     )
     findings = scan_policy(tmp_path, ["src"], ["tests"])
-    assert any(item.code == "BHRT002" and "import_project" in item.message for item in findings)
+    assert any(
+        item.code == "BHRT002" and "import_project" in item.message for item in findings
+    )
 
 
-def test_persistence_type_exposed_from_upper_layer_signature_is_flagged(tmp_path: Path) -> None:
+def test_persistence_type_exposed_from_upper_layer_signature_is_flagged(
+    tmp_path: Path,
+) -> None:
     src = _pkg(tmp_path)
     api = src / "api"
     api.mkdir()

@@ -1,27 +1,63 @@
 from __future__ import annotations
 
 import ast
-import os
-import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 IGNORED_DIRS = {
-    ".git", ".venv", "venv", "node_modules", "vendor", "build", "dist",
-    ".bughunt", ".tox", ".nox", "__pycache__", "site-packages", "mutants",
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "vendor",
+    "build",
+    "dist",
+    ".bughunt",
+    ".tox",
+    ".nox",
+    "__pycache__",
+    "site-packages",
+    "mutants",
 }
 
 SERIALIZATION_BOUNDARIES = {
-    "json.dump", "json.dumps", "send", "sendall", "put", "put_nowait",
-    "publish", "emit", "write", "write_text", "write_bytes", "save",
+    "json.dump",
+    "json.dumps",
+    "send",
+    "sendall",
+    "put",
+    "put_nowait",
+    "publish",
+    "emit",
+    "write",
+    "write_text",
+    "write_bytes",
+    "save",
 }
 VALIDATORS = {
-    "model_validate", "model_validate_json", "validate_python", "validate_json",
-    "parse_obj", "parse_raw", "loads", "from_dict", "from_json",
+    "model_validate",
+    "model_validate_json",
+    "validate_python",
+    "validate_json",
+    "parse_obj",
+    "parse_raw",
+    "loads",
+    "from_dict",
+    "from_json",
 }
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "request", "send"}
-DB_CALLS = {"execute", "executemany", "query", "filter", "filter_by", "get", "select", "scalars", "scalar"}
+DB_CALLS = {
+    "execute",
+    "executemany",
+    "query",
+    "filter",
+    "filter_by",
+    "get",
+    "select",
+    "scalars",
+    "scalar",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +69,7 @@ class SeamFinding:
     severity: str = "warning"
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-iter-python work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _iter_python(root: Path, paths: Iterable[str]) -> Iterable[Path]:
     seen: set[Path] = set()
     for rel in paths:
@@ -40,7 +77,7 @@ def _iter_python(root: Path, paths: Iterable[str]) -> Iterable[Path]:
         if base.is_file() and base.suffix == ".py":
             candidates = [base]
         elif base.is_dir():
-            candidates = base.rglob("*.py")
+            candidates = list(base.rglob("*.py"))
         else:
             continue
         for path in candidates:
@@ -50,9 +87,14 @@ def _iter_python(root: Path, paths: Iterable[str]) -> Iterable[Path]:
             yield path
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-rel work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _rel(root: Path, path: Path) -> str:
     try:
-        return path.resolve(strict=False).relative_to(root.resolve(strict=False)).as_posix()
+        return (
+            path.resolve(strict=False)
+            .relative_to(root.resolve(strict=False))
+            .as_posix()
+        )
     except ValueError:
         return path.as_posix()
 
@@ -72,10 +114,15 @@ def _string_key(node: ast.AST) -> str | None:
     return None
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-dict-literal-keys work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _dict_literal_keys(node: ast.AST) -> set[str]:
     if not isinstance(node, ast.Dict):
         return set()
-    return {key for raw in node.keys if raw is not None and (key := _string_key(raw)) is not None}
+    return {
+        key
+        for raw in node.keys
+        if raw is not None and (key := _string_key(raw)) is not None
+    }
 
 
 @dataclass(slots=True)
@@ -86,6 +133,7 @@ class _DictState:
     line: int = 1
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-functioncollector work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 class _FunctionCollector(ast.NodeVisitor):
     def __init__(self) -> None:
         self.dicts: dict[str, _DictState] = {}
@@ -119,9 +167,12 @@ class _FunctionCollector(ast.NodeVisitor):
                         self.validated_names.add(target.id)
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-seam_scan--functioncollector.visit-annassign work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if isinstance(node.target, ast.Name) and isinstance(node.value, ast.Dict):
-            self._state(node.target.id, node.lineno).writes.update(_dict_literal_keys(node.value))
+            self._state(node.target.id, node.lineno).writes.update(
+                _dict_literal_keys(node.value)
+            )
         self.generic_visit(node)
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
@@ -131,10 +182,13 @@ class _FunctionCollector(ast.NodeVisitor):
                 self._state(node.value.id, node.lineno).reads.add(key)
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-seam_scan--functioncollector.visit-call work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def visit_Call(self, node: ast.Call) -> None:
         call = _call_name(node.func)
         leaf = call.rsplit(".", 1)[-1]
-        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+        if isinstance(node.func, ast.Attribute) and isinstance(
+            node.func.value, ast.Name
+        ):
             obj = node.func.value.id
             if node.func.attr in {"get", "pop", "setdefault"} and node.args:
                 key = _string_key(node.args[0])
@@ -172,7 +226,10 @@ class _FunctionCollector(ast.NodeVisitor):
         self._loop_depth -= 1
 
 
-def _function_infos(tree: ast.AST) -> dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]]:
+# trace:v1 id=impl.src-bughunt-seam_scan.-function-infos work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _function_infos(
+    tree: ast.AST,
+) -> dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]]:
     out: dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]] = {}
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -188,6 +245,7 @@ def _call_explicit_keys(call: ast.Call) -> set[str]:
     return out
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-drift work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
     infos = _function_infos(tree)
     forward: dict[str, str] = {}
@@ -200,7 +258,12 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
             for child in ast.walk(node):
                 if isinstance(child, ast.Call):
                     callee = _call_name(child.func).rsplit(".", 1)[-1]
-                    if callee in infos and any(kw.arg is None and isinstance(kw.value, ast.Name) and kw.value.id == kwarg for kw in child.keywords):
+                    if callee in infos and any(
+                        kw.arg is None
+                        and isinstance(kw.value, ast.Name)
+                        and kw.value.id == kwarg
+                        for kw in child.keywords
+                    ):
                         forward[node.name] = callee
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -223,22 +286,30 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
         if terminal_kwargs:
             continue
         allowed = {
-            arg.arg for arg in [*terminal.args.posonlyargs, *terminal.args.args, *terminal.args.kwonlyargs]
+            arg.arg
+            for arg in [
+                *terminal.args.posonlyargs,
+                *terminal.args.args,
+                *terminal.args.kwonlyargs,
+            ]
             if arg.arg not in {"self", "cls"}
         }
         for line, keys in calls:
             unexpected = sorted(keys - allowed)
             if unexpected and root_name != current:
-                findings.append(SeamFinding(
-                    "BHSEAM002",
-                    f"**kwargs forwarding chain {root_name} -> {current} can forward key(s) not accepted by terminal signature: {', '.join(unexpected)}",
-                    rel,
-                    line,
-                    "error",
-                ))
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM002",
+                        f"**kwargs forwarding chain {root_name} -> {current} can forward key(s) not accepted by terminal signature: {', '.join(unexpected)}",
+                        rel,
+                        line,
+                        "error",
+                    )
+                )
     return findings
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-external-http-without-validation work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
     for node in ast.walk(tree):
@@ -252,46 +323,61 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
             missing = sorted(state.reads - state.writes)
             unused = sorted(state.writes - state.reads)
             if missing:
-                findings.append(SeamFinding(
-                    "BHSEAM001",
-                    f"serialized/seam dictionary `{name}` reads key(s) never written in the same producer scope: {', '.join(missing)}; possible producer/consumer key drift",
-                    rel,
-                    state.line,
-                    "error",
-                ))
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM001",
+                        f"serialized/seam dictionary `{name}` reads key(s) never written in the same producer scope: {', '.join(missing)}; possible producer/consumer key drift",
+                        rel,
+                        state.line,
+                        "error",
+                    )
+                )
             if unused and state.reads:
-                findings.append(SeamFinding(
-                    "BHSEAM001",
-                    f"serialized/seam dictionary `{name}` writes key(s) never consumed in the same scope: {', '.join(unused)}; possible dead or renamed contract fields",
-                    rel,
-                    state.line,
-                    "warning",
-                ))
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM001",
+                        f"serialized/seam dictionary `{name}` writes key(s) never consumed in the same scope: {', '.join(unused)}; possible dead or renamed contract fields",
+                        rel,
+                        state.line,
+                        "warning",
+                    )
+                )
         # An HTTP .json() result that is directly indexed without any explicit
         # validation in the function is a strong seam-risk signal. We avoid
         # flagging json.loads() generally because local trusted serialization is
         # common and not automatically an external seam.
         for name, state in collector.dicts.items():
-            if state.reads and state.line in collector.http_json_lines and name not in collector.validated_names:
-                findings.append(SeamFinding(
-                    "BHSEAM005",
-                    f"external HTTP JSON enters `{name}` and is consumed by key without runtime schema/model validation",
-                    rel,
-                    state.line,
-                    "warning",
-                ))
+            if (
+                state.reads
+                and state.line in collector.http_json_lines
+                and name not in collector.validated_names
+            ):
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM005",
+                        f"external HTTP JSON enters `{name}` and is consumed by key without runtime schema/model validation",
+                        rel,
+                        state.line,
+                        "warning",
+                    )
+                )
         for line, call in collector.db_in_loop:
-            findings.append(SeamFinding(
-                "BHDB001",
-                f"database/query-like call `{call}` occurs inside a loop; inspect for N+1/query explosion or move to a batched operation",
-                rel,
-                line,
-                "warning",
-            ))
+            findings.append(
+                SeamFinding(
+                    "BHDB001",
+                    f"database/query-like call `{call}` occurs inside a loop; inspect for N+1/query explosion or move to a batched operation",
+                    rel,
+                    line,
+                    "warning",
+                )
+            )
     return findings
 
 
-def _recorded_payload_gap(root: Path, source_paths: Iterable[str], test_paths: Iterable[str]) -> list[SeamFinding]:
+# trace:v1 id=impl.src-bughunt-seam_scan.-recorded-payload-gap work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _recorded_payload_gap(
+    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+) -> list[SeamFinding]:
     http_sites: list[tuple[str, int]] = []
     for path in _iter_python(root, source_paths):
         try:
@@ -302,11 +388,21 @@ def _recorded_payload_gap(root: Path, source_paths: Iterable[str], test_paths: I
             if isinstance(node, ast.Call):
                 call = _call_name(node.func).lower()
                 leaf = call.rsplit(".", 1)[-1]
-                if leaf in HTTP_METHODS and any(token in call for token in ("requests", "httpx", "client", "session")):
+                if leaf in HTTP_METHODS and any(
+                    token in call
+                    for token in ("requests", "httpx", "client", "session")
+                ):
                     http_sites.append((_rel(root, path), node.lineno))
     if not http_sites:
         return []
-    corpus_markers = ("vcr", "cassette", "responses", "respx", "recorded_payload", "fixture_payload")
+    corpus_markers = (
+        "vcr",
+        "cassette",
+        "responses",
+        "respx",
+        "recorded_payload",
+        "fixture_payload",
+    )
     for path in _iter_python(root, test_paths):
         try:
             text = path.read_text(errors="replace").lower()
@@ -314,17 +410,22 @@ def _recorded_payload_gap(root: Path, source_paths: Iterable[str], test_paths: I
             continue
         if any(marker in text for marker in corpus_markers):
             return []
-    path, line = http_sites[0]
-    return [SeamFinding(
-        "BHSEAM006",
-        f"{len(http_sites)} external HTTP call site(s) detected but no recorded-response/cassette payload regression corpus was found in tests",
-        path,
-        line,
-        "warning",
-    )]
+    site_path, site_line = http_sites[0]
+    return [
+        SeamFinding(
+            "BHSEAM006",
+            f"{len(http_sites)} external HTTP call site(s) detected but no recorded-response/cassette payload regression corpus was found in tests",
+            site_path,
+            site_line,
+            "warning",
+        )
+    ]
 
 
-def _time_boundary_gap(root: Path, source_paths: Iterable[str], test_paths: Iterable[str]) -> list[SeamFinding]:
+# trace:v1 id=impl.src-bughunt-seam_scan.-time-boundary-gap work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def _time_boundary_gap(
+    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+) -> list[SeamFinding]:
     sites: list[tuple[str, int]] = []
     for path in _iter_python(root, source_paths):
         try:
@@ -334,11 +435,25 @@ def _time_boundary_gap(root: Path, source_paths: Iterable[str], test_paths: Iter
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 call = _call_name(node.func)
-                if call in {"datetime.now", "datetime.utcnow", "date.today", "time.time", "time.monotonic"} or call.endswith(".now"):
+                if call in {
+                    "datetime.now",
+                    "datetime.utcnow",
+                    "date.today",
+                    "time.time",
+                    "time.monotonic",
+                } or call.endswith(".now"):
                     sites.append((_rel(root, path), node.lineno))
     if not sites:
         return []
-    markers = ("freezegun", "freeze_time", "time_machine", "travel(", "leap", "dst", "timezone")
+    markers = (
+        "freezegun",
+        "freeze_time",
+        "time_machine",
+        "travel(",
+        "leap",
+        "dst",
+        "timezone",
+    )
     for path in _iter_python(root, test_paths):
         try:
             text = path.read_text(errors="replace").lower()
@@ -346,18 +461,19 @@ def _time_boundary_gap(root: Path, source_paths: Iterable[str], test_paths: Iter
             continue
         if any(marker in text for marker in markers):
             return []
-    path, line = sites[0]
-    return [SeamFinding(
-        "BHTIME001",
-        f"{len(sites)} wall-clock/time boundary call(s) detected but no DST/leap/year-rollover time-control test evidence was found",
-        path,
-        line,
-        "warning",
-    )]
+    site_path, site_line = sites[0]
+    return [
+        SeamFinding(
+            "BHTIME001",
+            f"{len(sites)} wall-clock/time boundary call(s) detected but no DST/leap/year-rollover time-control test evidence was found",
+            site_path,
+            site_line,
+            "warning",
+        )
+    ]
 
 
-
-
+# trace:v1 id=impl.src-bughunt-seam_scan.-producer-consumer-key-drift work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _producer_consumer_key_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
     """Pair local dict-return producers with their consumers.
 
@@ -393,11 +509,21 @@ def _producer_consumer_key_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                     for target in child.targets:
                         if isinstance(target, ast.Name):
                             assigned[target.id] = (callee, child.lineno)
-            if isinstance(child, ast.Subscript) and isinstance(child.ctx, ast.Load) and isinstance(child.value, ast.Name):
+            if (
+                isinstance(child, ast.Subscript)
+                and isinstance(child.ctx, ast.Load)
+                and isinstance(child.value, ast.Name)
+            ):
                 key = _string_key(child.slice)
                 if key is not None:
                     reads.setdefault(child.value.id, set()).add(key)
-            if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute) and isinstance(child.func.value, ast.Name) and child.func.attr in {"get", "pop"} and child.args:
+            if (
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Attribute)
+                and isinstance(child.func.value, ast.Name)
+                and child.func.attr in {"get", "pop"}
+                and child.args
+            ):
                 key = _string_key(child.args[0])
                 if key is not None:
                     reads.setdefault(child.func.value.id, set()).add(key)
@@ -405,11 +531,15 @@ def _producer_consumer_key_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
             expected = producers[producer][0]
             unexpected = sorted(reads.get(var, set()) - expected)
             if unexpected:
-                findings.append(SeamFinding(
-                    "BHSEAM003",
-                    f"consumer of `{producer}()` reads key(s) absent from the producer's statically-known return shape: {', '.join(unexpected)}",
-                    rel, line, "error",
-                ))
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM003",
+                        f"consumer of `{producer}()` reads key(s) absent from the producer's statically-known return shape: {', '.join(unexpected)}",
+                        rel,
+                        line,
+                        "error",
+                    )
+                )
     return findings
 
 
@@ -431,6 +561,31 @@ def _class_fields(tree: ast.AST) -> dict[str, set[str]]:
     return out
 
 
+# trace:exempt reason=internal-detail
+def _load_schema_doc(path: Path) -> object:
+    """Best-effort schema-doc load; unparseable files are simply not schemas."""
+    try:
+        raw = path.read_text(errors="replace")
+    except OSError:
+        return None
+    if path.suffix == ".json":
+        import json
+
+        try:
+            return json.loads(raw)
+        except ValueError:
+            return None
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        return None
+    try:
+        return yaml.safe_load(raw)
+    except yaml.YAMLError:
+        return None
+
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-schema-drift work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
     models: dict[str, tuple[set[str], str, int]] = {}
     for path in _iter_python(root, source_paths):
@@ -448,18 +603,8 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
     for path in schema_files:
         if any(part in IGNORED_DIRS for part in path.parts):
             continue
-        try:
-            raw = path.read_text(errors="replace")
-            if path.suffix == ".json":
-                import json
-                data = json.loads(raw)
-            else:
-                try:
-                    import yaml  # type: ignore[import-untyped]
-                except ImportError:
-                    continue
-                data = yaml.safe_load(raw)
-        except Exception:
+        data = _load_schema_doc(path)
+        if data is None:
             continue
         candidates: list[tuple[str, dict[str, object]]] = []
         if isinstance(data, dict):
@@ -467,12 +612,22 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
             if isinstance(title, str) and isinstance(data.get("properties"), dict):
                 candidates.append((title, data))
             components = data.get("components")
-            schemas = components.get("schemas") if isinstance(components, dict) else None
+            schemas = (
+                components.get("schemas") if isinstance(components, dict) else None
+            )
             if isinstance(schemas, dict):
-                candidates.extend((str(name), schema) for name, schema in schemas.items() if isinstance(schema, dict))
+                candidates.extend(
+                    (str(name), schema)
+                    for name, schema in schemas.items()
+                    if isinstance(schema, dict)
+                )
             defs = data.get("$defs") or data.get("definitions")
             if isinstance(defs, dict):
-                candidates.extend((str(name), schema) for name, schema in defs.items() if isinstance(schema, dict))
+                candidates.extend(
+                    (str(name), schema)
+                    for name, schema in defs.items()
+                    if isinstance(schema, dict)
+                )
         for name, schema in candidates:
             model = models.get(name)
             props = schema.get("properties")
@@ -488,14 +643,22 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
                     detail.append("schema-only: " + ", ".join(missing_code[:12]))
                 if missing_schema:
                     detail.append("code-only: " + ", ".join(missing_schema[:12]))
-                findings.append(SeamFinding(
-                    "BHSEAM004",
-                    f"schema `{name}` and Python class `{name}` have drifted ({'; '.join(detail)}); synchronize schema/model or declare intentional translation",
-                    model_path, 1, "warning",
-                ))
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM004",
+                        f"schema `{name}` and Python class `{name}` have drifted ({'; '.join(detail)}); synchronize schema/model or declare intentional translation",
+                        model_path,
+                        1,
+                        "warning",
+                    )
+                )
     return findings
 
-def scan_seams(root: Path, source_paths: Iterable[str], test_paths: Iterable[str]) -> list[SeamFinding]:
+
+# trace:v1 id=impl.src-bughunt-seam_scan.scan-seams work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def scan_seams(
+    root: Path, source_paths: Iterable[str], test_paths: Iterable[str]
+) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
     for path in _iter_python(root, source_paths):
         try:
@@ -513,9 +676,11 @@ def scan_seams(root: Path, source_paths: Iterable[str], test_paths: Iterable[str
     return sorted(findings, key=lambda f: (f.path, f.line, f.code, f.message))
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     import json
     import sys
+
     args = list(argv or sys.argv[1:])
     if not args:
         return 0
@@ -523,7 +688,24 @@ def main(argv: list[str] | None = None) -> int:
     source_paths = args[0].split(",") if args else ["src"]
     test_paths = args[1].split(",") if len(args) > 1 else ["tests"]
     findings = scan_seams(root, source_paths, test_paths)
-    print(json.dumps({"findings": [f.__dict__ if hasattr(f, "__dict__") else {"code": f.code, "message": f.message, "path": f.path, "line": f.line, "severity": f.severity} for f in findings]}))
+    print(
+        json.dumps(
+            {
+                "findings": [
+                    f.__dict__
+                    if hasattr(f, "__dict__")
+                    else {
+                        "code": f.code,
+                        "message": f.message,
+                        "path": f.path,
+                        "line": f.line,
+                        "severity": f.severity,
+                    }
+                    for f in findings
+                ]
+            }
+        )
+    )
     return 1 if findings else 0
 
 

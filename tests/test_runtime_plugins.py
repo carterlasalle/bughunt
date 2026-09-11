@@ -13,7 +13,9 @@ def _assert_adjacent_exempt(text: str) -> None:
     # The exempt must sit directly above the decorated function boundary
     # (decorator included), not merely somewhere in the file.
     idx = next(i for i, ln in enumerate(lines) if ln.startswith("@"))
-    assert lines[idx - 1] == TRACE_EXEMPT_PY, "exempt must be directly above the boundary"
+    assert lines[idx - 1] == TRACE_EXEMPT_PY, (
+        "exempt must be directly above the boundary"
+    )
 
 
 def test_blockbuster_plugin_stamped():
