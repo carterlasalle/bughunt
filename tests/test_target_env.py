@@ -1,7 +1,8 @@
 # Copyright (c) 2026 Carter LaSalle
+"""Target-environment resolution and empty-exit mapping."""
+
 import pytest
 
-"""Target-environment resolution and empty-exit mapping."""
 
 import asyncio
 import stat

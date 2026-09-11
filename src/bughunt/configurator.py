@@ -150,6 +150,7 @@ def _ruff_config(
             "ARG001",
             "ARG005",
             "PLR2004",
+            "S607",
         ]
     )
     test_globs = "\n".join(
@@ -185,7 +186,11 @@ extend-exclude = [
 
 [lint]
 select = ["ALL"]
-ignore = []
+# Preview-unstable rules that mandate conventions this tree deliberately does
+# not follow: DOC201 wants numpydoc Returns sections (return types live in
+# `->` annotations, which the dedicated pydoclint defense already accepts),
+# RUF105 wants the novel `ruff: ignore` syntax over standard `noqa` comments.
+ignore = ["DOC201", "RUF105"]
 explicit-preview-rules = false
 fixable = ["ALL"]
 unfixable = []
@@ -1595,7 +1600,7 @@ def configure_all(
             _existing(root, source_paths),
             _existing(root, test_paths),
         ),
-        "ALL + preview rules; test-idiom rules scoped; tool/runtime excluded",
+        "ALL + preview rules; test-idiom + preview-convention scoped; tool/runtime excluded",
     )
     _ = put(
         "basedpyright",

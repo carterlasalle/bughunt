@@ -1,7 +1,8 @@
 # Copyright (c) 2026 Carter LaSalle
+"""Generated runtime plugins carry their own trace accounting (adjacent)."""
+
 from pathlib import Path
 
-"""Generated runtime plugins carry their own trace accounting (adjacent)."""
 
 from bughunt.runtime_plugins import (
     TRACE_EXEMPT_PY,

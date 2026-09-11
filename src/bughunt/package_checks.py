@@ -20,7 +20,7 @@ class _CmdResult(TypedDict):
 # trace:v1 id=impl.src-bughunt-package_checks.-run work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _run(cmd: list[str], root: Path) -> _CmdResult:
     try:
-        p = subprocess.run(
+        p = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             cmd,
             cwd=root,
             text=True,

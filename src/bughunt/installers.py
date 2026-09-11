@@ -104,6 +104,7 @@ def _tail(stdout: str, stderr: str, lines: int = 6) -> str:
     return "\n".join(material[-lines:]) if material else "no output"
 
 
+# trace:v1 id=impl.src-bughunt-installers.-run work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _run(
     cmd: list[str],
     cwd: Path,
@@ -113,7 +114,7 @@ def _run(
 ) -> InstallResult:
     emit("$ " + " ".join(cmd))
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             cmd,
             cwd=cwd,
             text=True,
@@ -139,12 +140,17 @@ def _python_importable(
     *,
     extra_path: Path | None = None,
 ) -> bool:
+    # The module name is interpolated into `-c` source. All current callers
+    # pass fixed literals, but refuse anything else so a future tainted
+    # caller cannot turn this probe into code execution.
+    if not all(part.isidentifier() for part in module.split(".")):
+        return False
     env = dict(os.environ)
     if extra_path is not None:
         current = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(extra_path) + (os.pathsep + current if current else "")
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             [target_python(root), "-c", f"import {module}"],
             cwd=root,
             text=True,
@@ -158,9 +164,10 @@ def _python_importable(
     return proc.returncode == 0
 
 
+# trace:v1 id=impl.src-bughunt-installers.-brew-prefix work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _brew_prefix(brew: str, formula: str, root: Path) -> str | None:
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             [brew, "--prefix", formula],
             cwd=root,
             text=True,
@@ -620,7 +627,7 @@ def _clippy_ready(root: Path) -> bool:
         return False
     try:
         return (
-            subprocess.run(
+            subprocess.run(  # noqa: S603 - audited: argv list, no shell
                 [cargo, "clippy", "--version"],
                 cwd=root,
                 text=True,

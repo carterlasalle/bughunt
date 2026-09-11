@@ -597,6 +597,7 @@ def atheris_available(root: Path) -> bool:
     )
 
 
+# trace:v1 id=impl.src-bughunt-cli.ast-grep-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def ast_grep_executable() -> str | None:
     """Find ast-grep without mistaking util-linux `sg` for ast-grep."""
     direct = shutil.which("ast-grep")
@@ -606,7 +607,7 @@ def ast_grep_executable() -> str | None:
     if not sg:
         return None
     try:
-        probe = subprocess.run(
+        probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             [sg, "--version"],
             capture_output=True,
             text=True,
@@ -2752,7 +2753,7 @@ def build_checks(
             # only run it if installed.
             try:
                 locale_lines = subprocess.run(
-                    ["locale", "-a"],
+                    ["locale", "-a"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
                     capture_output=True,
                     text=True,
                     timeout=3,
@@ -4119,8 +4120,8 @@ def _reset_tool_dir(path: Path) -> None:
     if not path.exists():
         return
     try:
-        _ = subprocess.run(
-            ["chmod", "-R", "u+w", str(path)],
+        _ = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            ["chmod", "-R", "u+w", str(path)],  # noqa: S607 - executable resolved via project env/PATH by design, E501
             capture_output=True,
             check=False,
             timeout=60,
@@ -5595,7 +5596,7 @@ def doctor(cfg: Config) -> int:
             "--help",
         ]
         try:
-            probe = subprocess.run(
+            probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell
                 probe_cmd,
                 cwd=cfg.root,
                 capture_output=True,

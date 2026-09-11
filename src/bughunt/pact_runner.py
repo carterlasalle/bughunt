@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
         "--log-level",
         "warning",
     ]
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # noqa: S603 - audited: argv list, no shell
         cmd,
         cwd=root,
         text=True,

@@ -1,7 +1,8 @@
 # Copyright (c) 2026 Carter LaSalle
+"""Stale tool-output cleanup (must survive read-only analyzer droppings)."""
+
 from pathlib import Path
 
-"""Stale tool-output cleanup (must survive read-only analyzer droppings)."""
 
 import os
 import stat

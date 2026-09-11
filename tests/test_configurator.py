@@ -168,3 +168,4 @@ def test_ruff_per_file_ignores_scope_tests_and_runners(tmp_path) -> None:
     assert "S101" in scoped["tests/**"]
     assert "D103" in scoped["tests/**"]
     assert "ANN001" not in scoped["tests/**"]
+    assert "S607" in scoped["tests/**"]

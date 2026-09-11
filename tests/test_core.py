@@ -783,3 +783,16 @@ def test_run_pysa_maps_missing_provider_to_skipped(
     assert result.status == Status.SKIPPED
     assert result.findings == []
     assert "install --only pysa" in (result.note or "")
+
+
+# trace:v1 id=test.tests-test-core.test-importtime-rejects-non-identifier-module-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_importtime_rejects_non_identifier_module_names(tmp_path) -> None:
+    from bughunt.importtime_runner import main
+
+    # A crafted package name must never reach the `-c` interpreter: it is
+    # skipped with a finding instead of executed (S603-driven hardening).
+    marker = tmp_path / "pwned"
+    hostile = f"x;open({str(marker)!r},'w').write('1')"
+    rc = main(["1000", hostile])
+    assert not marker.exists()
+    assert rc == 1

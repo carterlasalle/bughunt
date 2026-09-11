@@ -47,8 +47,8 @@ SAMPLES: dict[str, list[Any]] = {
 def _git_show(root: Path, ref: str, rel: str) -> str | None:
     if not shutil.which("git"):
         return None
-    p = subprocess.run(
-        ["git", "show", f"{ref}:{rel}"],
+    p = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+        ["git", "show", f"{ref}:{rel}"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
         cwd=root,
         capture_output=True,
         text=True,

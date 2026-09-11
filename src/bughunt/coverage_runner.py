@@ -21,21 +21,21 @@ def main(argv: list[str] | None = None) -> int:
     out = root / ".bughunt" / "cache" / "coverage.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     base = [sys.executable, "-m", "coverage"]
-    _ = subprocess.run(
+    _ = subprocess.run(  # noqa: S603 - audited: argv list, no shell
         [*base, "erase", f"--rcfile={cfg}"],
         cwd=root,
         check=False,
         capture_output=True,
         text=True,
     )
-    test = subprocess.run(
+    test = subprocess.run(  # noqa: S603 - audited: argv list, no shell
         [*base, "run", f"--rcfile={cfg}", "-m", "pytest", "-q", "--tb=short", *tests],
         cwd=root,
         check=False,
         capture_output=True,
         text=True,
     )
-    report = subprocess.run(
+    report = subprocess.run(  # noqa: S603 - audited: argv list, no shell
         [*base, "json", f"--rcfile={cfg}", "-o", str(out)],
         cwd=root,
         check=False,

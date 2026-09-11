@@ -1,9 +1,10 @@
 # Copyright (c) 2026 Carter LaSalle
+"""Installer package-set compatibility (dry-run; executes nothing)."""
+
 from pathlib import Path
 
 import pytest
 
-"""Installer package-set compatibility (dry-run; executes nothing)."""
 
 from bughunt.installers import install_all
 
@@ -51,3 +52,12 @@ def test_pysa_provider_present_checks_binary(tmp_path: Path) -> None:
     assert _pysa_provider_present(runtime) is False
     (runtime / "bin" / "pyrefly").write_text("#!/bin/sh\n")
     assert _pysa_provider_present(runtime) is True
+
+
+# trace:v1 id=test.tests-test-installers.test-python-importable-rejects-non-identifiers work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_python_importable_rejects_non_identifiers(tmp_path) -> None:
+    from bughunt.installers import _python_importable
+
+    # The module name is interpolated into `-c` source; anything that is not
+    # a dotted identifier must fail closed without spawning a subprocess.
+    assert _python_importable(tmp_path, "x;import os") is False

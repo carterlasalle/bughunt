@@ -15,7 +15,21 @@ def main(argv: list[str] | None = None) -> int:
     findings = []
     samples = []
     for module in args:
-        proc = subprocess.run(
+        # Module names flow from target-repo discovery into a `-c` code string.
+        # A crafted directory name (e.g. `x;evil()`) would execute here, so
+        # only valid dotted identifiers reach the interpreter.
+        if not all(part.isidentifier() for part in module.split(".")):
+            findings.append(
+                {
+                    "tool": "importtime",
+                    "code": "BHPERF001",
+                    "message": (
+                        f"import {module} skipped: not a valid Python module name"
+                    ),
+                },
+            )
+            continue
+        proc = subprocess.run(  # noqa: S603 - validated identifier input
             [sys.executable, "-X", "importtime", "-c", f"import {module}"],
             text=True,
             capture_output=True,

@@ -204,8 +204,8 @@ def _git_baseline(root: Path) -> str | None:
     refs = ["origin/main", "origin/master", "main", "master"]
     for ref in refs:
         try:
-            verify = subprocess.run(
-                ["git", "rev-parse", "--verify", "--quiet", ref],
+            verify = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+                ["git", "rev-parse", "--verify", "--quiet", ref],  # noqa: S607 - executable resolved via project env/PATH by design, E501
                 cwd=root,
                 text=True,
                 capture_output=True,
@@ -214,8 +214,8 @@ def _git_baseline(root: Path) -> str | None:
             )
             if verify.returncode != 0:
                 continue
-            merge = subprocess.run(
-                ["git", "merge-base", "HEAD", ref],
+            merge = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+                ["git", "merge-base", "HEAD", ref],  # noqa: S607 - executable resolved via project env/PATH by design, E501
                 cwd=root,
                 text=True,
                 capture_output=True,
@@ -229,7 +229,7 @@ def _git_baseline(root: Path) -> str | None:
                 # On a feature branch, the merge-base remains the right PR-like
                 # baseline.
                 head = subprocess.run(
-                    ["git", "rev-parse", "HEAD"],
+                    ["git", "rev-parse", "HEAD"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
                     cwd=root,
                     text=True,
                     capture_output=True,
@@ -242,7 +242,7 @@ def _git_baseline(root: Path) -> str | None:
             break
     try:
         parent = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD^"],
+            ["git", "rev-parse", "--verify", "HEAD^"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
             cwd=root,
             text=True,
             capture_output=True,
@@ -263,8 +263,8 @@ def git_path_exists(root: Path, ref: str | None, path: str) -> bool:
     if not ref or not shutil.which("git"):
         return False
     try:
-        proc = subprocess.run(
-            ["git", "cat-file", "-e", f"{ref}:{path}"],
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            ["git", "cat-file", "-e", f"{ref}:{path}"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
             cwd=root,
             text=True,
             capture_output=True,
@@ -677,7 +677,7 @@ def target_executable(root: Path, *names: str) -> str | None:
 def target_has_module(python: str, name: str) -> bool:
     """importlib check against a specific interpreter without importing anything."""
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             [
                 python,
                 "-c",
@@ -704,7 +704,7 @@ def llvm_executable(root: Path, name: str) -> str | None:
     brew = shutil.which("brew")
     if brew:
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
                 [brew, "--prefix", "llvm"],
                 cwd=root,
                 text=True,
