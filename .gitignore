@@ -35,3 +35,8 @@ node_modules/
 .artifacts/
 .work/
 .trace/id-allocator.lock
+.pyre/
+.pyre_configuration
+bun.lock
+.bughunt/configs/
+.bughunt/stubs/

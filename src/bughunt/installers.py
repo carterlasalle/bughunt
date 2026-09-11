@@ -476,6 +476,7 @@ def _clippy_ready(root: Path) -> bool:
         return False
 
 
+# trace:v1 id=impl.src-bughunt-installers.install-technology-tools work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _install_technology_tools(
     root: Path,
     uv: str,
@@ -561,16 +562,20 @@ def _install_technology_tools(
         if pm:
             exe, args = pm
             packages: list[str] = []
+            typescript_added = False
             if "oxlint" in missing_js: packages.append("oxlint")
             if "eslint" in missing_js:
                 packages.extend(["eslint", "@eslint/js"])
                 if inventory.has("typescript"):
-                    packages.extend(["typescript", "typescript-eslint"])
+                    # typescript-eslint v8 rejects TypeScript >= 7
+                    # (typescript-eslint#10940); cap the major while v8
+                    # is the resolved line so the generated type-aware
+                    # config does not crash eslint at startup.
+                    packages.extend(["typescript@<7", "typescript-eslint"])
+                    typescript_added = True
             if "react-doctor" in missing_js: packages.append("react-doctor")
-            if "tsc" in missing_js: packages.append("typescript")
+            if "tsc" in missing_js and not typescript_added: packages.append("typescript")
             if "knip" in missing_js: packages.append("knip")
-            if "madge" in missing_js: packages.append("madge")
-            if "publint" in missing_js: packages.append("publint")
             results.append(_install_cmd("js-correctness-tools", [exe, *args, *packages], root, dry_run=dry_run, emit=emit, note="would install applicable JavaScript/TypeScript correctness tools as dev dependencies"))
         else:
             for name in missing_js:
