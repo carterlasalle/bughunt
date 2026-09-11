@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import json
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+from urllib.request import urlopen
+
+
+def _port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _provider_name(path: Path) -> str | None:
+    try:
+        data = json.loads(path.read_text(errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    provider = data.get("provider") if isinstance(data, dict) else None
+    if isinstance(provider, dict) and isinstance(provider.get("name"), str):
+        return provider["name"]
+    return None
+
+
+def _wait_http(url: str, proc: subprocess.Popen[str], timeout: float = 20.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            return False
+        try:
+            with urlopen(url, timeout=0.5):  # noqa: S310 -- localhost provider only
+                return True
+        except Exception:
+            time.sleep(0.15)
+    return False
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(argv or sys.argv[1:])
+    if len(args) < 3:
+        print(json.dumps({"error": "root, module:app, and pact file(s) required"}))
+        return 2
+    root = Path(args.pop(0)).resolve()
+    app = args.pop(0)
+    pacts = [root / value for value in args]
+    providers = [(path, _provider_name(path)) for path in pacts]
+    providers = [(path, name) for path, name in providers if name]
+    if not providers:
+        print(json.dumps({"error": "no valid local Pact files with provider names"}))
+        return 2
+    try:
+        from pact import Verifier
+    except ImportError as exc:
+        print(json.dumps({"error": f"pact-python not importable: {exc}"}))
+        return 2
+
+    port = _port()
+    url = f"http://127.0.0.1:{port}"
+    cmd = [sys.executable, "-m", "uvicorn", app, "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"]
+    proc = subprocess.Popen(cmd, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    findings: list[dict[str, object]] = []
+    try:
+        if not _wait_http(url, proc):
+            out, err = proc.communicate(timeout=2) if proc.poll() is not None else ("", "")
+            print(json.dumps({"error": "local provider failed to start", "command": cmd, "stdout": out[-4000:], "stderr": err[-4000:]}))
+            return 2
+        for pact_file, provider_name in providers:
+            try:
+                Verifier(provider_name).add_source(str(pact_file)).add_transport(url=url).verify()
+            except Exception as exc:
+                findings.append({
+                    "tool": "pact-contracts",
+                    "code": "BHSEAM007",
+                    "path": str(pact_file.relative_to(root)),
+                    "severity": "error",
+                    "message": f"provider {provider_name!r} does not satisfy Pact contract: {type(exc).__name__}: {exc}",
+                })
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+    print(json.dumps({"findings": findings, "provider_url": url, "pacts": [str(p.relative_to(root)) for p, _ in providers]}))
+    return 1 if findings else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

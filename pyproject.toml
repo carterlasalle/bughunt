@@ -1,0 +1,83 @@
+[project]
+name = "bughunt"
+version = "0.6.0"
+description = "Defense-in-depth bug finding orchestrator for Python repositories"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "rich>=14.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff",
+    "basedpyright",
+    "mypy",
+    "ty",
+    "pyrefly",
+    "pylint",
+    "vulture",
+    "bandit",
+    "deptry",
+    "import-linter",
+    "ast-grep-cli",
+    "semgrep",
+    "deal[all]",
+    "crosshair-tool",
+    "hypothesis[cli]",
+    "mutmut",
+    "schemathesis",
+    "radon",
+    "lizard",
+    "complexipy",
+    "coverage",
+    "typeguard",
+    "pytest-randomly",
+    "pytest-timeout",
+    "pytest-socket",
+    "pytest-xdist",
+    "pytest-run-parallel",
+    "blockbuster>=1.5,<1.6",
+    "hypofuzz",
+    "nox",
+    "griffe",
+    "pydoclint",
+    "validate-pyproject[all]",
+    "twine",
+    "check-manifest",
+    "pytest-benchmark",
+    "pytest-memray",
+    "pyanalyze",
+    "refurb",
+    "xdoctest",
+    "check-jsonschema",
+    "time-machine",
+    "freezegun",
+    "vcrpy",
+    "pact-python",
+    "py-spy",
+    "uvicorn",
+]
+
+[project.scripts]
+bughunt = "bughunt.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bughunt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# BEGIN BUGHUNT MANAGED MUTMUT CONFIG
+[tool.mutmut]
+source_paths = ["src/"]
+pytest_add_cli_args_test_selection = ["tests/"]
+# Coverage gaps are their own first-class findings; mutation focuses on code the
+# suite can actually execute so the budget measures assertion strength, not reachability.
+mutate_only_covered_lines = true
+# END BUGHUNT MANAGED MUTMUT CONFIG

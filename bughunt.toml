@@ -1,0 +1,344 @@
+# BugHunt configuration.
+# Every external analyzer is optional. BugHunt reports tools it could not run
+# instead of treating "not installed" as "clean".
+
+[project]
+python_paths = ["src", "tests"]
+source_paths = ["src"]
+test_paths = ["tests"]
+
+[execution]
+max_parallel = 6
+fail_on = "findings"       # findings | error | never
+raw_output_limit_kb = 512
+
+[timeouts]
+fast = 120
+pr = 900
+deep = 7200
+all = 14400
+
+[profiles.fast]
+tools = [
+  "compile",
+  "ruff",
+  "basedpyright",
+  "mypy",
+  "ty",
+  "pyrefly",
+]
+
+[profiles.pr]
+tools = [
+  "compile",
+  "ruff",
+  "basedpyright",
+  "mypy",
+  "ty",
+  "pyrefly",
+  "pylint",
+  "complexity",
+  "complexipy",
+  "radon",
+  "lizard",
+  "policy",
+  "vulture",
+  "bandit",
+  "deptry",
+  "import-linter",
+  "ast-grep",
+  "semgrep",
+  "actionlint",
+  "shellcheck",
+  "dotenv-linter",
+  "oasdiff",
+  "buf",
+  "sqlfluff",
+  "squawk",
+  "hadolint",
+  "tflint",
+  "golangci-lint",
+  "clippy",
+  "cppcheck",
+  "phpstan",
+  "oxlint",
+  "eslint",
+  "react-doctor",
+  "deal",
+  "crosshair",
+  "pytest",
+  "coverage",
+  "seam",
+  "packaging",
+  "runtime-types",
+  "doctest",
+  "pydoclint",
+  "refurb",
+  "tsc",
+  "knip",
+  "madge",
+  "publint",
+  "taplo",
+  "yamllint",
+  "check-jsonschema",
+  "alembic-check",
+  "django-migrations",
+]
+
+[profiles.deep]
+tools = [
+  "compile",
+  "ruff",
+  "basedpyright",
+  "mypy",
+  "ty",
+  "pyrefly",
+  "pylint",
+  "complexity",
+  "complexipy",
+  "radon",
+  "lizard",
+  "policy",
+  "vulture",
+  "bandit",
+  "deptry",
+  "import-linter",
+  "ast-grep",
+  "semgrep",
+  "codeql",
+  "pysa",
+  "actionlint",
+  "shellcheck",
+  "dotenv-linter",
+  "oasdiff",
+  "buf",
+  "sqlfluff",
+  "squawk",
+  "hadolint",
+  "tflint",
+  "golangci-lint",
+  "clippy",
+  "cppcheck",
+  "phpstan",
+  "oxlint",
+  "eslint",
+  "react-doctor",
+  "clang-tidy",
+  "infer",
+  "deal",
+  "crosshair",
+  "pytest",
+  "mutmut",
+  "bugcorpus",
+  "schemathesis",
+  "atheris",
+  "custom",
+  "coverage",
+  "seam",
+  "packaging",
+  "runtime-types",
+  "doctest",
+  "pydoclint",
+  "refurb",
+  "tsc",
+  "knip",
+  "madge",
+  "publint",
+  "taplo",
+  "yamllint",
+  "check-jsonschema",
+  "alembic-check",
+  "django-migrations",
+  "pytest-random",
+  "pytest-no-network",
+  "pytest-xdist",
+  "pytest-async-blocking",
+  "hypofuzz",
+  "griffe",
+  "importtime",
+  "type-disagreement",
+]
+
+[profiles.all]
+tools = [
+  "compile",
+  "ruff",
+  "basedpyright",
+  "mypy",
+  "ty",
+  "pyrefly",
+  "pylint",
+  "complexity",
+  "complexipy",
+  "radon",
+  "lizard",
+  "policy",
+  "vulture",
+  "bandit",
+  "deptry",
+  "import-linter",
+  "ast-grep",
+  "semgrep",
+  "codeql",
+  "pysa",
+  "actionlint",
+  "shellcheck",
+  "dotenv-linter",
+  "oasdiff",
+  "buf",
+  "sqlfluff",
+  "squawk",
+  "hadolint",
+  "tflint",
+  "golangci-lint",
+  "clippy",
+  "cppcheck",
+  "phpstan",
+  "oxlint",
+  "eslint",
+  "react-doctor",
+  "clang-tidy",
+  "infer",
+  "deal",
+  "crosshair",
+  "pytest",
+  "mutmut",
+  "bugcorpus",
+  "schemathesis",
+  "atheris",
+  "custom",
+  "coverage",
+  "seam",
+  "packaging",
+  "runtime-types",
+  "doctest",
+  "pydoclint",
+  "refurb",
+  "tsc",
+  "knip",
+  "madge",
+  "publint",
+  "taplo",
+  "yamllint",
+  "check-jsonschema",
+  "alembic-check",
+  "django-migrations",
+  "pytest-random",
+  "pytest-no-network",
+  "pytest-xdist",
+  "pytest-async-blocking",
+  "hypofuzz",
+  "griffe",
+  "importtime",
+  "type-disagreement",
+  "pytest-parallel",
+  "python-matrix",
+  "timezone-matrix",
+  "memray",
+  "benchmark",
+  "pyanalyze",
+  "version-diff",
+  "ghostwriter",
+  "pynguin",
+]
+
+[autodiscovery]
+enabled = true
+atheris_runs = 500000
+schemathesis_max_examples = 1000
+[complexity]
+# Complexity is a risk budget, not a refactor-at-all-costs command.
+cyclomatic_warn = 10
+cyclomatic_error = 20
+cognitive_max = 10
+function_loc_warn = 80
+function_loc_error = 150
+file_loc_warn = 500
+file_loc_error = 1200
+abc_warn = 30
+abc_error = 45
+js_file_kb_warn = 500
+css_file_kb_warn = 250
+wasm_file_kb_warn = 2000
+bundle_kb_warn = 1500
+
+[semgrep]
+# Explicit registry packs keep metrics disabled; `auto` requires inventory metrics.
+configs = ["p/default"]
+include_security = false
+security_configs = ["p/security-audit", "p/secrets"]
+[codeql]
+languages = ["python"]
+# Standard Python security + maintainability/reliability suite.
+python_suite = "codeql/python-queries:codeql-suites/python-security-and-quality.qls"
+
+[pysa]
+# Pysa is enabled only when .pyre_configuration exists.
+no_verify = false
+
+[mutmut]
+enabled = true
+
+[bugcorpus]
+# Integrated Bug Corpus is specified in V2_SPEC.md; no external executable is required.
+enabled = true
+
+# API fuzzing requires a live API. Add one or more entries:
+#
+# [[schemathesis.targets]]
+# name = "local-api"
+# schema = "openapi.yaml"
+# url = "http://127.0.0.1:8000"
+# max_examples = 500
+#
+# Coverage-guided fuzzing requires repo-specific harnesses:
+#
+# [[atheris.targets]]
+# name = "message-parser"
+# command = ["uv", "run", "python", "fuzz/fuzz_message.py", "-atheris_runs=1000000"]
+#
+# Put differential, metamorphic, state-machine, fault-injection, or any other
+# project-specific checks here. They become first-class report entries.
+#
+# [[custom.checks]]
+# name = "Differential projection oracle"
+# category = "differential"
+# profile = "deep"
+# command = ["uv", "run", "pytest", "-q", "tests/differential"]
+# timeout = 3600
+
+# BEGIN BUGHUNT MANAGED CUSTOM CHECKS
+# Regenerated by `bughunt configure --auto`; user-authored checks outside this block are preserved.
+
+[[custom.checks]]
+name = "external-failure-surface-coverage"
+category = "fault-coverage"
+profile = "deep"
+command = ["uv", "run", "python", ".bughunt/generated/campaigns/check_fault_boundaries.py"]
+timeout = 3600
+generated = true
+confidence = "high"
+
+# END BUGHUNT MANAGED CUSTOM CHECKS
+
+[coverage]
+branch = true
+
+[tests]
+timeout_seconds = 300
+repro_seed = 1
+randomized = true
+
+[hypofuzz]
+deep_seconds = 120
+all_seconds = 300
+workers = 2
+
+[performance]
+import_ms_warn = 1000
+benchmark_regression_percent = 10
+memray = true
+
+[execution_imports]
+# pyanalyze imports modules and may execute top-level code. Enable only in a sandbox.
+allow_importing_analyzers = false
