@@ -3113,6 +3113,14 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   binary verification, CodeQL DB pre-clean, target-env interpreter
   resolution, doctest/hypofuzz exit-5 → SKIP.
 
+- 2026-09-13 compliance loop: D100-D107 presence scoped in the generated
+  PARANOID template (correctness over presence: pydoclint + D205-D417 stay);
+  `skills-lock.json` excluded from trace scope as harness-generated (same
+  class as uv.lock); marker-line E501s are centrally exempted by
+  `canonicalize_findings`, never noqa'd. Studied alibaba/open-code-review
+  (path-scoped rules + precision-over-recall benchmark discipline); application
+  pending owner pick.
+
 ---
 
 ## Last maintenance review
