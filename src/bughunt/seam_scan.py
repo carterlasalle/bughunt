@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from typing_extensions import override
+
 IGNORED_DIRS = {
     ".git",
     ".venv",
@@ -146,6 +148,8 @@ class _FunctionCollector(ast.NodeVisitor):
     def _state(self, name: str, line: int) -> _DictState:
         return self.dicts.setdefault(name, _DictState(set(), set(), False, line))
 
+    # trace:v1 id=impl.src-bughunt-seam-scan.visit-assign work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
             if isinstance(target, ast.Name) and isinstance(node.value, ast.Dict):
@@ -169,6 +173,7 @@ class _FunctionCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
     # trace:v1 id=impl.src-bughunt-seam_scan--functioncollector.visit-annassign work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+    @override
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if isinstance(node.target, ast.Name) and isinstance(node.value, ast.Dict):
             self._state(node.target.id, node.lineno).writes.update(
@@ -176,6 +181,8 @@ class _FunctionCollector(ast.NodeVisitor):
             )
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-seam-scan.visit-subscript work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Subscript(self, node: ast.Subscript) -> None:
         if isinstance(node.ctx, ast.Load) and isinstance(node.value, ast.Name):
             key = _string_key(node.slice)
@@ -184,6 +191,7 @@ class _FunctionCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
     # trace:v1 id=impl.src-bughunt-seam_scan--functioncollector.visit-call work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+    @override
     def visit_Call(self, node: ast.Call) -> None:
         call = _call_name(node.func)
         leaf = call.rsplit(".", 1)[-1]
@@ -212,16 +220,22 @@ class _FunctionCollector(ast.NodeVisitor):
             self.db_in_loop.append((node.lineno, call))
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-seam-scan.visit-for work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_For(self, node: ast.For) -> None:
         self._loop_depth += 1
         self.generic_visit(node)
         self._loop_depth -= 1
 
+    # trace:v1 id=impl.src-bughunt-seam-scan.visit-asyncfor work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
         self._loop_depth += 1
         self.generic_visit(node)
         self._loop_depth -= 1
 
+    # trace:v1 id=impl.src-bughunt-seam-scan.visit-while work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_While(self, node: ast.While) -> None:
         self._loop_depth += 1
         self.generic_visit(node)

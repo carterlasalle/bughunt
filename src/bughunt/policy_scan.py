@@ -9,6 +9,8 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from typing_extensions import override
+
 EXCLUDED = {
     ".git",
     ".hg",
@@ -450,29 +452,39 @@ class _FinallyJumpVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.nodes: list[ast.Return | ast.Break | ast.Continue] = []
 
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-return work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Return(self, node: ast.Return) -> None:
         self.nodes.append(node)
 
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-break work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Break(self, node: ast.Break) -> None:
         self.nodes.append(node)
 
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-continue work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Continue(self, node: ast.Continue) -> None:
         self.nodes.append(node)
 
     # Control flow inside nested scopes does not exit the enclosing finally.
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-functiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_FunctionDef(self, _node: ast.FunctionDef) -> None:
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_AsyncFunctionDef(self, _node: ast.AsyncFunctionDef) -> None:
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Lambda(self, _node: ast.Lambda) -> None:
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-classdef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_ClassDef(self, _node: ast.ClassDef) -> None:
         return
 

@@ -10,6 +10,8 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from typing_extensions import override
+
 EXCLUDED = {
     ".git",
     ".venv",
@@ -60,63 +62,84 @@ class FunctionMetricVisitor(ast.NodeVisitor):
         self.branches = 0
         self.conditions = 0
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-if work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_If(self, node: ast.If) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-ifexp work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_IfExp(self, node: ast.IfExp) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-for work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_For(self, node: ast.For) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
     # trace:exempt reason=internal-detail
+    @override
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-while work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_While(self, node: ast.While) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-excepthandler work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-with work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_With(self, node: ast.With) -> None:
         self.cyclomatic += 1
         self.generic_visit(node)
 
     # trace:exempt reason=internal-detail
+    @override
     def visit_AsyncWith(self, node: ast.AsyncWith) -> None:
         self.cyclomatic += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-assert work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Assert(self, node: ast.Assert) -> None:
         self.cyclomatic += 1
         self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-boolop work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_BoolOp(self, node: ast.BoolOp) -> None:
         increment = max(0, len(node.values) - 1)
         self.cyclomatic += increment
         self.conditions += increment
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-comprehension work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_comprehension(self, node: ast.comprehension) -> None:
         self.cyclomatic += 1 + len(node.ifs)
         self.conditions += 1 + len(node.ifs)
         self.generic_visit(node)
 
     # trace:v1 id=impl.src-bughunt-metrics_scan-functionmetricvisitor.visit-match work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+    @override
     def visit_Match(self, node: ast.Match) -> None:
         for case in node.cases:
             if not (
@@ -131,37 +154,50 @@ class FunctionMetricVisitor(ast.NodeVisitor):
                 self.conditions += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-assign work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Assign(self, node: ast.Assign) -> None:
         self.assignments += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-annassign work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value is not None:
             self.assignments += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-augassign work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self.assignments += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-namedexpr work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self.assignments += 1
         self.generic_visit(node)
 
+    # trace:v1 id=impl.src-bughunt-metrics-scan.visit-call work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Call(self, node: ast.Call) -> None:
         self.branches += 1
         self.generic_visit(node)
 
     # Nested functions are measured separately, not charged to the parent.
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-functiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_FunctionDef(self, _node: ast.FunctionDef) -> None:
         return
 
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_AsyncFunctionDef(self, _node: ast.AsyncFunctionDef) -> None:
         return
 
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @override
     def visit_Lambda(self, _node: ast.Lambda) -> None:
         return
 
