@@ -311,7 +311,6 @@ def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code(
 
 
 def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages() -> None:
-    from bughunt.cli import Finding
 
     a = Finding(tool="mypy", code="misc", message="Expression type contains Any")
     b = Finding(tool="mypy", code="misc", message="Class cannot subclass final class")
@@ -457,7 +456,7 @@ def test_internal_progress_stage_is_not_counted_as_completed_defense(
     )
     result = asyncio.run(run_process(check, 4096, progress))
     assert result.status == Status.PASS
-    assert progress.completed == []
+    assert not progress.completed
     assert "internal" not in progress.running
 
 
@@ -487,7 +486,6 @@ def test_pysa_is_installed_into_private_compatibility_runtime(
 
 
 def test_ruff_fix_metadata_is_preserved() -> None:
-    from bughunt.cli import parse_ruff
 
     raw = (
         '[{"code":"F401","message":"unused","filename":"a.py","location":'
@@ -761,7 +759,7 @@ def test_run_pysa_maps_missing_provider_to_skipped(
     import stat
 
     from bughunt import cli as cli_mod
-    from bughunt.cli import Config, Status, run_pysa
+    from bughunt.cli import run_pysa
 
     # A missing Pyrefly provider means the defense cannot execute; it must
     # report SKIPPED with the repair, never an analysis ERROR (observed on a
@@ -781,7 +779,7 @@ def test_run_pysa_maps_missing_provider_to_skipped(
     }
     result = asyncio.run(run_pysa(Config(root=tmp_path, raw=raw), "deep", 512))
     assert result.status == Status.SKIPPED
-    assert result.findings == []
+    assert not result.findings
     assert "install --only pysa" in (result.note or "")
 
 

@@ -58,5 +58,6 @@ paths = [
   "*.spec.*",
   "uv.lock",
   ".python-version",
+  "skills-lock.json",
 ]
 extensions = []

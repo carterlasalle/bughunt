@@ -301,7 +301,7 @@ def test_oxlint_empty_scope_banner_parses_clean() -> None:
         f"{OXLINT_EMPTY_SCOPE}. Please check your paths and ignore patterns.\n"
         '{"diagnostics": []}'
     )
-    assert parse_oxlint(stdout, "", 1) == []
+    assert not parse_oxlint(stdout, "", 1)
     real = (
         '{"diagnostics": [{"message": "x", "code": "no-undef", '
         '"severity": "error", "filename": "a.js"}]}'
@@ -314,7 +314,7 @@ def test_eslint_empty_scope_banner_parses_clean() -> None:
     from bughunt.cli import ESLINT_EMPTY_SCOPE, parse_eslint
 
     stderr = f'You are linting ".", but {ESLINT_EMPTY_SCOPE} "." are ignored.\n'
-    assert parse_eslint("", stderr, 2) == []
+    assert not parse_eslint("", stderr, 2)
 
 
 # trace:v1 id=test.tests-test-technology.test-tsc-gated-on-tsconfig work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
