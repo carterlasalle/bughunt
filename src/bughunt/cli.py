@@ -684,11 +684,13 @@ def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[F
     findings: list[Finding] = []
     patterns = [
         re.compile(
-            r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*"
+            r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
             re.IGNORECASE,
         ),
         re.compile(
-            r"^(?P<path>.+?):(?P<line>\d+):\s*(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            r"^(?P<path>.+?):(?P<line>\d+):\s*"
+            r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
             re.IGNORECASE,
         ),
     ]

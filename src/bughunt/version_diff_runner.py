@@ -48,7 +48,11 @@ def _git_show(root: Path, ref: str, rel: str) -> str | None:
     if not shutil.which("git"):
         return None
     p = subprocess.run(  # noqa: S603 - audited: argv list, no shell
-        ["git", "show", f"{ref}:{rel}"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+        [  # noqa: S607 - PATH-resolved executable
+            "git",
+            "show",
+            f"{ref}:{rel}",
+        ],
         cwd=root,
         capture_output=True,
         text=True,

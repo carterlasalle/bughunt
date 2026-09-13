@@ -205,7 +205,13 @@ def _git_baseline(root: Path) -> str | None:
     for ref in refs:
         try:
             verify = subprocess.run(  # noqa: S603 - audited: argv list, no shell
-                ["git", "rev-parse", "--verify", "--quiet", ref],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+                [  # noqa: S607 - PATH-resolved executable
+                    "git",
+                    "rev-parse",
+                    "--verify",
+                    "--quiet",
+                    ref,
+                ],
                 cwd=root,
                 text=True,
                 capture_output=True,
@@ -215,7 +221,12 @@ def _git_baseline(root: Path) -> str | None:
             if verify.returncode != 0:
                 continue
             merge = subprocess.run(  # noqa: S603 - audited: argv list, no shell
-                ["git", "merge-base", "HEAD", ref],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+                [  # noqa: S607 - PATH-resolved executable
+                    "git",
+                    "merge-base",
+                    "HEAD",
+                    ref,
+                ],
                 cwd=root,
                 text=True,
                 capture_output=True,
@@ -229,7 +240,11 @@ def _git_baseline(root: Path) -> str | None:
                 # On a feature branch, the merge-base remains the right PR-like
                 # baseline.
                 head = subprocess.run(
-                    ["git", "rev-parse", "HEAD"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+                    [  # noqa: S607 - PATH-resolved executable
+                        "git",
+                        "rev-parse",
+                        "HEAD",
+                    ],
                     cwd=root,
                     text=True,
                     capture_output=True,
@@ -242,7 +257,12 @@ def _git_baseline(root: Path) -> str | None:
             break
     try:
         parent = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD^"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+            [  # noqa: S607 - PATH-resolved executable
+                "git",
+                "rev-parse",
+                "--verify",
+                "HEAD^",
+            ],
             cwd=root,
             text=True,
             capture_output=True,
@@ -264,7 +284,12 @@ def git_path_exists(root: Path, ref: str | None, path: str) -> bool:
         return False
     try:
         proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
-            ["git", "cat-file", "-e", f"{ref}:{path}"],  # noqa: S607 - executable resolved via project env/PATH by design, E501
+            [  # noqa: S607 - PATH-resolved executable
+                "git",
+                "cat-file",
+                "-e",
+                f"{ref}:{path}",
+            ],
             cwd=root,
             text=True,
             capture_output=True,

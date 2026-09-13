@@ -181,3 +181,23 @@ def test_pyrefly_implicit_bool_scoped(tmp_path) -> None:
         tmp_path / ".bughunt/configs", tmp_path, ["src"], ["src"], "3.11"
     )
     assert "implicit-bool = false" in text
+
+
+# trace:v1 id=test.tests-test-configurator.test-pylint-contracts-scope-idiom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_pylint_contracts_scope_idiom() -> None:
+    from bughunt.configurator import _pylint_config
+
+    strict = _pylint_config()
+    for code in (
+        "missing-function-docstring",
+        "magic-value-comparison",
+        "invalid-name",
+        "import-outside-toplevel",
+        "consider-using-assignment-expr",
+        "broad-exception-caught",
+        "duplicate-code",
+    ):
+        assert code in strict
+    relaxed = _pylint_config(for_tests=True)
+    assert "unused-argument" in relaxed
+    assert "line-too-long" in relaxed

@@ -27,11 +27,13 @@ EXCLUDED = {
 }
 
 SECRET_NAME = re.compile(
-    r"(?:secret|token|password|passwd|api[_-]?key|private[_-]?key|access[_-]?key|client[_-]?secret)",
+    r"(?:secret|token|password|passwd|api[_-]?key|private[_-]?key|access[_-]?key|"
+    r"client[_-]?secret)",
     re.IGNORECASE,
 )
 CONFIG_NAME = re.compile(
-    r"(?:^|_)(timeout|retries|retry|host|port|url|endpoint|threshold|limit|max|min|interval|ttl|workers|batch(?:_size)?|concurrency|rate|delay|buffer|cache)(?:_|$)",
+    r"(?:^|_)(timeout|retries|retry|host|port|url|endpoint|threshold|limit|max|min|"
+    r"interval|ttl|workers|batch(?:_size)?|concurrency|rate|delay|buffer|cache)(?:_|$)",
     re.IGNORECASE,
 )
 CONFIG_MODULE = re.compile(
@@ -443,6 +445,7 @@ def _module_tokens(path: Path, root: Path) -> set[str]:
     return {x.lower() for part in rel.parts for x in re.split(r"[_\-.]", part) if x}
 
 
+# trace:v1 id=impl.src-bughunt-policy-scan.-finallyjumpvisitor work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 class _FinallyJumpVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.nodes: list[ast.Return | ast.Break | ast.Continue] = []
@@ -457,16 +460,20 @@ class _FinallyJumpVisitor(ast.NodeVisitor):
         self.nodes.append(node)
 
     # Control flow inside nested scopes does not exit the enclosing finally.
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-functiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def visit_FunctionDef(self, _node: ast.FunctionDef) -> None:
         return
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def visit_AsyncFunctionDef(self, _node: ast.AsyncFunctionDef) -> None:
         return
 
-    def visit_Lambda(self, node: ast.Lambda) -> None:
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def visit_Lambda(self, _node: ast.Lambda) -> None:
         return
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+    # trace:v1 id=impl.src-bughunt-policy-scan.visit-classdef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def visit_ClassDef(self, _node: ast.ClassDef) -> None:
         return
 
 
