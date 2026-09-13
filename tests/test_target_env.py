@@ -1,13 +1,12 @@
 # Copyright (c) 2026 Carter LaSalle
 """Target-environment resolution and empty-exit mapping."""
 
-import pytest
-
-
 import asyncio
 import stat
 import sys
 from pathlib import Path
+
+import pytest
 
 from bughunt.cli import Check, Status, run_process
 from bughunt.technology import target_executable, target_has_module, target_python

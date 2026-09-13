@@ -12,6 +12,12 @@ max_parallel = 6
 fail_on = "findings"       # findings | error | never
 raw_output_limit_kb = 512
 
+# Opt out of defenses per repo (merged with `--skip`). Skipped defenses are
+# reported as explicitly skipped, never silently dropped. Example:
+# skip = ["pylint-tests"]
+# trace:v1 id=ops.skip work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+skip = []
+
 [timeouts]
 fast = 120
 pr = 900
@@ -37,6 +43,7 @@ tools = [
   "ty",
   "pyrefly",
   "pylint",
+  "pylint-tests",
   "complexity",
   "complexipy",
   "radon",
@@ -95,6 +102,7 @@ tools = [
   "pyrefly",
   "pylint",
   "complexity",
+  "pylint-tests",
   "complexipy",
   "radon",
   "lizard",
@@ -170,6 +178,7 @@ tools = [
   "pylint",
   "complexity",
   "complexipy",
+  "pylint-tests",
   "radon",
   "lizard",
   "policy",

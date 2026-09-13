@@ -154,7 +154,6 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
 
 # trace:v1 id=test.tests-test-configurator.test-ruff-per-file-ignores-scope-tests-and-runners work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_ruff_per_file_ignores_scope_tests_and_runners(tmp_path) -> None:
-    import tomllib
 
     from bughunt.configurator import configure_all
 

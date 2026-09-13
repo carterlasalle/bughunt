@@ -321,13 +321,7 @@ def test_generic_mypy_misc_signals_do_not_collapse_unrelated_messages() -> None:
 def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(
     tmp_path: Path,
 ) -> None:
-    from bughunt.cli import (
-        Finding,
-        Result,
-        Status,
-        canonicalize_findings,
-        hotspot_files,
-    )
+    from bughunt.cli import canonicalize_findings, hotspot_files
 
     (tmp_path / "src").mkdir()
     target = tmp_path / "src" / "a.py"
@@ -352,12 +346,7 @@ def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(
 
 # trace:v1 id=test.tests-test-core.test-canonicalize-findings-exempts-trace-marker-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path) -> None:
-    from bughunt.cli import (
-        Finding,
-        Result,
-        Status,
-        canonicalize_findings,
-    )
+    from bughunt.cli import canonicalize_findings
 
     target = tmp_path / "a.py"
     target.write_text(
@@ -672,6 +661,37 @@ def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path) -> None:
     checks, skipped = cli.build_checks(cfg, "all", excluded={"mutmut"})
     assert not any(check.name == "mutmut" for check in checks)
     item = next(result for result in skipped if result.name == "mutmut")
+    assert item.status == cli.Status.SKIPPED
+    assert "explicitly skipped" in (item.note or "")
+
+
+# trace:v1 id=test.tests-test-core.test-pylint-tests-scoped-to-test-paths work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_pylint_tests_scoped_to_test_paths(tmp_path: Path) -> None:
+    from bughunt import cli
+
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests/test_probe.py").write_text("def test_ok(): assert True\n")
+    (tmp_path / ".bughunt/configs").mkdir(parents=True)
+    (tmp_path / ".bughunt/configs/pylintrc-tests").write_text("")
+    cfg = cli.load_config(tmp_path)
+    assert "pylint-tests" in cfg.tools("pr")
+    checks, _ = cli.build_checks(cfg, "pr")
+    check = next(c for c in checks if c.name == "pylint-tests")
+    assert "pylintrc-tests" in " ".join(check.command)
+    assert "tests" in check.command
+
+
+# trace:v1 id=test.tests-test-core.test-config-skip-opts-out-of-defenses work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_config_skip_opts_out_of_defenses(tmp_path: Path) -> None:
+    from bughunt import cli
+
+    assert cli.Config(tmp_path, {"execution": {"skip": ["pylint-tests"]}}).skip == [
+        "pylint-tests"
+    ]
+    assert cli.Config(tmp_path, {}).skip == []
+    cfg = cli.load_config(tmp_path)
+    _, skipped = cli.build_checks(cfg, "pr", excluded={"pylint-tests"})
+    item = next(result for result in skipped if result.name == "pylint-tests")
     assert item.status == cli.Status.SKIPPED
     assert "explicitly skipped" in (item.note or "")
 

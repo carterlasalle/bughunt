@@ -142,6 +142,7 @@ PYTHON_ONLY_TOOLS = {
     "ty",
     "pyrefly",
     "pylint",
+    "pylint-tests",
     "policy",
     "complexipy",
     "radon",
@@ -307,6 +308,13 @@ class Config:
     def max_parallel(self) -> int:
         return int(self.raw.get("execution", {}).get("max_parallel", 6))
 
+    # trace:v1 id=impl.src-bughunt-cli.config-skip work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @property
+    def skip(self) -> list[str]:
+        """Defenses the repo opts out of, merged with `--skip`."""
+        skipped = self.raw.get("execution", {}).get("skip", [])
+        return [str(x) for x in skipped] if isinstance(skipped, list) else []
+
     def timeout(self, profile: str) -> int:
         timeouts = self.raw.get("timeouts", {})
         fallback = timeouts.get("deep", 900) if profile == "all" else 900
@@ -402,6 +410,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "ty",
                     "pyrefly",
                     "pylint",
+                    "pylint-tests",
                     "complexity",
                     "complexipy",
                     "radon",
@@ -428,6 +437,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "pyrefly",
                     "pylint",
                     "complexity",
+                    "pylint-tests",
                     "complexipy",
                     "radon",
                     "lizard",
@@ -461,6 +471,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "pylint",
                     "complexity",
                     "complexipy",
+                    "pylint-tests",
                     "radon",
                     "lizard",
                     "policy",
@@ -907,12 +918,14 @@ def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
 
 
 # trace:v1 id=impl.src-bughunt-cli.parse-pylint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+def parse_pylint(
+    stdout: str, stderr: str, exit_code: int, tool: str = "pylint"
+) -> list[Finding]:
     """Parse Pylint JSON2, ranking convention/refactor/info below bug diagnostics."""
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:
-        return text_findings("pylint", stdout, stderr, exit_code)
+        return text_findings(tool, stdout, stderr, exit_code)
     if isinstance(data, dict):
         data = data.get("messages", data.get("results", []))
     out: list[Finding] = []
@@ -930,7 +943,7 @@ def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         }.get(kind, "warning")
         out.append(
             Finding(
-                tool="pylint",
+                tool=tool,
                 path=item.get("path") or item.get("abspath") or item.get("module"),
                 line=item.get("line"),
                 column=item.get("column"),
@@ -941,9 +954,7 @@ def parse_pylint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                 severity=severity,
             ),
         )
-    return out or (
-        text_findings("pylint", stdout, stderr, exit_code) if exit_code else []
-    )
+    return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
 
 
 # trace:v1 id=impl.src-bughunt-cli.parse-deptry work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -2079,6 +2090,34 @@ def build_checks(
         reason="pylint not installed",
         findings_exit_codes={code for code in range(1, 32)},
     )
+    # Tests get their own pylint contract: docstring/magic/import-outside
+    # demands misread test idiom, so pylintrc-tests relaxes them (the strict
+    # rcfile keeps every checker on for first-party sources).
+    _want_pylint_tests = "pylint-tests" in wanted and "pylint-tests" not in excluded
+    if _want_pylint_tests and not tests:
+        skipped.append(
+            Result(
+                "pylint-tests",
+                "lint",
+                Status.SKIPPED,
+                note="no test paths in scope",
+            ),
+        )
+    else:
+        pylint_tests_cfg = generated_config(root, "pylintrc-tests")
+        pylint_tests_cmd = _optional_cmd(
+            executable("pylint"), [*tests, "--output-format=json2"]
+        )
+        if pylint_tests_cmd and pylint_tests_cfg:
+            pylint_tests_cmd += ["--rcfile", str(pylint_tests_cfg)]
+        add(
+            "pylint-tests",
+            "lint",
+            pylint_tests_cmd,
+            lambda o, e, c: parse_pylint(o, e, c, tool="pylint-tests"),
+            reason="pylint not installed",
+            findings_exit_codes={code for code in range(1, 32)},
+        )
 
     # Built-in policy + complexity scanners are always available with BugHunt.
     policy_cmd = [sys.executable, "-m", "bughunt.policy_scan", "--root", str(root)]
@@ -6771,8 +6810,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     else:
         profile = alias_profiles.get(args.command, "pr")
-
-    excluded = set(getattr(args, "skip", []) or [])
+    excluded = set(cfg.skip) | set(getattr(args, "skip", []) or [])
     if bool(getattr(args, "skip_mutmut", False)) or args.command == "skipmutmut":
         excluded.add("mutmut")
     known_defenses = (
@@ -6789,11 +6827,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             "bandit",
             "bugcorpus",
             "custom",
+            "pylint-tests",
         }
     )
     unknown_skips = sorted(excluded - known_defenses)
     if unknown_skips:
-        parser.error("unknown defense(s) for --skip: " + ", ".join(unknown_skips))
+        parser.error(
+            "unknown defense(s) for --skip / execution.skip: "
+            + ", ".join(unknown_skips)
+        )
 
     if args.command in {"all", "full", "skipmutmut"} and args.install_missing:
         suffix = " (mutmut skipped)" if "mutmut" in excluded else ""
