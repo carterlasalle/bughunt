@@ -190,7 +190,10 @@ select = ["ALL"]
 # not follow: DOC201 wants numpydoc Returns sections (return types live in
 # `->` annotations, which the dedicated pydoclint defense already accepts),
 # RUF105 wants the novel `ruff: ignore` syntax over standard `noqa` comments.
-ignore = ["DOC201", "RUF105"]
+# D100-D107 mandate docstring PRESENCE; presence mandates produce vacuous
+# prose. BugHunt enforces docstring CORRECTNESS (pydoclint + D205-D417), not
+# presence.
+ignore = ["DOC201", "RUF105", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
 explicit-preview-rules = false
 fixable = ["ALL"]
 unfixable = []

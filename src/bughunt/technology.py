@@ -675,7 +675,7 @@ def target_executable(root: Path, *names: str) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-technology.target-has-module work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def target_has_module(python: str, name: str) -> bool:
-    """importlib check against a specific interpreter without importing anything."""
+    """Check importlib against a specific interpreter without importing anything."""
     try:
         proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
             [

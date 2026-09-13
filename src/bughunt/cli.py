@@ -4449,7 +4449,7 @@ def _finding_on_trace_marker(
     finding: Finding,
     cache: dict[str, list[str]],
 ) -> bool:
-    """True when a finding points at a TraceLayer marker line.
+    """Return True when a finding points at a TraceLayer marker line.
 
     Marker lines carry trace identity, never product logic, so no analyzer
     verdict about them is actionable. The scan exempts them centrally here

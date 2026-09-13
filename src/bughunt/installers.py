@@ -484,7 +484,7 @@ def _install_pysa_runtime(
 
 # trace:v1 id=impl.src-bughunt-installers.-pysa-provider-present work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _pysa_provider_present(runtime: Path) -> bool:
-    """True when pyre can locate its Pyrefly provider inside the runtime.
+    """Return True when pyre can locate its Pyrefly provider inside the runtime.
 
     `pyre --help` never exercises the provider lookup, so a green CLI probe
     can mask a broken analyze runtime. The binary itself is the receipt.
