@@ -642,7 +642,7 @@ def test_full_alias_accepts_no_install_missing(
 
     rc = cli.main(["--root", str(tmp_path), "full", "--no-install-missing"])
     assert rc == 0
-    assert seen["install"] == 0
+    assert not seen["install"]
     assert seen["profile"] == "all"
 
 

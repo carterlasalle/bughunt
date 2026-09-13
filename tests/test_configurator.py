@@ -169,3 +169,16 @@ def test_ruff_per_file_ignores_scope_tests_and_runners(tmp_path) -> None:
     assert "D103" in scoped["tests/**"]
     assert "ANN001" not in scoped["tests/**"]
     assert "S607" in scoped["tests/**"]
+    assert "use-implicit-booleaness-not-comparison-to-zero" in cfg["lint"]["ignore"]
+    assert "D103" in cfg["lint"]["ignore"]
+
+
+# trace:v1 id=test.tests-test-configurator.test-pyrefly-implicit-bool-scoped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_pyrefly_implicit_bool_scoped(tmp_path) -> None:
+    from bughunt.configurator import _pyrefly_config
+
+    (tmp_path / "src").mkdir()
+    text = _pyrefly_config(
+        tmp_path / ".bughunt/configs", tmp_path, ["src"], ["src"], "3.11"
+    )
+    assert "implicit-bool = false" in text

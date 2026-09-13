@@ -193,8 +193,10 @@ select = ["ALL"]
 # D100-D107 mandate docstring PRESENCE; presence mandates produce vacuous
 # prose. BugHunt enforces docstring CORRECTNESS (pydoclint + D205-D417), not
 # presence.
-ignore = ["DOC201", "RUF105", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
-explicit-preview-rules = false
+ignore = ["DOC201", "RUF105", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "use-implicit-booleaness-not-comparison-to-zero"]
+# use-implicit-booleaness-not-comparison-to-zero would rewrite status-code
+# checks (`rc == 0`) as truthiness. Exit codes are domain values, not
+# emptiness; they stay explicit. The non-zero variant (lists, strings) stays on.
 fixable = ["ALL"]
 unfixable = []
 future-annotations = true
@@ -385,6 +387,17 @@ def _pyrefly_config(
         lines.append(
             f"python-interpreter-path = {json.dumps(_rel(config_dir, interpreter))}",
         )
+    lines.extend(
+        [
+            "",
+            "[errors]",
+            "# implicit-bool forbids truthiness tests (863 hits on idiomatic `if x:`).",
+            "# It contradicts the emptiness-simplification rule and would demand",
+            "# explicit bool() conversions across every condition. Scoped; the Any",
+            "# trail (unknown-argument-type, explicit-any) stays on.",
+            "implicit-bool = false",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
