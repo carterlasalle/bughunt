@@ -4,15 +4,16 @@
 <!-- trace:exempt reason=repo-planning-no-product-behavior -->
 Ordered by value. Each item states its acceptance evidence.
 
-<!-- trace:exempt reason=repo-planning-no-product-behavior -->
-## 1. Coverage: orchestrator paths (68% → 85%)
+## 1. Coverage: orchestrator paths (68% → 85%) — DONE 2026-09-14
 
-The zero-modules are done (evidence 87%, package ~85%, coverage-runner 73%).
-What remains is cli.py orchestration, installers, seam_scan, importtime_runner,
-and pact_runner — mostly env-dependent paths needing tmp-dir + monkeypatched
-fixtures, following the `test_fault_boundaries.py` pattern. Acceptance: the
-repo-wide coverage gates in AGENTS.md (85% line, 80% branch) pass on a local
-`coverage run -m pytest` with no new unconditional skips.
+Closed `e9ce011`: line **87.5%** (gate ≥85), branch **80.0%** (gate ≥80),
+367 tests green, no new unconditional skips. Approach was branch-arc
+targeting in pure-logic modules (seam_scan and verify_gaps to 100%,
+adapters/runners/scanners gap tests) plus removing two dead branches
+proven unreachable, instead of the planned cli.py/installers grind.
+cli.py + installers env-dependent paths remain open for the orchestrator
+thread (item 2) if it wants them; the repo-wide gate no longer depends
+on them.
 
 <!-- trace:exempt reason=repo-planning-no-product-behavior -->
 ## 2. Orchestrator splits (dedicated thread)
