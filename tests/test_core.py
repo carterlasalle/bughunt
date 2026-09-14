@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Carter LaSalle
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -66,7 +67,13 @@ def test_install_only_cli_is_wired(
 
     seen = {}
 
-    def fake_install_all(root, *, dry_run=False, emit=print, only=None):
+    def fake_install_all(
+        root: Path,
+        *,
+        dry_run: bool = False,
+        emit: Callable[[str], None] = print,
+        only: set[str] | None = None,
+    ):
         seen["root"] = root
         seen["dry_run"] = dry_run
         seen["only"] = only
@@ -213,7 +220,10 @@ def test_deep_profile_is_not_downgraded_to_pr(
 
     seen = {}
 
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
 
     # trace:v1 id=test.tests-test-core-test-deep-profile-is-not-downgraded-to-pr.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
@@ -246,7 +256,11 @@ def test_quick_alias_routes_fast(
     from bughunt import cli
 
     seen = {}
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
+
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
 
     # trace:v1 id=test.tests-test-core-test-quick-alias-routes-fast.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
@@ -549,7 +563,13 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 
     seen = {"install": 0}
 
-    def fake_install_all(root, *, dry_run=False, emit=print, only=None):
+    def fake_install_all(
+        root: Path,
+        *,
+        dry_run: bool = False,
+        emit: Callable[[str], None] = print,
+        only: set[str] | None = None,
+    ):
         seen["install"] += 1
         return []
 
@@ -564,7 +584,11 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
         return [], 0.01
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
+
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
     monkeypatch.setattr(cli, "run_all", fake_run_all)
     monkeypatch.setattr(
         cli,
@@ -604,7 +628,11 @@ def test_full_alias_accepts_no_install_missing(
     from bughunt import cli
 
     seen = {"install": 0, "profile": None}
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
+
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
     monkeypatch.setattr(
         cli,
         "install_all",
@@ -704,9 +732,20 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
     from bughunt import cli
 
     seen = {}
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
 
-    def fake_install_all(root, *, dry_run=False, emit=print, only=None, exclude=None):
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
+
+    def fake_install_all(
+        root: Path,
+        *,
+        dry_run: bool = False,
+        emit: Callable[[str], None] = print,
+        only: set[str] | None = None,
+        exclude: set[str] | None = None,
+    ):
         seen["install_exclude"] = set(exclude or ())
         return []
 
@@ -745,7 +784,11 @@ def test_run_accepts_positional_all_profile(
     from bughunt import cli
 
     seen = {}
-    monkeypatch.setattr(cli, "auto_configure", lambda cfg, quiet=False: [])
+
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+        return []
+
+    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
 
     # trace:v1 id=test.tests-test-core-test-run-accepts-positional-all-profile.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
@@ -804,7 +847,9 @@ def test_run_pysa_maps_missing_provider_to_skipped(
 
 
 # trace:v1 id=test.tests-test-core.test-importtime-rejects-non-identifier-module-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_importtime_rejects_non_identifier_module_names(tmp_path) -> None:
+def test_importtime_rejects_non_identifier_module_names(
+    tmp_path: Path,
+) -> None:
     from bughunt.importtime_runner import main
 
     # A crafted package name must never reach the `-c` interpreter: it is

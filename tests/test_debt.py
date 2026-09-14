@@ -3,6 +3,8 @@
 
 from pathlib import Path
 
+import pytest
+
 
 def _finding(
     tool: str = "mypy",
@@ -76,7 +78,9 @@ def test_consumers_exclude_accepted_findings() -> None:
     assert all(item["message"] != debt.message for item in agent_queue(results))
 
 
-def test_malformed_ledger_fails_open(tmp_path: Path, capsys) -> None:
+def test_malformed_ledger_fails_open(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     from bughunt.cli import load_debt_ledger
 
     (tmp_path / "debt.toml").write_text("[[debt]\nthis is not toml = = =\n")
@@ -131,3 +135,39 @@ def test_snapshot_review_roundtrip(tmp_path: Path) -> None:
     )
     (report_dir / "report.json").write_text(json.dumps(report))
     assert debt_review(tmp_path) == 1
+
+
+def test_snapshot_path_filter_scopes_entries(tmp_path: Path) -> None:
+    import json
+
+    from bughunt.cli import debt_snapshot, load_debt_ledger
+
+    def item(path: str, line: int):
+        return {
+            "tool": "mypy",
+            "message": 'Expression has type "Any"',
+            "path": path,
+            "line": line,
+            "code": "misc",
+            "severity": "error",
+        }
+
+    report_dir = tmp_path / ".bughunt" / "reports" / "20240101-000000"
+    report_dir.mkdir(parents=True)
+    (report_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "results": [
+                    {
+                        "name": "mypy",
+                        "findings": [item("src/a.py", 1), item("src/b.py", 2)],
+                    }
+                ]
+            }
+        )
+    )
+    target = _finding()
+    assert debt_snapshot(tmp_path, [target.signal_key], "scoped", ["src/a.py"]) == 0
+    ledger = load_debt_ledger(tmp_path)
+    assert len(ledger) == 1
+    assert ledger[0].paths == ["src/a.py"]

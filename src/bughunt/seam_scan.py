@@ -421,6 +421,7 @@ def _recorded_payload_gap(
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
@@ -445,6 +446,7 @@ def _recorded_payload_gap(
         try:
             text = path.read_text(errors="replace").lower()
         except OSError:
+            # One bad file never fails a scan; skipped
             continue
         if any(marker in text for marker in corpus_markers):
             return []
@@ -475,6 +477,7 @@ def _time_boundary_gap(
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
@@ -502,6 +505,7 @@ def _time_boundary_gap(
         try:
             text = path.read_text(errors="replace").lower()
         except OSError:
+            # One bad file never fails a scan; skipped
             continue
         if any(marker in text for marker in markers):
             return []
@@ -643,6 +647,7 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for name, fields in _class_fields(tree).items():
             _ = models.setdefault(name, (fields, _rel(root, path), 1))
@@ -721,6 +726,7 @@ def scan_seams(
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         rel = _rel(root, path)
         findings.extend(_kwargs_drift(tree, rel))

@@ -223,12 +223,14 @@ def _test_python_files(root: Path) -> Iterable[Path]:
                     yield path
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-module-name work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _module_name(root: Path, path: Path, source_paths: Iterable[str]) -> str | None:
     for rel in source_paths:
         base = (root / rel).resolve()
         try:
             sub = path.resolve().relative_to(base)
         except ValueError:
+            # Unparseable value keeps its default
             continue
         parts = list(sub.with_suffix("").parts)
         if parts and parts[-1] == "__init__":
@@ -317,6 +319,7 @@ def _literal_seeds(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not node.args:
@@ -351,6 +354,7 @@ def _function_infos(root: Path, source_paths: list[str]) -> list[FunctionInfo]:
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         module = _module_name(root, path, source_paths)
         if not module:
@@ -763,6 +767,7 @@ def test_bughunt_idempotence({arg_name}):
             tree = ast.parse(test_path.read_text(errors="replace"))
             source = test_path.read_text(errors="replace")
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for node in ast.walk(tree):
             if isinstance(
@@ -848,6 +853,7 @@ def discover_pysa_models(root: Path, source_paths: list[str]) -> list[PysaModel]
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         module = _module_name(root, path, source_paths)
         if not module:
@@ -990,6 +996,7 @@ def discover_atheris(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         module = _module_name(root, path, source_paths)
         if not module:
@@ -1252,6 +1259,7 @@ def discover_schemathesis(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         module = _module_name(root, path, source_paths)
         if not module:
@@ -1353,6 +1361,7 @@ def discover_schemathesis(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (SyntaxError, OSError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         module = _module_name(root, path, source_paths)
         if not module:

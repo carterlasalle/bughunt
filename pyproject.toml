@@ -7,6 +7,7 @@ description = "Defense-in-depth bug finding orchestrator for Python repositories
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "pyyaml>=6.0.3",
     "rich>=14.0",
     "typing-extensions>=4.16.0",
 ]
@@ -156,3 +157,11 @@ disable = [
   "FURB183",
   "FURB110",
 ]
+
+# trace:v1 id=ops.deptry-optional-probes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+[tool.deptry.per_rule_ignores]
+# pylint/pact are optional engine probes with ImportError fallbacks;
+# deptry cannot model optionality. Tradeoff: future undeclared uses of
+# these two packages also silence; everything else still reports.
+# trace:v1 id=ops.deptry-per-rule-ignores work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+DEP004 = ["pylint", "pact"]

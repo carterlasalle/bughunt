@@ -205,6 +205,7 @@ class FunctionMetricVisitor(ast.NodeVisitor):
         return
 
 
+# trace:v1 id=impl.src-bughunt-metrics-scan.-budget work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _budget(root: Path) -> dict[str, float]:
     values: dict[str, float] = {k: float(v) for k, v in DEFAULTS.items()}
     path = root / "bughunt.toml"
@@ -215,6 +216,7 @@ def _budget(root: Path) -> dict[str, float]:
                 if key in raw:
                     values[key] = float(raw[key])
         except (OSError, tomllib.TOMLDecodeError, TypeError, ValueError):
+            # Malformed project config falls back to defaults
             pass
     return values
 
@@ -288,6 +290,7 @@ def scan_python(
             source = path.read_text(errors="replace")
             tree = ast.parse(source)
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         physical_loc = len(source.splitlines())
         sev = _severity(physical_loc, budget["file_loc_warn"], budget["file_loc_error"])

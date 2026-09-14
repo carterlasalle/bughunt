@@ -139,6 +139,7 @@ ENGINE_CATEGORY: dict[str, str] = {
 }
 
 
+# trace:v1 id=impl.src-bughunt-technology.-iter-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _iter_files(root: Path) -> Iterable[Path]:
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS]
@@ -149,6 +150,7 @@ def _iter_files(root: Path) -> Iterable[Path]:
                 if path.is_file():
                     yield path
             except OSError:
+                # One bad file never fails a scan; skipped
                 continue
 
 
@@ -188,6 +190,7 @@ def _package_dependencies(root: Path) -> set[str]:
                 if isinstance(values, dict):
                     deps.update(str(k).lower() for k in values)
         except (OSError, json.JSONDecodeError, TypeError):
+            # Unreadable or malformed input carries no data
             pass
     return deps
 
@@ -741,6 +744,7 @@ def llvm_executable(root: Path, name: str) -> str | None:
             if proc.returncode == 0 and candidate.exists():
                 return str(candidate)
         except (OSError, subprocess.SubprocessError):
+            # Probe teardown failure is not a finding
             pass
     return None
 

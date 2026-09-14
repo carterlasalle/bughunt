@@ -185,8 +185,9 @@ PYTHON_ONLY_TOOLS = {
 }
 
 
+# trace:v1 id=impl.src-bughunt-cli.status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 class Status(str, Enum):
-    PASS = "PASS"
+    PASS = "PASS"  # nosec B105 - status enum member, not a credential
     FINDINGS = "FINDINGS"
     ERROR = "ERROR"
     SKIPPED = "SKIPPED"
@@ -360,7 +361,9 @@ def _debt_latest_report(root: Path) -> Path | None:
 
 
 # trace:v1 id=impl.src-bughunt-cli.debt-snapshot work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def debt_snapshot(root: Path, signals: list[str], reason: str) -> int:
+def debt_snapshot(
+    root: Path, signals: list[str], reason: str, paths: list[str] | None = None
+) -> int:
     """Record per-signal-per-file counts from the latest report into debt.toml."""
     if not signals:
         print("error: snapshot needs at least one --signal", file=sys.stderr)
@@ -385,7 +388,13 @@ def debt_snapshot(root: Path, signals: list[str], reason: str) -> int:
                 code=item.get("code"),
                 severity=str(item.get("severity", "error")),
             )
-            if finding.signal_key in signals:
+            if finding.signal_key in signals and (
+                not paths
+                or any(
+                    (finding.path or "") == p or (finding.path or "").startswith(p)
+                    for p in paths
+                )
+            ):
                 key = (finding.signal_key, finding.path or "")
                 counts[key] = counts.get(key, 0) + 1
     if not counts:
@@ -536,14 +545,17 @@ class Config:
     # trace:v1 id=impl.src-bughunt-cli-config.tools work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def tools(self, profile: str) -> list[str]:
         profiles = self.raw.get("profiles", {})
-        configured = list(profiles.get(profile, {}).get("tools", []))
+        configured: list[str] = [
+            str(t) for t in profiles.get(profile, {}).get("tools", [])
+        ]
         if not configured and profile == "all":
             # Backward compatibility with pre-`all` configs: maximal mode is the
             # union of every configured profile, preserving first-seen order.
             for data in profiles.values():
                 for tool in data.get("tools", []):
-                    if tool not in configured:
-                        configured.append(tool)
+                    name = str(tool)
+                    if name not in configured:
+                        configured.append(name)
         technology = (
             TECH_PR_TOOLS
             if profile == "pr"
@@ -1237,6 +1249,7 @@ def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         try:
             item = json.loads(line)
         except json.JSONDecodeError:
+            # Malformed payload carries no data; skipped
             continue
         if not isinstance(item, dict):
             continue
@@ -1415,6 +1428,7 @@ def parse_actionlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         try:
             item = json.loads(line)
         except json.JSONDecodeError:
+            # Malformed payload carries no data; skipped
             continue
         if not isinstance(item, dict):
             continue
@@ -1593,6 +1607,7 @@ def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
         try:
             item = json.loads(line)
         except json.JSONDecodeError:
+            # Malformed payload carries no data; skipped
             continue
         if not isinstance(item, dict) or item.get("reason") != "compiler-message":
             continue
@@ -1626,7 +1641,7 @@ def parse_cppcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     import xml.etree.ElementTree as ET
 
     try:
-        root = ET.fromstring(stderr.strip())
+        root = ET.fromstring(stderr.strip())  # nosec B405 B314 - own tool output
     except ET.ParseError:
         return text_findings("cppcheck", stdout, stderr, exit_code)
     out: list[Finding] = []
@@ -1675,8 +1690,11 @@ def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
                     severity="error",
                 ),
             )
-    for message in data.get("errors", []) if isinstance(data, dict) else []:
-        out.append(Finding(tool="phpstan", message=str(message), severity="error"))
+    out.extend(
+        Finding(tool="phpstan", message=str(message), severity="error")
+        for message in data.get("errors", [])
+        if isinstance(data, dict)
+    )
     return out or (
         text_findings("phpstan", stdout, stderr, exit_code) if exit_code else []
     )
@@ -1778,6 +1796,7 @@ def parse_buf_json_lines(stdout: str, stderr: str, exit_code: int) -> list[Findi
         try:
             item = json.loads(raw)
         except json.JSONDecodeError:
+            # Malformed payload carries no data; skipped
             continue
         if not isinstance(item, dict):
             continue
@@ -1858,6 +1877,7 @@ def parse_bughunt_helper(
     return out
 
 
+# trace:v1 id=impl.src-bughunt-cli.python-package-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
     """Infer importable first-party top-level packages without importing them."""
     names: list[str] = []
@@ -1871,9 +1891,11 @@ def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
         if (base / "__init__.py").exists():
             names.append(base.name)
         else:
-            for child in sorted(base.iterdir()):
-                if child.is_dir() and (child / "__init__.py").exists():
-                    names.append(child.name)
+            names.extend(
+                child.name
+                for child in sorted(base.iterdir())
+                if child.is_dir() and (child / "__init__.py").exists()
+            )
     return list(dict.fromkeys(x for x in names if x.isidentifier()))
 
 
@@ -1887,6 +1909,7 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
         try:
             text = path.read_text(errors="replace")
         except OSError:
+            # One bad file never fails a scan; skipped
             continue
         schema_ref: str | None = None
         if path.suffix.lower() == ".json":
@@ -1895,6 +1918,7 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
                 raw = payload.get("$schema") if isinstance(payload, dict) else None
                 schema_ref = raw if isinstance(raw, str) else None
             except json.JSONDecodeError:
+                # Malformed payload carries no data; skipped
                 pass
         if schema_ref is None:
             match = re.search(r"(?m)^\s*\$schema\s*:\s*[\"']?([^\"'\s#]+)", text)
@@ -1910,6 +1934,7 @@ def local_schema_pairs(root: Path, files: Sequence[str]) -> list[tuple[str, str]
         try:
             _ = schema.relative_to(root_resolved)
         except ValueError:
+            # Unparseable value keeps its default
             continue
         if schema.is_file():
             pairs.append((rel, schema.relative_to(root_resolved).as_posix()))
@@ -1926,6 +1951,7 @@ def pact_json_files(root: Path, files: Sequence[str]) -> list[str]:
         try:
             payload = json.loads(path.read_text(errors="replace"))
         except (OSError, json.JSONDecodeError):
+            # Unreadable or malformed input carries no data
             continue
         if not isinstance(payload, dict):
             continue
@@ -2178,15 +2204,15 @@ def build_checks(
                         ),
                     ),
                 )
-    for name in sorted(excluded & set(profile_tools)):
-        skipped.append(
-            Result(
-                name=name,
-                category=category_by_tool.get(name, "excluded"),
-                status=Status.SKIPPED,
-                note="explicitly skipped by user",
-            ),
+    skipped.extend(
+        Result(
+            name=name,
+            category=category_by_tool.get(name, "excluded"),
+            status=Status.SKIPPED,
+            note="explicitly skipped by user",
         )
+        for name in sorted(excluded & set(profile_tools))
+    )
 
     # trace:v1 id=impl.src-bughunt-cli-build-checks.add work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add(
@@ -4390,6 +4416,7 @@ def _reset_tool_dir(path: Path) -> None:
             timeout=60,
         )
     except (OSError, subprocess.SubprocessError):
+        # Probe teardown failure is not a finding
         pass
     shutil.rmtree(path, ignore_errors=True)
 
@@ -4578,6 +4605,7 @@ async def run_pysa(
                 if result.findings:
                     result.status = Status.FINDINGS
             except json.JSONDecodeError:
+                # Malformed payload carries no data; skipped
                 pass
     return result
 
@@ -4770,10 +4798,7 @@ def signal_groups(results: list[Result]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for key, findings in grouped.items():
         first = findings[0]
-        locations = []
-        for f in findings[:8]:
-            if f.path:
-                locations.append(f"{f.path}:{f.line or '?'}")
+        locations = [f"{f.path}:{f.line or '?'}" for f in findings[:8] if f.path]
         out.append(
             {
                 "key": key,
@@ -5576,13 +5601,13 @@ exploration.
             "## Locations",
             "",
         ]
-        for item in relevant:
-            lines.append(
-                (
-                    f"- `{item['id']}` — `{item['path'] or '<unknown>'}:"
-                    f"{item['line'] or '?'}:{item['column'] or '?'}:`"
-                ),
+        lines.extend(
+            (
+                f"- `{item['id']}` — `{item['path'] or '<unknown>'}:"
+                f"{item['line'] or '?'}:{item['column'] or '?'}:`"
             )
+            for item in relevant
+        )
         lines += [
             "",
             "## Repair protocol",
@@ -6674,25 +6699,22 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
             ),
         ),
     )
-    generated_checks = []
-    for target in targets:
-        if (
-            target.kind.startswith("custom-")
-            and target.runnable
-            and target.command
-            and target.confidence == "high"
-        ):
-            generated_checks.append(
-                {
-                    "name": target.name,
-                    "category": target.kind.removeprefix("custom-"),
-                    "profile": "deep",
-                    "command": list(target.command),
-                    "timeout": int((target.metadata or {}).get("timeout", 3600)),
-                    "generated": True,
-                    "confidence": target.confidence,
-                },
-            )
+    generated_checks = [
+        {
+            "name": target.name,
+            "category": target.kind.removeprefix("custom-"),
+            "profile": "deep",
+            "command": list(target.command),
+            "timeout": int((target.metadata or {}).get("timeout", 3600)),
+            "generated": True,
+            "confidence": target.confidence,
+        }
+        for target in targets
+        if target.kind.startswith("custom-")
+        and target.runnable
+        and target.command
+        and target.confidence == "high"
+    ]
     existing_checks = [
         x for x in cfg.raw.get("custom", {}).get("checks", []) if not x.get("generated")
     ]
@@ -6823,6 +6845,7 @@ async def run_all(
             try:
                 await asyncio.wait_for(stop_refresh.wait(), timeout=0.5)
             except TimeoutError:
+                # Shutdown race; the loop is already stopping
                 pass
 
     results: list[Result] = []
@@ -7036,6 +7059,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     _ = snap_p.add_argument("--signal", action="append", default=[])
     _ = snap_p.add_argument("--reason", default="")
+    _ = snap_p.add_argument(
+        "--path",
+        action="append",
+        default=[],
+        help="only record entries under these paths (exact file or directory prefix)",
+    )
     _ = debt_sub.add_parser(
         "review",
         help="diff debt.toml against the latest report",
@@ -7052,7 +7081,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return doctor(cfg)
     if args.command == "debt":
         if args.debt_command == "snapshot":
-            return debt_snapshot(root, list(args.signal or []), str(args.reason or ""))
+            return debt_snapshot(
+                root,
+                list(args.signal or []),
+                str(args.reason or ""),
+                list(args.path or []),
+            )
         return debt_review(root)
 
     if args.command == "configure":

@@ -894,23 +894,23 @@ def _install_technology_tools(
                         f"installer exited 0 but still unresolvable: {', '.join(still)}"
                     )
         else:
-            for name in missing_js:
-                results.append(
-                    InstallResult(
-                        name,
-                        "SKIPPED",
-                        [],
-                        (
-                            "JavaScript/TypeScript detected but "
-                            "no npm/pnpm/yarn/bun package manager "
-                            "is available"
-                        ),
+            results.extend(
+                InstallResult(
+                    name,
+                    "SKIPPED",
+                    [],
+                    (
+                        "JavaScript/TypeScript detected but "
+                        "no npm/pnpm/yarn/bun package manager "
+                        "is available"
                     ),
                 )
-    for name in js_selected - set(missing_js):
-        results.append(
-            InstallResult(name, "PASS", [], "already installed in project/ PATH"),
-        )
+                for name in missing_js
+            )
+    results.extend(
+        InstallResult(name, "PASS", [], "already installed in project/ PATH")
+        for name in js_selected - set(missing_js)
+    )
 
     if "phpstan" in selected:
         if project_executable(root, "phpstan"):

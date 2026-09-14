@@ -205,6 +205,7 @@ def scan(root: Path, paths: Iterable[str]) -> list[EvidenceFinding]:
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         rel = (
             path.resolve(strict=False)

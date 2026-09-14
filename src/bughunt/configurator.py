@@ -100,6 +100,7 @@ def _rel(config_dir: Path, target: Path) -> str:
     return Path(os.path.relpath(target, config_dir)).as_posix()
 
 
+# trace:v1 id=impl.src-bughunt-configurator.-package-roots work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _package_roots(root: Path, source_paths: list[str]) -> list[str]:
     roots: list[str] = []
     for source in _existing(root, source_paths):
@@ -111,9 +112,11 @@ def _package_roots(root: Path, source_paths: list[str]) -> list[str]:
             continue
         if (base / "__init__.py").exists() and base != root:
             roots.append(base.name)
-        for child in sorted(base.iterdir()):
-            if child.is_dir() and (child / "__init__.py").exists():
-                roots.append(child.name)
+        roots.extend(
+            child.name
+            for child in sorted(base.iterdir())
+            if child.is_dir() and (child / "__init__.py").exists()
+        )
     return list(dict.fromkeys(roots))
 
 
@@ -208,7 +211,18 @@ ignore = [
   "D106",
   "D107",
   "use-implicit-booleaness-not-comparison-to-zero",
+  "PLR2004",
+  "PLC0415",
+  "TC003",
 ]
+# PLR2004/PLC0415 mirror the pylint calibration: domain literals ('.py',
+# small bounds) are not magic, and deferred imports are the
+# startup/cycle/optional-dep pattern. Operational numbers belong to policy
+# budgets; importtime owns startup.
+# TC003 (move typing-only imports to TYPE_CHECKING blocks) is owned by the
+# import-linter cycle defense and the importtime startup budget; with
+# `from __future__ import annotations` everywhere the moves buy nothing
+# while complicating runtime annotation introspection.
 # use-implicit-booleaness-not-comparison-to-zero would rewrite status-code
 # checks (`rc == 0`) as truthiness. Exit codes are domain values, not
 # emptiness; they stay explicit. The non-zero variant (lists, strings) stays on.

@@ -506,6 +506,7 @@ def discover_env_uses(root: Path, source_paths: Iterable[str]) -> list[EnvUse]:
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         rel = path.relative_to(root).as_posix()
         parents: dict[ast.AST, ast.AST] = {}
@@ -822,24 +823,25 @@ def _scan_source_policies(
             source = path.read_text(errors="replace")
             tree = ast.parse(source)
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         # High-confidence control-flow hazards are enforced even when Ruff or
         # ast-grep is unavailable. This intentionally overlaps Ruff B012.
-        for jump in _finally_jump_nodes(tree):
-            findings.append(
-                PolicyFinding(
-                    rel,
-                    getattr(jump, "lineno", 1),
-                    getattr(jump, "col_offset", 0) + 1,
-                    "BHCTRL001",
-                    (
-                        f"`{type(jump).__name__.lower()}` inside `finally` "
-                        "can suppress an active exception or override control "
-                        "flow; move the jump outside the finally block"
-                    ),
-                    "error",
+        findings.extend(
+            PolicyFinding(
+                rel,
+                getattr(jump, "lineno", 1),
+                getattr(jump, "col_offset", 0) + 1,
+                "BHCTRL001",
+                (
+                    f"`{type(jump).__name__.lower()}` inside `finally` "
+                    "can suppress an active exception or override control "
+                    "flow; move the jump outside the finally block"
                 ),
+                "error",
             )
+            for jump in _finally_jump_nodes(tree)
+        )
 
         importer_tokens = _module_tokens(path, root)
         persistence_aliases: set[str] = set()
@@ -905,23 +907,23 @@ def _scan_source_policies(
                         ),
                     )
             if isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    if alias.name.startswith("_") and not alias.name.startswith("__"):
-                        findings.append(
-                            PolicyFinding(
-                                rel,
-                                getattr(node, "lineno", 1),
-                                1,
-                                "BHARCH002",
-                                (
-                                    f"module imports private implementation symbol "
-                                    f"`{alias.name}` from `{node.module or '.'}`; "
-                                    "do not couple subsystems through private "
-                                    "implementation details"
-                                ),
-                                "warning",
-                            ),
-                        )
+                findings.extend(
+                    PolicyFinding(
+                        rel,
+                        getattr(node, "lineno", 1),
+                        1,
+                        "BHARCH002",
+                        (
+                            f"module imports private implementation symbol "
+                            f"`{alias.name}` from `{node.module or '.'}`; "
+                            "do not couple subsystems through private "
+                            "implementation details"
+                        ),
+                        "warning",
+                    )
+                    for alias in node.names
+                    if alias.name.startswith("_") and not alias.name.startswith("__")
+                )
         if importer_tokens & UPPER_LAYER and persistence_aliases:
             for fn in tree.body:
                 if not isinstance(
@@ -965,24 +967,24 @@ def _scan_source_policies(
                     targets = [t.id for t in raw_targets if isinstance(t, ast.Name)]
                 if not isinstance(value, ast.Constant):
                     continue
-                for name in targets:
-                    if CONFIG_NAME.search(name) and not name.isupper():
-                        findings.append(
-                            PolicyFinding(
-                                rel,
-                                getattr(node, "lineno", 1),
-                                1,
-                                "BHCFG004",
-                                (
-                                    f"operational configuration-like value `{name}` is "
-                                    "hard-coded outside an obvious "
-                                    "config/settings/constants mechanism; make it "
-                                    "typed/configurable or promote it to an uppercase "
-                                    "invariant constant"
-                                ),
-                                "note",
-                            ),
-                        )
+                findings.extend(
+                    PolicyFinding(
+                        rel,
+                        getattr(node, "lineno", 1),
+                        1,
+                        "BHCFG004",
+                        (
+                            f"operational configuration-like value `{name}` is "
+                            "hard-coded outside an obvious "
+                            "config/settings/constants mechanism; make it "
+                            "typed/configurable or promote it to an uppercase "
+                            "invariant constant"
+                        ),
+                        "note",
+                    )
+                    for name in targets
+                    if CONFIG_NAME.search(name) and not name.isupper()
+                )
         if not CONFIG_MODULE.search(rel):
             for keyword, op_name, op_value in _literal_operational_kwargs(tree):
                 # Tiny invariants such as zero/one booleans are common and often
@@ -1007,11 +1009,11 @@ def _scan_source_policies(
     return findings
 
 
+# trace:v1 id=impl.src-bughunt-policy-scan.-test-calls work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _test_calls(fn: ast.AST) -> list[str]:
-    calls: list[str] = []
-    for node in ast.walk(fn):
-        if isinstance(node, ast.Call):
-            calls.append(_call_name(node.func))
+    calls: list[str] = [
+        _call_name(node.func) for node in ast.walk(fn) if isinstance(node, ast.Call)
+    ]
     return calls
 
 
@@ -1024,26 +1026,27 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
             source = path.read_text(errors="replace")
             tree = ast.parse(source)
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         for node in tree.body:
             if isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    if alias.name.startswith("_") and not alias.name.startswith("__"):
-                        findings.append(
-                            PolicyFinding(
-                                rel,
-                                node.lineno,
-                                1,
-                                "BHTEST001",
-                                (
-                                    f"test imports private implementation symbol "
-                                    f"`{alias.name}` directly; prefer asserting public "
-                                    "behavior unless the private API is intentionally "
-                                    "contractual"
-                                ),
-                                "warning",
-                            ),
-                        )
+                findings.extend(
+                    PolicyFinding(
+                        rel,
+                        node.lineno,
+                        1,
+                        "BHTEST001",
+                        (
+                            f"test imports private implementation symbol "
+                            f"`{alias.name}` directly; prefer asserting public "
+                            "behavior unless the private API is intentionally "
+                            "contractual"
+                        ),
+                        "warning",
+                    )
+                    for alias in node.names
+                    if alias.name.startswith("_") and not alias.name.startswith("__")
+                )
         for fn in ast.walk(tree):
             if not isinstance(
                 fn,
@@ -1229,6 +1232,7 @@ def _roundtrip_inventory(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
         owners: dict[str, dict[str, ast.FunctionDef | ast.AsyncFunctionDef]] = {"": {}}
         for node in tree.body:
@@ -1308,13 +1312,17 @@ def _scan_roundtrip_coverage(
         try:
             tree = ast.parse(path.read_text(errors="replace"))
         except (OSError, SyntaxError):
+            # Unreadable or unparseable file; skipped, never fatal
             continue
-        for fn in ast.walk(tree):
+        tests.extend(
+            {x.split(".")[-1] for x in _test_calls(fn)}
+            for fn in ast.walk(tree)
             if isinstance(
                 fn,
                 (ast.FunctionDef, ast.AsyncFunctionDef),
-            ) and fn.name.startswith("test"):
-                tests.append({x.split(".")[-1] for x in _test_calls(fn)})
+            )
+            and fn.name.startswith("test")
+        )
     out: list[PolicyFinding] = []
     pairs, orphans = _roundtrip_inventory(root, source_paths)
     for export_name, import_name, rel, line in pairs:
@@ -1386,21 +1394,21 @@ def scan(
             ),
         )
     elif uses:
-        for item in uses:
-            if item.name not in env_values:
-                findings.append(
-                    PolicyFinding(
-                        item.path,
-                        item.line,
-                        1,
-                        "BHCFG002",
-                        (
-                            f"environment variable `{item.name}` is used in code but "
-                            "missing from `.env.example`"
-                        ),
-                        "warning",
-                    ),
-                )
+        findings.extend(
+            PolicyFinding(
+                item.path,
+                item.line,
+                1,
+                "BHCFG002",
+                (
+                    f"environment variable `{item.name}` is used in code but "
+                    "missing from `.env.example`"
+                ),
+                "warning",
+            )
+            for item in uses
+            if item.name not in env_values
+        )
     if env_file.exists():
         for key, value in env_values.items():
             if _looks_real_secret(key, value):

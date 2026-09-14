@@ -154,7 +154,8 @@ def _compile_function(node: ast.FunctionDef) -> Any:
         if not isinstance(__builtins__, dict)
         else {name: __builtins__.get(name) for name in SAFE_CALLS}
     )
-    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102 - sandboxed differential harness: AST-gated to SAFE_CALLS with restricted builtins
+    # Sandboxed differential harness: AST-gated to SAFE_CALLS with restricted builtins.
+    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102  # nosec B102
     return ns[node.name]
 
 
@@ -191,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
                 rel = path.relative_to(root).as_posix()
                 current_source = path.read_text(errors="replace")
             except OSError:
+                # One bad file never fails a scan; skipped
                 continue
             old_source = _git_show(root, baseline, rel)
             if old_source is None or old_source == current_source:

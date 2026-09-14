@@ -30,12 +30,14 @@ def _provider_name(path: Path) -> str | None:
 
 # trace:v1 id=impl.src-bughunt-pact_runner.-wait-http work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _wait_http(url: str, proc: subprocess.Popen[str], timeout_s: float = 20.0) -> bool:
+    if not url.startswith(("http://", "https://")):
+        return False
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             return False
         try:
-            with urlopen(url, timeout=0.5):
+            with urlopen(url, timeout=0.5):  # nosec B310 - scheme-guarded above
                 return True
         except (OSError, HTTPException):
             time.sleep(0.15)

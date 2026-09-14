@@ -55,7 +55,7 @@ def test_pysa_provider_present_checks_binary(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-installers.test-python-importable-rejects-non-identifiers work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_python_importable_rejects_non_identifiers(tmp_path) -> None:
+def test_python_importable_rejects_non_identifiers(tmp_path: Path) -> None:
     from bughunt.installers import _python_importable
 
     # The module name is interpolated into `-c` source; anything that is not
