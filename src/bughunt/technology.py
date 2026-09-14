@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+_GIT_TIMEOUT_S = 8
 IGNORED_DIRS = {
     ".git",
     ".hg",
@@ -218,7 +219,7 @@ def _git_baseline(root: Path) -> str | None:
                 cwd=root,
                 text=True,
                 capture_output=True,
-                timeout=8,
+                timeout=_GIT_TIMEOUT_S,
                 check=False,
             )
             if verify.returncode != 0:
@@ -233,7 +234,7 @@ def _git_baseline(root: Path) -> str | None:
                 cwd=root,
                 text=True,
                 capture_output=True,
-                timeout=8,
+                timeout=_GIT_TIMEOUT_S,
                 check=False,
             )
             sha = merge.stdout.strip()
@@ -251,7 +252,7 @@ def _git_baseline(root: Path) -> str | None:
                     cwd=root,
                     text=True,
                     capture_output=True,
-                    timeout=8,
+                    timeout=_GIT_TIMEOUT_S,
                     check=False,
                 ).stdout.strip()
                 if sha != head:
@@ -269,7 +270,7 @@ def _git_baseline(root: Path) -> str | None:
             cwd=root,
             text=True,
             capture_output=True,
-            timeout=8,
+            timeout=_GIT_TIMEOUT_S,
             check=False,
         )
         return (
@@ -296,7 +297,7 @@ def git_path_exists(root: Path, ref: str | None, path: str) -> bool:
             cwd=root,
             text=True,
             capture_output=True,
-            timeout=8,
+            timeout=_GIT_TIMEOUT_S,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -737,7 +738,7 @@ def llvm_executable(root: Path, name: str) -> str | None:
                 cwd=root,
                 text=True,
                 capture_output=True,
-                timeout=8,
+                timeout=_GIT_TIMEOUT_S,
                 check=False,
             )
             candidate = Path(proc.stdout.strip()) / "bin" / name

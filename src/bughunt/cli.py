@@ -35,7 +35,7 @@ from rich.text import Text
 
 from bughunt.default_rules import DEFAULT_RULES
 
-from .configurator import _JS_TOOL_IGNORES, configure_all, configure_custom_checks
+from .configurator import JS_TOOL_IGNORES, configure_all, configure_custom_checks
 from .discovery import (
     discover_all,
     infer_source_paths,
@@ -3847,7 +3847,7 @@ def build_checks(
         # ignores travel as cwd-relative CLI flags instead. Bare directory
         # names: the `/**` form misbehaves on tracked dot-directories.
         oxlint_cmd += [
-            f"--ignore-pattern={p.removesuffix('/**')}" for p in _JS_TOOL_IGNORES
+            f"--ignore-pattern={p.removesuffix('/**')}" for p in JS_TOOL_IGNORES
         ]
     if oxlint_cmd and oxlint_cfg:
         oxlint_cmd += ["--config", str(oxlint_cfg)]
@@ -4550,7 +4550,8 @@ async def run_pysa(
             Status.SKIPPED,
             note="Pysa/Pyre not installed; run `uv run bughunt install --only pysa`",
         )
-    if not (cfg.root / ".pyre_configuration").exists():
+    has_config = await asyncio.to_thread((cfg.root / ".pyre_configuration").exists)
+    if not has_config:
         return Result(
             "pysa",
             "taint",
@@ -4559,7 +4560,7 @@ async def run_pysa(
         )
 
     out_dir = cfg.root / CACHE_DIR / "pysa"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(out_dir.mkdir, parents=True, exist_ok=True)
     # pyre-check's historical Click CLI has a known enum-default compatibility
     # failure with newer Click releases. Explicit values protect even fallback
     # project installs; the private runtime additionally pins Click<8.2.

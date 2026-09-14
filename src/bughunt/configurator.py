@@ -1264,7 +1264,7 @@ force_enable = True
 # relative and absolute forms both fail to match, and oxlint rejects `..`
 # outright), so the generated config lists them verbatim and oxlint receives
 # the same list as cwd-relative `--ignore-pattern` flags.
-_JS_TOOL_IGNORES = [
+JS_TOOL_IGNORES = [
     "node_modules/**",
     "dist/**",
     "build/**",
@@ -1304,7 +1304,7 @@ _JS_TOOL_IGNORES = [
 # against the invocation working directory, and rejects nothing), so the
 # generated config lists them verbatim.
 _JS_IGNORES_CLAUSE = (
-    "{ ignores: [" + ", ".join(f'"{p}"' for p in _JS_TOOL_IGNORES) + "] }"
+    "{ ignores: [" + ", ".join(f'"{p}"' for p in JS_TOOL_IGNORES) + "] }"
 )
 _JS_IGNORES_LINE_OLD = (
     '  { ignores: ["node_modules/**", "dist/**", "build/**", ".next/**", '
@@ -1349,7 +1349,7 @@ def _knip_config() -> str:
     # config file instead of the root, the invocation must scope paths.
     data = {
         "$schema": "https://unpkg.com/knip@6/schema.json",
-        "ignoreFiles": _JS_TOOL_IGNORES,
+        "ignoreFiles": JS_TOOL_IGNORES,
     }
     return json.dumps(data, indent=2)
 

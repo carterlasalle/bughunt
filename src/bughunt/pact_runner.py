@@ -67,7 +67,11 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": f"pact-python not importable: {exc}"}))
         return 2
 
-    port = _port()
+    try:
+        port = _port()
+    except OSError as exc:
+        print(json.dumps({"error": f"no free loopback port: {exc}"}))
+        return 2
     url = f"http://127.0.0.1:{port}"
     cmd = [
         sys.executable,

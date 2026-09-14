@@ -130,7 +130,7 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
     import json
 
     from bughunt.configurator import (
-        _JS_TOOL_IGNORES,
+        JS_TOOL_IGNORES,
         _eslint_config,
         _knip_config,
         _oxlint_config,
@@ -139,8 +139,8 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
     # Neither tool resolves config-file patterns outside the generated
     # config's own directory, so the ESLint template inlines root-relative
     # ignores verbatim and oxlint takes the same list as CLI flags.
-    assert ".venv/**" in _JS_TOOL_IGNORES
-    assert ".omp/**" in _JS_TOOL_IGNORES
+    assert ".venv/**" in JS_TOOL_IGNORES
+    assert ".omp/**" in JS_TOOL_IGNORES
     for text in (_eslint_config(True), _eslint_config(False)):
         assert "__BUGHUNT" not in text
         assert "import.meta.url" not in text
