@@ -80,9 +80,9 @@ def test_malformed_ledger_fails_open(tmp_path: Path, capsys) -> None:
     from bughunt.cli import load_debt_ledger
 
     (tmp_path / "debt.toml").write_text("[[debt]\nthis is not toml = = =\n")
-    assert load_debt_ledger(tmp_path) == []
+    assert not load_debt_ledger(tmp_path)
     assert "warning" in capsys.readouterr().err
-    assert load_debt_ledger(tmp_path / "nonexistent") == []
+    assert not load_debt_ledger(tmp_path / "nonexistent")
 
 
 def test_snapshot_review_roundtrip(tmp_path: Path) -> None:

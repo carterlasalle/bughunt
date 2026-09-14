@@ -1,0 +1,886 @@
+# Accepted finding debt. Entries here stay visible in the report's
+# debt section but leave the fix queue, top signals, hotspots, and
+# risk map. Growth beyond the recorded count surfaces in `debt review`.
+# Re-snapshot with `bughunt debt snapshot`; inspect with `bughunt debt review`.
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/cli.py']
+count = 341
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/configurator.py']
+count = 10
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/coverage_tools.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/discovery.py']
+count = 19
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/metrics_scan.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/pact_runner.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/policy_scan.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/seam_scan.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/technology.py']
+count = 26
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['tests/test_configurator.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['tests/test_core.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['tests/test_debt.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['tests/test_discovery.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportAny'
+paths = ['tests/test_v060.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/cli.py']
+count = 122
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/configurator.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/coverage_tools.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/seam_scan.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['src/bughunt/technology.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_configurator.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_core.py']
+count = 29
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_installers.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_target_env.py']
+count = 10
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_technology.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownArgumentType'
+paths = ['tests/test_v060.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/cli.py']
+count = 243
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/configurator.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/coverage_tools.py']
+count = 10
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/discovery.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/importtime_runner.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/pact_runner.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/seam_scan.py']
+count = 8
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['tests/test_configurator.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['tests/test_core.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['tests/test_debt.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownMemberType'
+paths = ['tests/test_discovery.py']
+count = 9
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/cli.py']
+count = 78
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/configurator.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/coverage_tools.py']
+count = 11
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/discovery.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/pact_runner.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/seam_scan.py']
+count = 9
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['src/bughunt/technology.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['tests/test_core.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'basedpyright:reportUnknownVariableType'
+paths = ['tests/test_discovery.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/cli.py']
+count = 377
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/configurator.py']
+count = 11
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/coverage_tools.py']
+count = 11
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/discovery.py']
+count = 10
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/evidence_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/metrics_scan.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/pact_runner.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/policy_scan.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/seam_scan.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/technology.py']
+count = 14
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 8
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_configurator.py']
+count = 20
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_core.py']
+count = 15
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_debt.py']
+count = 23
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_discovery.py']
+count = 17
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_installers.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_reporting.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_target_env.py']
+count = 8
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_technology.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression has type "any"'
+paths = ['tests/test_v060.py']
+count = 9
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/cli.py']
+count = 43
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/configurator.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/coverage_runner.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/discovery.py']
+count = 12
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/evidence_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/pact_runner.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/seam_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/technology.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_configurator.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_core.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_debt.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_reporting.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_technology.py']
+count = 11
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[any, any]")'
+paths = ['tests/test_v060.py']
+count = 17
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/cli.py']
+count = 224
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/configurator.py']
+count = 18
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/discovery.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/metrics_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/policy_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/seam_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/technology.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_configurator.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_core.py']
+count = 11
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_debt.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_reporting.py']
+count = 8
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_target_env.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_technology.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "dict[str, any]")'
+paths = ['tests/test_v060.py']
+count = 12
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/cli.py']
+count = 102
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/configurator.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/discovery.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/evidence_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/metrics_scan.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/policy_scan.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/seam_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['tests/test_core.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['tests/test_debt.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['tests/test_technology.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[any]")'
+paths = ['tests/test_v060.py']
+count = 12
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[dict[str, any]]")'
+paths = ['src/bughunt/cli.py']
+count = 79
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[dict[str, any]]")'
+paths = ['src/bughunt/configurator.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[dict[str, any]]")'
+paths = ['tests/test_debt.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[dict[str, any]]")'
+paths = ['tests/test_reporting.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "list[dict[str, any]]")'
+paths = ['tests/test_v060.py']
+count = 9
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/cli.py']
+count = 19
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/configurator.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/discovery.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/evidence_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/seam_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 6
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['tests/test_core.py']
+count = 7
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['tests/test_debt.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['tests/test_technology.py']
+count = 5
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'mypy:misc:expression type contains "any" (has type "tuple[str, list[any]]")'
+paths = ['tests/test_v060.py']
+count = 12
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/cli.py']
+count = 129
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/configurator.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/coverage_tools.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/discovery.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/evidence_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/metrics_scan.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/seam_scan.py']
+count = 3
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['src/bughunt/technology.py']
+count = 10
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['tests/test_configurator.py']
+count = 4
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['tests/test_core.py']
+count = 2
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['tests/test_installers.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'pyrefly:unknown-argument-type'
+paths = ['tests/test_v060.py']
+count = 1
+reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
