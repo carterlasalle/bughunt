@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000009-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000009
+# trace:v1 id=ops.bc000009-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Magic-method and generator protocol violations
+# trace:v1 id=ops.bc000009-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000009-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000009-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000009-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000009-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000009-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'async __len__; yield in __len__; raise where NotImplemented is due; unguarded next()'
+# trace:v1 id=ops.bc000009-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'dunder methods are treated as ordinary functions with no protocol obligations'
+# trace:v1 id=ops.bc000009-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'protocol methods must honor the interpreter contract for their slot'
+# trace:v1 id=ops.bc000009-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'ptc-protocol'
+# trace:v1 id=ops.bc000009-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHPRT002, BHPRT003, BHPRT004, BHPRT007]

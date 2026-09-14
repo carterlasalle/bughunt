@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000005-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000005
+# trace:v1 id=ops.bc000005-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Dtype narrowing, promotion, and shape errors
+# trace:v1 id=ops.bc000005-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000005-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000005-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000005-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000005-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000005-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'float64 result stored into int8; uint64 combined with int64; reshape totals disagree'
+# trace:v1 id=ops.bc000005-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'array element types and shapes are carried as unknown through constructors and casts'
+# trace:v1 id=ops.bc000005-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'casts must not silently lose range or precision; reshape totals must agree with the known shape'
+# trace:v1 id=ops.bc000005-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'sem-dtype'
+# trace:v1 id=ops.bc000005-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHSEM004, BHSEM005, BHSEM006]

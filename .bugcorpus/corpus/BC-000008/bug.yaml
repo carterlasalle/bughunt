@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000008-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000008
+# trace:v1 id=ops.bc000008-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: File resource-state violations
+# trace:v1 id=ops.bc000008-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000008-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000008-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000008-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000008-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000008-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'a closed stream is read; a read-mode stream is written'
+# trace:v1 id=ops.bc000008-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'file handles are tracked without open-mode or close state'
+# trace:v1 id=ops.bc000008-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'a resource in a closed or incompatible state must refuse invalid operations'
+# trace:v1 id=ops.bc000008-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'ptc-resource'
+# trace:v1 id=ops.bc000008-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHPRT005, BHPRT006]

@@ -1,0 +1,14 @@
+# trace:v1 id=ops.bc000010-plan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000010
+# trace:v1 id=ops.bc000010-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: 'ptc-defuse'
+# trace:v1 id=ops.bc000010-recommended_engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc000010-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: native BugHunt semantic/protocol detector (BHPRT008)
+# trace:v1 id=ops.bc000010-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  fixtures:
+    positive: [/Users/rocket/bughunt/.bugcorpus/corpus/BC-000010/fixtures/positive/probe.py]
+    negative: [/Users/rocket/bughunt/.bugcorpus/corpus/BC-000010/fixtures/negative/probe_fixed.py]
+    adversarial: [/Users/rocket/bughunt/.bugcorpus/corpus/BC-000010/fixtures/adversarial/probe_variant.py]

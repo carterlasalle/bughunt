@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000012-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000012
+# trace:v1 id=ops.bc000012-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Correctness idioms with deterministic fixes
+# trace:v1 id=ops.bc000012-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000012-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000012-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000012-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000012-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000012-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'assert carrying ValueError; sqrt(x**2+y**2); json.loads(f.read()); empty TestCase'
+# trace:v1 id=ops.bc000012-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'surface API misuse is style, not correctness'
+# trace:v1 id=ops.bc000012-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'APIs with narrower correct forms should use them'
+# trace:v1 id=ops.bc000012-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'ptc-idiom'
+# trace:v1 id=ops.bc000012-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHPRT001, BHPRT009, BHPRT010, BHPRT011]

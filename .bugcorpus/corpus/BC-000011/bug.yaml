@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000011-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000011
+# trace:v1 id=ops.bc000011-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Framework expression semantics
+# trace:v1 id=ops.bc000011-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000011-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000011-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000011-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000011-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000011-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'SQLAlchemy filters combined with Python and/or; null=True on ManyToManyField'
+# trace:v1 id=ops.bc000011-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'framework operator overloading is invisible to generic boolean analysis'
+# trace:v1 id=ops.bc000011-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'embedded DSL expressions must use the DSL operators, not host-language ones'
+# trace:v1 id=ops.bc000011-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'ptc-framework'
+# trace:v1 id=ops.bc000011-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHPRT012, BHPRT013, BHPRT014, BHPRT015]

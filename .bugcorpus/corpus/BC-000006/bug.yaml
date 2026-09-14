@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000006-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000006
+# trace:v1 id=ops.bc000006-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Bytes/str confusion at API boundaries
+# trace:v1 id=ops.bc000006-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000006-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000006-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000006-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000006-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000006-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'a str flows into hashlib.md5 which requires bytes-like'
+# trace:v1 id=ops.bc000006-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'str and bytes are both accepted wherever either appears without checking the contract'
+# trace:v1 id=ops.bc000006-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'encoded bytes and decoded text are incompatible domains without an explicit codec step'
+# trace:v1 id=ops.bc000006-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'sem-encoding'
+# trace:v1 id=ops.bc000006-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHSEM009]

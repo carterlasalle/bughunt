@@ -81,7 +81,33 @@ and are never flagged.
   against 0.
 - `BHUNIT003` (warning): one stem bound in two units in one file
   (`timeout_ms` and `timeout_s`) is an ambiguous contract.
-
+- `BHUNIT004` (error/warning): a milliseconds value reaches a seconds
+  sink (`time.sleep`, `socket.settimeout`) across function boundaries
+  with no valid `/1000` conversion. Confidence-gated: name evidence
+  plus a contract sink, or a provably wrong conversion factor.
+- `BHSEM001` (error/warning): representation-equal values from
+  incompatible nominal domains interchange (`user_id` into
+  `project_id`, `USD` into `EUR`).
+- `BHSEM002` (error/warning): instant/duration confusion — two
+  instants added, or an instant where a duration is expected.
+- `BHSEM003` (warning): naive and aware datetimes mixed in one
+  expression.
+- `BHSEM004` (error/warning): dtype narrowing (`float64` into `int8`,
+  float into int) at a NumPy cast with a known source dtype.
+- `BHSEM005` (warning): unsafe promotion (`uint64` with `int64` may
+  lose integer precision).
+- `BHSEM006` (error/warning): shape contradiction — reshape literal
+  totals disagree, or jaxtyping symbolic dims mismatch at a call.
+- `BHSEM007` (warning): percent flows where a fraction is expected
+  (without `/100`); bits where bytes are expected and vice versa.
+- `BHSEM008` (warning): coordinate-frame mismatch (`world` value
+  into a `camera` parameter).
+- `BHSEM009` (error/warning): `str` into a bytes-only sink
+  (`hashlib.md5`) without `.encode()`; bytes where text is required.
+- `BHSEM010` (warning): single-argument `.get()` dereferenced with
+  no `is None`, truthiness, `isinstance`, or early-exit guard.
+- `BHCONC001` (warning): two thread/task-entry functions write one
+  literal path or global with no lock, transaction, or queue.
 <!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Architecture and persistence boundaries
 
@@ -169,3 +195,34 @@ See `COMPLEXITY.md` for the default budgets and the independent external complex
 - `BHPKG001` — packaging/installability metadata or built artifact validation failure.
 
 See `BUG_TAXONOMY.md` for the rule-mining roadmap and `SEAM_CORRECTNESS.md` for the contract philosophy.
+
+<!-- trace:exempt reason=repo-docs-new-section-no-behavior-change -->
+## Protocol correctness
+
+- `BHPRT001` (error): `assert cond, ValueError(...)` never raises the
+  carried exception; raise explicitly.
+- `BHPRT002` (error): `async def` on a synchronous-protocol magic method.
+- `BHPRT003` (error): `yield` inside a magic method that must not become
+  a generator (`__len__`, `__bool__`, ...; `__iter__` is fine).
+- `BHPRT004` (error): bare single-argument `next()` inside a generator
+  (PEP 479 `RuntimeError` on exhaustion).
+- `BHPRT005` (error): method call on a file handle after `close()`.
+- `BHPRT006` (error): read on a write-mode open, or write on a
+  read-mode open (builtin `open`, `Path.open`, and `mode=` keywords).
+- `BHPRT007` (error): reflective dunder raises `NotImplementedError`;
+  return `NotImplemented` so Python tries the reflected operation.
+- `BHPRT008` (warning): constant subscript stored twice in one block
+  with no read between; the first store is dead. Variable keys and
+  exclusive branches stay silent.
+- `BHPRT009` (warning): `TestCase` subclass with methods but no tests.
+- `BHPRT010` (warning): `sqrt(x**2 + y**2)`; `math.hypot` is stable.
+- `BHPRT011` (warning): `json.loads(f.read())` / `f.write(json.dumps(x))`;
+  stream with `json.load` / `json.dump`.
+- `BHPRT012` (error, SQLAlchemy-gated): `and`/`or` on column
+  expressions; use `&`/`|` (or `and_`/`or_`).
+- `BHPRT013` (error, Django-gated): `null=True` on `ManyToManyField`
+  has no effect.
+- `BHPRT014` (warning, Django-gated): `unique=True` alongside
+  `primary_key=True` is redundant.
+- `BHPRT015` (warning, Django-gated): `unique_for_*` is app-level
+  validation, not a database constraint.

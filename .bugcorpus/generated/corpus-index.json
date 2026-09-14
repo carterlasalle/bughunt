@@ -8,7 +8,7 @@
       "severity": "medium",
       "symbols": [],
       "subsystem": "",
-      "invariant": ""
+      "invariant": "untrusted strings must never be interpolated into executed code strings; validate as dotted identifiers first"
     }
   ],
   "families": []

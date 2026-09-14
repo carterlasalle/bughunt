@@ -136,3 +136,152 @@ def test_nested_and_attribute_shapes(tmp_path: Path) -> None:
     )
     findings = scan(tmp_path, ["src"])
     assert isinstance(findings, list)
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-use-after-close work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_use_after_close(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "def f(p):\n"
+        + "    f = open(p)\n"
+        + "    f.close()\n"
+        + "    return f.read()\n"
+        + "def g(p):\n"
+        + "    f = open(p)\n"
+        + "    return f.read()\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT005"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-open-mode-mismatch work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_open_mode_mismatch(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "def f(p):\n"
+        + "    f = open(p, 'r')\n"
+        + "    f.write('x')\n"
+        + "def g(p):\n"
+        + "    with open(p, 'w') as h:\n"
+        + "        h.write('x')\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT006"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-reflective-raise work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_reflective_raise(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "class A:\n"
+        + "    def __eq__(self, other):\n"
+        + "        raise NotImplementedError(other)\n"
+        + "    def __init__(self):\n"
+        + "        raise NotImplementedError\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT007"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-overwrite-before-read work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_overwrite_before_read(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "def f(d):\n"
+        + "    d['k'] = expensive()\n"
+        + "    d['k'] = other()\n"
+        + "    return d\n"
+        + "def g(d, k):\n"
+        + "    d[k] = 1\n"
+        + "    d[k] = 2\n"
+        + "    return d\n"
+        + "def h(d):\n"
+        + "    d['k'] = 1\n"
+        + "    print(d['k'])\n"
+        + "    d['k'] = 2\n"
+        + "    return d\n"
+        + "def i(d, flag):\n"
+        + "    d['k'] = 1\n"
+        + "    if flag:\n"
+        + "        d['k'] = 2\n"
+        + "    return d\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT008"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-empty-testcase work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_empty_testcase(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "import unittest\n"
+        + "class T(unittest.TestCase):\n"
+        + "    def setUp(self):\n"
+        + "        pass\n"
+        + "class U(unittest.TestCase):\n"
+        + "    def test_x(self):\n"
+        + "        pass\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT009"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-hypot work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_hypot(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "import math\n"
+        + "def f(x, y):\n"
+        + "    return math.sqrt(x**2 + y**2)\n"
+        + "def g(x, y):\n"
+        + "    return math.hypot(x, y)\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT010"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-json-idiom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_json_idiom(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "import json\n"
+        + "def f(fh):\n"
+        + "    return json.loads(fh.read())\n"
+        + "def g(fh, x):\n"
+        + "    fh.write(json.dumps(x))\n"
+        + "def h(fh):\n"
+        + "    return json.load(fh)\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT011", "BHPRT011"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-sqlalchemy-bool work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_sqlalchemy_bool(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "import sqlalchemy\n"
+        + "def f(q, a, b):\n"
+        + "    return q.filter(a == 1 and b == 2)\n"
+        + "def g(a, b):\n"
+        + "    return a and b\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT012"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-django-fields work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_django_fields(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "from django.db import models\n"
+        + "class M(models.Model):\n"
+        + "    tags = models.ManyToManyField('T', null=True)\n"
+        + "    code = models.CharField(max_length=8, primary_key=True, unique=True)\n"
+        + "    slug = models.SlugField(unique_for_date='pub')\n"
+        + "    name = models.CharField(max_length=8)\n",
+    )
+    assert [item.code for item in findings] == ["BHPRT013", "BHPRT014", "BHPRT015"]
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-framework-gating work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_framework_gating(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "def f(q, a, b):\n"
+        + "    return q.filter(a == 1 and b == 2)\n"
+        + "tags = True\n",
+    )
+    assert findings == []

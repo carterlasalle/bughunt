@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000003-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000003
+# trace:v1 id=ops.bc000003-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Nominal-domain and scale confusion
+# trace:v1 id=ops.bc000003-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000003-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-14T20:46:43+00:00'
+# trace:v1 id=ops.bc000003-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000003-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000003-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000003-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'a user-id flows where a project-id is expected; percent flows where a fraction is expected'
+# trace:v1 id=ops.bc000003-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'integer parameters are treated as interchangeable regardless of what they identify'
+# trace:v1 id=ops.bc000003-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'representation-equal values from incompatible nominal domains must not interchange'
+# trace:v1 id=ops.bc000003-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'sem-nominal'
+# trace:v1 id=ops.bc000003-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHSEM001, BHSEM007, BHSEM008]
