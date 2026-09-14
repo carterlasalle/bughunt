@@ -300,9 +300,11 @@ class Config:
     root: Path
     raw: dict[str, Any]
 
+    # trace:v1 id=impl.src-bughunt-cli.project work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
     def project(self) -> dict[str, Any]:
-        return self.raw.get("project", {})
+        project = self.raw.get("project", {})
+        return project if isinstance(project, dict) else {}
 
     @property
     def max_parallel(self) -> int:

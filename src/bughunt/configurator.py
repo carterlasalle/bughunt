@@ -64,7 +64,8 @@ def _existing(root: Path, values: Iterable[str]) -> list[str]:
     return result or ["."]
 
 
-def _toml(root: Path) -> dict:
+# trace:v1 id=impl.src-bughunt-configurator.-toml work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _toml(root: Path) -> dict[str, Any]:
     path = root / "pyproject.toml"
     if not path.exists():
         return {}
@@ -74,8 +75,10 @@ def _toml(root: Path) -> dict:
         return {}
 
 
-def _toml_project(root: Path) -> dict:
-    return _toml(root).get("project", {})
+# trace:v1 id=impl.src-bughunt-configurator.-toml-project work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _toml_project(root: Path) -> dict[str, Any]:
+    project = _toml(root).get("project", {})
+    return project if isinstance(project, dict) else {}
 
 
 def _python_version(root: Path) -> str:

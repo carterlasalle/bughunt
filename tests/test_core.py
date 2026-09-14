@@ -814,3 +814,15 @@ def test_importtime_rejects_non_identifier_module_names(tmp_path) -> None:
     rc = main(["1000", hostile])
     assert not marker.exists()
     assert rc == 1
+
+
+# trace:v1 id=test.tests-test-core.test-malformed-project-section-degrades-to-empty work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_malformed_project_section_degrades_to_empty(tmp_path: Path) -> None:
+    from bughunt import cli
+    from bughunt.configurator import _toml_project
+
+    assert cli.Config(tmp_path, {"project": "oops"}).project == {}
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "pkg"\n')
+    assert _toml_project(tmp_path) == {"name": "pkg"}
+    (tmp_path / "pyproject.toml").write_text('project = "oops"\n')
+    assert _toml_project(tmp_path) == {}

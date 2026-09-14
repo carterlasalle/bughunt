@@ -8,6 +8,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import cast
 
 from typing_extensions import override
 
@@ -142,11 +143,12 @@ def _files(root: Path, paths: Iterable[str]) -> Iterable[Path]:
                 yield path
 
 
+# trace:v1 id=impl.src-bughunt-policy-scan.-literal work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _literal(node: ast.AST | None) -> object | None:
     if node is None:
         return None
     try:
-        return ast.literal_eval(node)
+        return cast("object | None", ast.literal_eval(node))
     except (ValueError, TypeError):
         return None
 

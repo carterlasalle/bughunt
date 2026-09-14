@@ -17,15 +17,15 @@ def _port() -> int:
         return int(sock.getsockname()[1])
 
 
+# trace:v1 id=impl.src-bughunt-pact-runner.-provider-name work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _provider_name(path: Path) -> str | None:
     try:
         data = json.loads(path.read_text(errors="replace"))
     except (OSError, json.JSONDecodeError):
         return None
     provider = data.get("provider") if isinstance(data, dict) else None
-    if isinstance(provider, dict) and isinstance(provider.get("name"), str):
-        return provider["name"]
-    return None
+    name = provider.get("name") if isinstance(provider, dict) else None
+    return name if isinstance(name, str) else None
 
 
 # trace:v1 id=impl.src-bughunt-pact_runner.-wait-http work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
