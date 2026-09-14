@@ -133,6 +133,8 @@ PR_CORRECTNESS_FLOOR = [
     "evidence",
     "packaging",
     "bugcorpus",
+    "system-ir",
+    "tracelayer",
     "runtime-types",
     "doctest",
     "pydoclint",
@@ -2185,6 +2187,49 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
+        # System IR is consumed as a real ring through system_ir_adapter: the
+        # installed CLI's index/export/drift/invariant contracts, normalized
+        # without reinterpretation. No SCC workspace means N/A.
+        if "system-ir" in wanted:
+            if not (root / ".scc").is_dir():
+                skipped.append(
+                    Result(
+                        "system-ir",
+                        "structural-graph",
+                        Status.NA,
+                        note="not applicable: no .scc workspace in this repository",
+                    ),
+                )
+            else:
+                add(
+                    "system-ir",
+                    "structural-graph",
+                    [sys.executable, "-m", "bughunt.system_ir_adapter", str(root)],
+                    lambda o, e, c: parse_bughunt_helper("system-ir", o, e, c),
+                    findings_exit_codes={1},
+                )
+
+        # TraceLayer is consumed as a real ring through tracelayer_adapter:
+        # changed-scope verification diagnostics plus repository health
+        # (broken refs, blocking stale traces). No .trace workspace means N/A.
+        if "tracelayer" in wanted:
+            if not (root / ".trace").is_dir():
+                skipped.append(
+                    Result(
+                        "tracelayer",
+                        "direct-verification",
+                        Status.NA,
+                        note="not applicable: no .trace workspace in this repository",
+                    ),
+                )
+            else:
+                add(
+                    "tracelayer",
+                    "direct-verification",
+                    [sys.executable, "-m", "bughunt.tracelayer_adapter", str(root)],
+                    lambda o, e, c: parse_bughunt_helper("tracelayer", o, e, c),
+                    findings_exit_codes={1},
+                )
     # Target-specific fuzz / API / custom checks. Explicit config and safe
     # auto-discovered targets are merged. Auto-discovery never points at a
     # non-local HTTP server.
@@ -4863,6 +4908,18 @@ def doctor(cfg: Config) -> int:
             "built-in cyclomatic/LOC/ABC/asset budget scanner",
         ),
     )
+    from .tracelayer_adapter import _cli as _trace_cli
+
+    if not (cfg.root / ".trace").is_dir():
+        engine_rows.append(("TraceLayer", "N/A", "no .trace workspace in this repo"))
+    elif _trace_cli() is None:
+        engine_rows.append(
+            ("TraceLayer", "MISSING", "trace CLI not on PATH"),
+        )
+    else:
+        engine_rows.append(
+            ("TraceLayer", "READY", "verification evidence available"),
+        )
     engine_rows.append(
         (
             "BugHunt default rules",
@@ -4870,6 +4927,20 @@ def doctor(cfg: Config) -> int:
             f"{len(DEFAULT_RULES)} shipped rules; inspect with `uv run bughunt rules`",
         ),
     )
+    from .system_ir_adapter import _cli as _scc_cli
+
+    if not (cfg.root / ".scc").is_dir():
+        engine_rows.append(
+            ("System IR", "N/A", "no .scc workspace in this repo; run scc init")
+        )
+    elif _scc_cli() is None:
+        engine_rows.append(
+            ("System IR", "MISSING", "scc CLI not on PATH"),
+        )
+    else:
+        engine_rows.append(
+            ("System IR", "READY", "scc graph available for structural findings"),
+        )
     from .bugcorpus_adapter import _cli as _bugcorpus_cli
 
     corpus_dir = cfg.root / ".bugcorpus"
