@@ -95,6 +95,24 @@ packages = ["src/bughunt"]
 [tool.hatch.build]
 # trace:v1 id=ops.build-artifacts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 artifacts = ["src/bughunt/py.typed"]
+# trace:v1 id=ops.sdist-excludes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+[tool.hatch.build.targets.sdist]
+# Mirrors MANIFEST.in prunes: hatchling does not read MANIFEST.in, and
+# check-manifest does not read hatch excludes. Both state the same boundary.
+# trace:v1 id=ops.sdist-exclude-list work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+exclude = [
+  ".agents",
+  ".claude",
+  ".codex",
+  ".omp",
+  ".hermes",
+  ".pi",
+  ".trace",
+  ".bughunt",
+  ".complexipy_cache",
+  ".import_linter_cache",
+  "skills-lock.json",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

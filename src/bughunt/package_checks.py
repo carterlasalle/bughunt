@@ -60,7 +60,11 @@ def main(argv: list[str] | None = None) -> int:
             dist = root / ".bughunt" / "cache" / "dist"
             dist.mkdir(parents=True, exist_ok=True)
             results.append(_run([uv, "build", "--out-dir", str(dist)], root))
-            artifacts = sorted(str(p) for p in dist.glob("*") if p.is_file())
+            artifacts = sorted(
+                str(p)
+                for p in dist.glob("*")
+                if p.is_file() and p.suffix in {".whl", ".gz", ".zip", ".bz2", ".xz"}
+            )
             if artifacts:
                 results.append(_run([twine, "check", *artifacts], root))
     findings: list[dict[str, object]] = []

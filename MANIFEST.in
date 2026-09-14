@@ -1,0 +1,14 @@
+# trace:v1 id=ops.manifest-prunes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+# Agent-harness surfaces, caches, and session state are tracked for the
+# workspace but must not ship: check-manifest reconciles these prunes.
+prune .agents
+prune .claude
+prune .codex
+prune .omp
+prune .hermes
+prune .pi
+prune .trace
+prune .bughunt
+prune .complexipy_cache
+prune .import_linter_cache
+exclude skills-lock.json

@@ -884,3 +884,429 @@ signal = 'pyrefly:unknown-argument-type'
 paths = ['tests/test_v060.py']
 count = 1
 reason = 'config-schema Any plumbing per ADR-006; sink-adjacent boundaries closed separately'
+
+[[debt]]
+signal = 'refurb:<n> [furb107]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb107]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb107]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb113]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb113]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/configurator.py']
+count = 2
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb123]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/cli.py']
+count = 3
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb123]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/installers.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb123]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb123]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb138]: consider using list comprehension'
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb138]: consider using list comprehension'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb142]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/discovery.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb143]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb173]: replace `<symbol>` with `<symbol>`'
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'refurb:<n> [furb184]: assignment statement should be chained'
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'refurb structural-style suggestions (extend/comprehend/suppress/merge); zero behavior change, churn risk exceeds value'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/coverage_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/installers.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/technology.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B404'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/cli.py']
+count = 4
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/coverage_runner.py']
+count = 3
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/installers.py']
+count = 4
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/technology.py']
+count = 7
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B603'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B607'
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B607'
+paths = ['src/bughunt/technology.py']
+count = 5
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B607'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'double-reported by ruff S603/S607/S404 with per-site audit noqas; bandit adds no verdict'
+
+[[debt]]
+signal = 'bandit:B104'
+paths = ['src/bughunt/discovery.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused attribute 'caption' (<n>% confidence)"
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_annassign' (<n>% confidence)"
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_annassign' (<n>% confidence)"
+paths = ['src/bughunt/seam_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_break' (<n>% confidence)"
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_continue' (<n>% confidence)"
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_match' (<n>% confidence)"
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused method 'visit_namedexpr' (<n>% confidence)"
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused variable 'environment' (<n>% confidence)"
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = "vulture:unused variable 'skip_reason' (<n>% confidence)"
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_configurator.py']
+count = 16
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_core.py']
+count = 23
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_debt.py']
+count = 5
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_discovery.py']
+count = 13
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_installers.py']
+count = 4
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_policy_metrics.py']
+count = 23
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_target_env.py']
+count = 3
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_technology.py']
+count = 30
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_tool_dir.py']
+count = 1
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'basedpyright:reportUnusedCallResult'
+paths = ['tests/test_v060.py']
+count = 24
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_configurator.py']
+count = 16
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_core.py']
+count = 23
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_debt.py']
+count = 5
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_discovery.py']
+count = 13
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_installers.py']
+count = 4
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_policy_metrics.py']
+count = 23
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_target_env.py']
+count = 3
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_technology.py']
+count = 30
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_tool_dir.py']
+count = 1
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'pyrefly:unused-call-result'
+paths = ['tests/test_v060.py']
+count = 24
+reason = 'test-idiom discards (write_text ints, fixture setup); unused results in tests are not leak vectors'
+
+[[debt]]
+signal = 'semgrep:python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'audit-echo of mitigated constructs: sandboxed exec (AST-gated, S102-audited) and scheme-guarded urlopen probe'
+
+[[debt]]
+signal = 'semgrep:python.lang.security.audit.exec-detected.exec-detected'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'audit-echo of mitigated constructs: sandboxed exec (AST-gated, S102-audited) and scheme-guarded urlopen probe'
+
+[[debt]]
+signal = 'ast-grep:bughunt-swallowed-exception'
+paths = ['src/bughunt/cli.py']
+count = 4
+reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
+
+[[debt]]
+signal = 'ast-grep:bughunt-swallowed-exception'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
+
+[[debt]]
+signal = 'ast-grep:bughunt-swallowed-exception'
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
+
+[[debt]]
+signal = 'ast-grep:bughunt-swallowed-exception'
+paths = ['src/bughunt/policy_scan.py']
+count = 1
+reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
+
+[[debt]]
+signal = 'ast-grep:bughunt-swallowed-exception'
+paths = ['src/bughunt/technology.py']
+count = 2
+reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
