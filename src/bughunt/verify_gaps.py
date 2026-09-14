@@ -91,8 +91,6 @@ def _stub_body(root: Path, file: str, start: object, end: object) -> bool:
         only = body[0]
         if isinstance(only, ast.Pass):
             return True
-        if isinstance(only, ast.Expr) and isinstance(only.value, ast.Constant):
-            return True
         if isinstance(only, ast.Raise):
             exc = only.exc
             if isinstance(exc, ast.Name) and exc.id in STUB_RAISES:

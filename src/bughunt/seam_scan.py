@@ -330,10 +330,9 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
         while current in forward and current not in visited:
             visited.add(current)
             current = forward[current]
-        terminal_info = infos.get(current)
-        if not terminal_info:
-            continue
-        terminal, terminal_kwargs = terminal_info
+        # call_keys and forward only contain locally-defined functions, so the
+        # chain always terminates at a known signature (never unknown).
+        terminal, terminal_kwargs = infos[current]
         if terminal_kwargs:
             continue
         allowed = {

@@ -74,6 +74,7 @@ def test_run_oserror_is_structured(monkeypatch, tmp_path: Path) -> None:
 
     from bughunt import system_ir_adapter
 
+    # trace:v1 id=test.tests-test-system-ir-adapter-test-run-oserror-is-structured.boom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     def _boom(*args, **kwargs):
         raise OSError("nope")
 
@@ -110,4 +111,42 @@ def test_unparseable_payloads(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(system_ir_adapter, "_run", lambda *a, **k: (0, "not json", ""))
     cache, error = system_ir_adapter.export(tmp_path)
     assert cache is None and error is not None
+    assert system_ir_adapter.graph_findings(tmp_path) == []
+
+
+# trace:v1 id=test.tests-test-system-ir-adapter.test-cache-key-and-main-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_cache_key_and_main_shapes(monkeypatch, tmp_path: Path, capsys) -> None:
+    import json
+    import subprocess
+    import sys
+
+    from bughunt import system_ir_adapter
+
+    monkeypatch.setattr(sys, "argv", ["bughunt-system-ir"])
+
+    # trace:v1 id=test.tests-test-system-ir-adapter-test-cache-key-and-main-shapes.boom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def _boom(*args, **kwargs):
+        raise OSError("nope")
+
+    monkeypatch.setattr(subprocess, "run", _boom)
+    key = system_ir_adapter._cache_key(tmp_path, "/bin/scc")
+    assert isinstance(key, str) and key
+    monkeypatch.setattr(system_ir_adapter, "_cli", lambda: "/bin/scc")
+    assert system_ir_adapter.main([]) == 2
+    assert "root required" in capsys.readouterr().out
+    assert system_ir_adapter.main([str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out)["not_applicable"] is True
+    _ = (tmp_path / ".scc").mkdir()
+    monkeypatch.setattr(system_ir_adapter, "export", lambda root: (None, "boom"))
+    assert system_ir_adapter.main([str(tmp_path)]) == 1
+
+
+# trace:v1 id=test.tests-test-system-ir-adapter.test-graph-findings-skips-non-dict work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_graph_findings_skips_non_dict(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import system_ir_adapter
+
+    monkeypatch.setattr(system_ir_adapter, "_cli", lambda: "/bin/scc")
+    monkeypatch.setattr(
+        system_ir_adapter, "_run", lambda *a, **k: (0, '["nope", 42]', "")
+    )
     assert system_ir_adapter.graph_findings(tmp_path) == []

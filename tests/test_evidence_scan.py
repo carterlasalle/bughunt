@@ -123,3 +123,45 @@ def test_subscript_accumulator_target_is_ignored(tmp_path: Path) -> None:
         + "    return acc\n",
     )
     assert [item.code for item in findings if item.code == "BHEVID003"] == []
+
+
+# trace:v1 id=test.tests-test-evidence-scan.test-name-and-annotation-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_name_and_annotation_shapes(tmp_path: Path) -> None:
+    import ast
+
+    from bughunt.evidence_scan import _annotation, _name, scan
+
+    value = ast.parse("mod.attr").body[0]
+    assert isinstance(value, ast.Expr)
+    assert _name(value.value) == "mod.attr"
+    sub = ast.parse("box[key]").body[0]
+    assert isinstance(sub, ast.Expr)
+    assert _name(sub.value) == "box"
+    assert _name(None) == ""
+    assert _annotation(None) == ""
+    assert _annotation(value.value) == "mod.attr"
+    src = tmp_path / "src"
+    _ = src.mkdir(exist_ok=True)
+    assert scan(tmp_path, ["src", "src"]) == []
+    _ = (src / "a.py").write_text(
+        "from typing import Any\n\n\ndef f(x: int) -> None:\n"
+        "    y: Any = make()\n"
+        "    return None\n"
+    )
+    assert scan(tmp_path, ["src", "src"]) == []
+
+
+# trace:v1 id=test.tests-test-evidence-scan.test-unparse-fallback work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_unparse_fallback(monkeypatch, tmp_path: Path) -> None:
+    import ast
+
+    from bughunt import evidence_scan
+
+    # trace:v1 id=test.tests-test-evidence-scan-test-unparse-fallback.boom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def _boom(node: ast.AST | None) -> str:
+        raise RuntimeError("nope")
+
+    monkeypatch.setattr(ast, "unparse", _boom)
+    assert evidence_scan._annotation(ast.parse("x: int").body[0]) == ""
+    src = tmp_path / "src"
+    _ = src.mkdir(exist_ok=True)

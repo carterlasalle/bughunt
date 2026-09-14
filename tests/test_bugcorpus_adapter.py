@@ -148,3 +148,38 @@ def test_scan_failure_without_findings(monkeypatch, tmp_path: Path) -> None:
     )
     findings = bugcorpus_adapter.scan(tmp_path, "fast")
     assert findings and findings[0]["code"] == "BHBUGC001"
+
+
+# trace:v1 id=test.tests-test-bugcorpus-adapter.test-verify-error-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_verify_error_shapes(monkeypatch, tmp_path: Path) -> None:
+    import json
+
+    from bughunt import bugcorpus_adapter
+
+    _ = (tmp_path / ".bugcorpus").mkdir()
+    monkeypatch.setattr(bugcorpus_adapter, "_cli", lambda: "/bin/bugcorpus")
+    monkeypatch.setattr(
+        bugcorpus_adapter,
+        "_run",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                {
+                    "ok": False,
+                    "schema_errors": ["bad1", "bad2"],
+                    "detectors": [
+                        {"id": "D1", "status": "failed"},
+                        {"id": "D2", "status": "error"},
+                        {"id": "D3", "status": "pass"},
+                    ],
+                }
+            ),
+        ),
+    )
+    ok, errors = bugcorpus_adapter.verify(tmp_path)
+    assert ok is False
+    assert len(errors) == 4
+    monkeypatch.setattr(bugcorpus_adapter, "_run", lambda *a, **k: (1, '{"ok": false}'))
+    ok, errors = bugcorpus_adapter.verify(tmp_path)
+    assert ok is False
+    assert len(errors) == 1

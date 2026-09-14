@@ -99,3 +99,26 @@ def test_identical_tree_is_clean(tmp_path: Path, capsys) -> None:
     assert main([str(tmp_path), "HEAD", "src"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["findings"] == []
+
+
+# trace:v1 id=test.tests-test-version-diff.test-signature-only-change-is-clean work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_signature_only_change_is_clean(tmp_path: Path, capsys) -> None:
+    from bughunt.version_diff_runner import main
+
+    _git("init", "-q", cwd=tmp_path)
+    _git("config", "user.email", "t@example.com", cwd=tmp_path)
+    _git("config", "user.name", "t", cwd=tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    target = src / "calc.py"
+    _ = target.write_text("def add(a: int, b: int) -> int:\n    return a + b\n")
+    _git("add", ".", cwd=tmp_path)
+    _git("commit", "-qm", "base", cwd=tmp_path)
+    # Same behavior, wider annotation domain: Griffe owns API-shape drift.
+    _ = target.write_text("def add(a: int, b: float) -> float:\n    return a + b\n")
+    assert main([str(tmp_path), "HEAD", "src"]) == 0
+    assert json.loads(capsys.readouterr().out)["findings"] == []
+    # Same behavior, changed default: not a behavioral mismatch.
+    _ = target.write_text("def add(a: int, b: int = 1) -> int:\n    return a + b\n")
+    assert main([str(tmp_path), "HEAD", "src"]) == 0
+    assert json.loads(capsys.readouterr().out)["findings"] == []

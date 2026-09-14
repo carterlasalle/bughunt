@@ -107,3 +107,16 @@ def test_main_reports_provider_that_never_starts(tmp_path: Path, capsys) -> None
     code = main([str(tmp_path), "no_such_module_xyz:app", str(pact_file)])
     assert code == 2
     assert "local provider failed to start" in capsys.readouterr().out
+
+
+# trace:v1 id=test.tests-test-pact.test-wait-http-timeout work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_wait_http_timeout() -> None:
+    import subprocess
+
+    from bughunt.pact_runner import _wait_http
+
+    proc = subprocess.Popen(["true"], text=True)
+    try:
+        assert _wait_http("http://127.0.0.1:1/", proc, timeout_s=0) is False
+    finally:
+        _ = proc.wait()

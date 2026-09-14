@@ -96,3 +96,12 @@ def test_empty_dist_skips_twine(monkeypatch, tmp_path: Path, capsys) -> None:
     assert package_checks.main([str(tmp_path)]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["findings"] == []
+
+
+# trace:v1 id=test.tests-test-package-checks.test-run-success-shape work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_run_success_shape(tmp_path: Path) -> None:
+    from bughunt import package_checks
+
+    result = package_checks._run(["true"], tmp_path)
+    assert result["returncode"] == 0
+    assert result["command"] == ["true"]

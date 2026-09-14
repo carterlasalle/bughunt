@@ -77,6 +77,29 @@ def test_coverage_parser_skips_non_dict_files(tmp_path: Path) -> None:
     assert findings == []
 
 
+# trace:v1 id=test.tests-test-v060.test-coverage-parser-multiple-branches work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_coverage_parser_multiple_branches(tmp_path: Path) -> None:
+    import json
+
+    from bughunt.coverage_tools import parse_coverage_json
+
+    report = tmp_path / "coverage.json"
+    report.write_text(
+        json.dumps(
+            {
+                "files": {
+                    "src/a.py": {
+                        "missing_lines": [],
+                        "missing_branches": [[6, 9], [10, 12], "junk"],
+                    },
+                },
+            },
+        ),
+    )
+    findings = parse_coverage_json(report)[0]
+    assert len([f for f in findings if f.code == "BHCOV002"]) == 2
+
+
 # trace:v1 id=test.tests-test-v060.test-seam-scanner-finds-producer-consumer-key-drift work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
     _python_repo(tmp_path)

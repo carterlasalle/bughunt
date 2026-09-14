@@ -124,3 +124,16 @@ def test_run_oserror_is_structured(monkeypatch, tmp_path: Path) -> None:
     code, _out, err = tracelayer_adapter._run("/bin/trace", tmp_path, "status")
     assert code == 127
     assert "nope" in err
+
+
+# trace:v1 id=test.tests-test-tracelayer-adapter.test-missing-cli-and-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_missing_cli_and_shapes(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import tracelayer_adapter
+
+    _ = (tmp_path / ".trace").mkdir()
+    monkeypatch.setattr(tracelayer_adapter, "_cli", lambda: None)
+    assert tracelayer_adapter.verify(tmp_path) == []
+    assert tracelayer_adapter.health(tmp_path) == []
+    monkeypatch.setattr(tracelayer_adapter, "_cli", lambda: "/bin/trace")
+    monkeypatch.setattr(tracelayer_adapter, "_run", lambda *a, **k: (0, "[1, 2]", ""))
+    assert tracelayer_adapter.health(tmp_path) == []

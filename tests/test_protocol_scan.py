@@ -96,3 +96,43 @@ def test_main_gates(monkeypatch, tmp_path: Path, capsys) -> None:
     assert main([str(tmp_path), "src"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload == []
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-nested-and-attribute-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_nested_and_attribute_shapes(tmp_path: Path) -> None:
+    import ast
+
+    from bughunt.protocol_scan import _exc_name, scan
+
+    src = tmp_path / "src"
+    node = ast.parse("mod.Broken('x')").body[0]
+    assert isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+    assert _exc_name(node.value) == "Broken"
+    func = node.value.func
+    assert isinstance(func, ast.Attribute)
+    assert _exc_name(func) == "Broken"
+    src.mkdir(exist_ok=True)
+    _ = (src / "broken.py").write_text("def (:\n")
+    _ = (src / "gen.py").write_text(
+        "class G:\n"
+        "    def __iter__(self):\n"
+        "        def inner():\n"
+        "            try:\n"
+        "                x = next(it)\n"
+        "            except StopIteration:\n"
+        "                return\n"
+        "            yield x\n"
+        "        yield from inner()\n"
+        "\n\ndef plain():\n"
+        "    try:\n"
+        "        a = next(it)\n"
+        "    except StopIteration:\n"
+        "        raise RuntimeError('x')\n"
+        "    try:\n"
+        "        b = next(it)\n"
+        "    except ValueError:\n"
+        "        pass\n"
+        "    return a, b\n"
+    )
+    findings = scan(tmp_path, ["src"])
+    assert isinstance(findings, list)
