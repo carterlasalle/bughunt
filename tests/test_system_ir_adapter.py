@@ -81,3 +81,33 @@ def test_run_oserror_is_structured(monkeypatch, tmp_path: Path) -> None:
     code, _out, err = system_ir_adapter._run("/bin/scc", tmp_path, "index")
     assert code == 127
     assert "nope" in err
+
+
+def test_export_and_graph_failures(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import system_ir_adapter
+
+    _ = (tmp_path / ".scc").mkdir()
+    calls = {"n": 0}
+
+    def _fail(*args, **kwargs):
+        calls["n"] += 1
+        return (1, "", "boom")
+
+    monkeypatch.setattr(system_ir_adapter, "_cli", lambda: "/bin/scc")
+    monkeypatch.setattr(system_ir_adapter, "_run", _fail)
+    cache, error = system_ir_adapter.export(tmp_path)
+    assert cache is None and error is not None
+    findings = system_ir_adapter.graph_findings(tmp_path)
+    assert any(item["code"] == "BHGRAPH001" for item in findings)
+    assert any(item["code"] == "BHGRAPH002" for item in findings)
+
+
+def test_unparseable_payloads(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import system_ir_adapter
+
+    _ = (tmp_path / ".scc").mkdir()
+    monkeypatch.setattr(system_ir_adapter, "_cli", lambda: "/bin/scc")
+    monkeypatch.setattr(system_ir_adapter, "_run", lambda *a, **k: (0, "not json", ""))
+    cache, error = system_ir_adapter.export(tmp_path)
+    assert cache is None and error is not None
+    assert system_ir_adapter.graph_findings(tmp_path) == []

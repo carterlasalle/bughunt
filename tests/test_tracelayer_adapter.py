@@ -97,6 +97,21 @@ def test_broken_refs_are_error_findings(monkeypatch, tmp_path: Path) -> None:
     assert all(item["code"] == "BHVERIFY003" for item in findings)
 
 
+def test_exec_and_parse_failures(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import tracelayer_adapter
+
+    _ = (tmp_path / ".trace").mkdir()
+    monkeypatch.setattr(tracelayer_adapter, "_cli", lambda: "/bin/trace")
+    monkeypatch.setattr(tracelayer_adapter, "_run", lambda *a, **k: (3, "", "boom"))
+    findings = tracelayer_adapter.verify(tmp_path)
+    assert findings and findings[0]["code"] == "BHVERIFY002"
+    assert tracelayer_adapter.health(tmp_path) == []
+    monkeypatch.setattr(tracelayer_adapter, "_run", lambda *a, **k: (0, "not json", ""))
+    findings = tracelayer_adapter.verify(tmp_path)
+    assert findings and findings[0]["code"] == "BHVERIFY002"
+    assert tracelayer_adapter.health(tmp_path) == []
+
+
 def test_run_oserror_is_structured(monkeypatch, tmp_path: Path) -> None:
     import subprocess
 

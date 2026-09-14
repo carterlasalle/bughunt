@@ -135,6 +135,7 @@ PR_CORRECTNESS_FLOOR = [
     "bugcorpus",
     "system-ir",
     "tracelayer",
+    "verify-gaps",
     "runtime-types",
     "doctest",
     "pydoclint",
@@ -592,6 +593,9 @@ def _default_config_raw() -> dict[str, Any]:
                     "pytest",
                     "mutmut",
                     "bugcorpus",
+                    "system-ir",
+                    "tracelayer",
+                    "verify-gaps",
                     "schemathesis",
                     "atheris",
                     "custom",
@@ -625,6 +629,9 @@ def _default_config_raw() -> dict[str, Any]:
                     "pytest",
                     "mutmut",
                     "bugcorpus",
+                    "system-ir",
+                    "tracelayer",
+                    "verify-gaps",
                     "schemathesis",
                     "atheris",
                     "custom",
@@ -2227,7 +2234,28 @@ def build_checks(
                     "tracelayer",
                     "direct-verification",
                     [sys.executable, "-m", "bughunt.tracelayer_adapter", str(root)],
-                    lambda o, e, c: parse_bughunt_helper("tracelayer", o, e, c),
+                    findings_exit_codes={1},
+                )
+
+        # Verification gaps are computed from the cached System IR through
+        # verify_gaps: transitive-only coverage and hollow public stubs.
+        # No SCC workspace means N/A.
+        if "verify-gaps" in wanted:
+            if not (root / ".scc").is_dir():
+                skipped.append(
+                    Result(
+                        "verify-gaps",
+                        "direct-verification",
+                        Status.NA,
+                        note="not applicable: no .scc workspace in this repository",
+                    ),
+                )
+            else:
+                add(
+                    "verify-gaps",
+                    "direct-verification",
+                    [sys.executable, "-m", "bughunt.verify_gaps", str(root)],
+                    lambda o, e, c: parse_bughunt_helper("verify-gaps", o, e, c),
                     findings_exit_codes={1},
                 )
     # Target-specific fuzz / API / custom checks. Explicit config and safe
