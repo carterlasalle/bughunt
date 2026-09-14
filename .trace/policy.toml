@@ -60,5 +60,6 @@ paths = [
   ".python-version",
   "skills-lock.json",
   "debt.toml",
+  "src/bughunt/py.typed",
 ]
 extensions = []

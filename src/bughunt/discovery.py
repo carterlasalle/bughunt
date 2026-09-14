@@ -7,6 +7,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 EXCLUDED = {
     ".git",
@@ -121,6 +122,7 @@ FAULT_TEST_MARKERS = (
 )
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-discovered-target work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class DiscoveredTarget:
     kind: str
@@ -130,7 +132,7 @@ class DiscoveredTarget:
     reason: str
     command: list[str] | None = None
     source: str | None = None
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -283,14 +285,17 @@ def _required_positional_count(
     return max(0, required)
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-explicit-raises work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _explicit_raises(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     names: set[str] = set()
     doc = ast.get_docstring(fn) or ""
-    for match in re.finditer(
-        r"(?m)^\s*(?:Raises?:\s*)?([A-Z][A-Za-z0-9_]*(?:Error|Exception))\s*[:\-]",
-        doc,
-    ):
-        names.add(match.group(1))
+    names.update(
+        match.group(1)
+        for match in re.finditer(
+            r"(?m)^\s*(?:Raises?:\s*)?([A-Z][A-Za-z0-9_]*(?:Error|Exception))\s*[:\-]",
+            doc,
+        )
+    )
     for node in ast.walk(fn):
         if not isinstance(node, ast.Raise) or node.exc is None:
             continue

@@ -188,17 +188,20 @@ class FunctionMetricVisitor(ast.NodeVisitor):
     # Nested functions are measured separately, not charged to the parent.
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-functiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_FunctionDef(self, _node: ast.FunctionDef) -> None:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        _ = node
         return
 
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_AsyncFunctionDef(self, _node: ast.AsyncFunctionDef) -> None:
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        _ = node
         return
 
     # trace:v1 id=impl.src-bughunt-metrics-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_Lambda(self, _node: ast.Lambda) -> None:
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        _ = node
         return
 
 

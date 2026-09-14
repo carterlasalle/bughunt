@@ -826,3 +826,15 @@ def test_malformed_project_section_degrades_to_empty(tmp_path: Path) -> None:
     assert _toml_project(tmp_path) == {"name": "pkg"}
     (tmp_path / "pyproject.toml").write_text('project = "oops"\n')
     assert _toml_project(tmp_path) == {}
+
+
+# trace:v1 id=test.tests-test-core.test-malformed-custom-command-skipped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_malformed_custom_command_skipped(tmp_path: Path) -> None:
+    from bughunt import cli
+
+    cfg = cli.load_config(tmp_path)
+    cfg.raw["custom"] = {
+        "checks": [{"name": "broken", "category": "x", "command": "pytest -q"}]
+    }
+    checks, _ = cli.build_checks(cfg, "pr")
+    assert not any(c.name == "custom:broken" for c in checks)

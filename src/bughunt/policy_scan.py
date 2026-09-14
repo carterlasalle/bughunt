@@ -6,6 +6,7 @@ import ast
 import json
 import re
 from collections.abc import Iterable
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import cast
@@ -31,12 +32,12 @@ EXCLUDED = {
 
 SECRET_NAME = re.compile(
     r"(?:secret|token|password|passwd|api[_-]?key|private[_-]?key|access[_-]?key|"
-    r"client[_-]?secret)",
+    + r"client[_-]?secret)",
     re.IGNORECASE,
 )
 CONFIG_NAME = re.compile(
     r"(?:^|_)(timeout|retries|retry|host|port|url|endpoint|threshold|limit|max|min|"
-    r"interval|ttl|workers|batch(?:_size)?|concurrency|rate|delay|buffer|cache)(?:_|$)",
+    + r"interval|ttl|workers|batch(?:_size)?|concurrency|rate|delay|buffer|cache)(?:_|$)",
     re.IGNORECASE,
 )
 CONFIG_MODULE = re.compile(
@@ -160,6 +161,9 @@ def _unit_for(name: str) -> str | None:
         "_ms": "milliseconds",
         "_millis": "milliseconds",
         "_milliseconds": "milliseconds",
+        "_us": "microseconds",
+        "_ns": "nanoseconds",
+        "_s": "seconds",
         "_sec": "seconds",
         "_secs": "seconds",
         "_seconds": "seconds",
@@ -167,9 +171,12 @@ def _unit_for(name: str) -> str | None:
         "_mins": "minutes",
         "_minutes": "minutes",
         "_hours": "hours",
+        "_b": "bytes",
         "_bytes": "bytes",
         "_kb": "kilobytes",
         "_mb": "megabytes",
+        "_gb": "gigabytes",
+        "_tb": "terabytes",
         "_percent": "percent",
         "_percentage": "percent",
         "_port": "TCP/UDP port",
@@ -202,7 +209,22 @@ def _numeric_constant(node: ast.AST) -> int | float | None:
     return value if isinstance(value, (int, float)) else None
 
 
-# trace:v1 id=impl.src-bughunt-policy_scan.-range-for-variable work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+_COMPARE_SYMBOLS: dict[type[ast.cmpop], str] = {
+    ast.Gt: ">",
+    ast.GtE: ">=",
+    ast.Lt: "<",
+    ast.LtE: "<=",
+    ast.Eq: "==",
+}
+_FLIPPED_COMPARE_SYMBOLS: dict[type[ast.cmpop], str] = {
+    ast.Lt: ">",
+    ast.LtE: ">=",
+    ast.Gt: "<",
+    ast.GtE: "<=",
+}
+
+
+# trace:v1 id=impl.src-bughunt-policy-scan.-range-for-variable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _range_for_variable(tree: ast.AST, variable: str) -> str | None:
     constraints: list[str] = []
     for node in ast.walk(tree):
@@ -217,13 +239,7 @@ def _range_for_variable(tree: ast.AST, variable: str) -> str | None:
                 and left.id == variable
                 and right_num is not None
             ):
-                symbol = {
-                    ast.Gt: ">",
-                    ast.GtE: ">=",
-                    ast.Lt: "<",
-                    ast.LtE: "<=",
-                    ast.Eq: "==",
-                }.get(type(op))
+                symbol = _COMPARE_SYMBOLS.get(type(op))
                 if symbol:
                     constraints.append(f"{symbol}{right_num}")
             elif (
@@ -231,17 +247,256 @@ def _range_for_variable(tree: ast.AST, variable: str) -> str | None:
                 and isinstance(right, ast.Name)
                 and right.id == variable
             ):
-                symbol = {
-                    ast.Lt: ">",
-                    ast.LtE: ">=",
-                    ast.Gt: "<",
-                    ast.GtE: "<=",
-                    ast.Eq: "==",
-                }.get(type(op))
+                symbol = _FLIPPED_COMPARE_SYMBOLS.get(type(op))
                 if symbol:
                     constraints.append(f"{symbol}{left_num}")
     unique = list(dict.fromkeys(constraints))
     return " and ".join(unique[:4]) if unique else None
+
+
+_UNIT_STEMS = frozenset(
+    {
+        "timeout",
+        "interval",
+        "delay",
+        "ttl",
+        "duration",
+        "latency",
+        "deadline",
+        "backoff",
+        "heartbeat",
+        "period",
+        "expiry",
+        "lifetime",
+        "size",
+        "length",
+        "width",
+        "height",
+        "memory",
+        "capacity",
+    }
+)
+_BARE_UNIT_NAMES = frozenset(
+    {
+        "ms",
+        "s",
+        "sec",
+        "secs",
+        "seconds",
+        "min",
+        "mins",
+        "minutes",
+        "h",
+        "hours",
+        "us",
+        "ns",
+        "b",
+        "bytes",
+        "kb",
+        "mb",
+        "gb",
+        "tb",
+    }
+)
+_UNIT_DIMENSIONS = {
+    "milliseconds": "time",
+    "microseconds": "time",
+    "nanoseconds": "time",
+    "seconds": "time",
+    "minutes": "time",
+    "hours": "time",
+    "bytes": "size",
+    "kilobytes": "size",
+    "megabytes": "size",
+    "gigabytes": "size",
+    "terabytes": "size",
+}
+_CONVERSION_FACTORS = frozenset({1000, 1000.0, 1024, 1024.0})
+
+
+# trace:v1 id=impl.src-bughunt-policy-scan.-scan-unit-policies work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _scan_unit_policies(tree: ast.AST, rel: str) -> list[PolicyFinding]:
+    """Flag unit-bearing names without units and mixed-unit expressions.
+
+    BHUNIT001 (warning): a unit-bearing stem bound to a bare number
+    (`timeout = 10`) carries no unit; suffix it (`timeout_s`).
+    BHUNIT002 (error): one expression mixes units of one dimension
+    (`deadline_ms + grace_s`) or adds a bare number to a unit
+    (`elapsed_ms + 500`); an explicit x1000/x1024 factor reads as a
+    deliberate conversion and is exempt, as is comparison against 0.
+    BHUNIT003 (warning): one stem bound in two units in one file
+    (`timeout_ms` and `timeout_s`) is an ambiguous contract.
+    Call keyword arguments are the callee's contract and are never flagged.
+    """
+    findings: list[PolicyFinding] = []
+
+    # trace:v1 id=impl.src-bughunt-policy-scan-scan-unit-policies.stem-of work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def stem_of(name: str) -> str:
+        return name.lower().split("_")[-1]
+
+    # trace:v1 id=impl.src-bughunt-policy-scan-scan-unit-policies.needs-unit work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def needs_unit(name: str) -> bool:
+        n = name.lower()
+        if _unit_for(name) is not None or n in _BARE_UNIT_NAMES:
+            return False
+        return n in _UNIT_STEMS or stem_of(name) in _UNIT_STEMS
+
+    # trace:v1 id=impl.src-bughunt-policy-scan-scan-unit-policies.bound-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def bound_names(node: ast.AST) -> list[tuple[str, int]]:
+        """(name, lineno) pairs this node binds to a numeric literal."""
+        out: list[tuple[str, int]] = []
+        if isinstance(node, ast.Assign) and _numeric_constant(node.value) is not None:
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    out.append((target.id, target.lineno))
+                elif isinstance(target, ast.Attribute):
+                    out.append((target.attr, target.lineno))
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+            and _numeric_constant(node.value) is not None
+        ):
+            out.append((node.target.id, node.target.lineno))
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = node.args
+            positional = [*args.posonlyargs, *args.args]
+            for arg, default in zip(
+                positional[len(positional) - len(args.defaults) :] or [],
+                args.defaults,
+            ):
+                if _numeric_constant(default) is not None:
+                    out.append((arg.arg, arg.lineno))
+            for kw_arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
+                if kw_default is not None and _numeric_constant(kw_default) is not None:
+                    out.append((kw_arg.arg, kw_arg.lineno))
+        return out
+
+    # trace:v1 id=impl.src-bughunt-policy-scan-scan-unit-policies.expr-units work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def expr_units(node: ast.AST) -> set[str]:
+        units: set[str] = set()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name):
+                unit = _unit_for(child.id)
+                if unit is not None:
+                    units.add(unit)
+            elif isinstance(child, ast.Attribute):
+                unit = _unit_for(child.attr)
+                if unit is not None:
+                    units.add(unit)
+        return units
+
+    # trace:v1 id=impl.src-bughunt-policy-scan-scan-unit-policies.expr-numbers work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def expr_numbers(node: ast.AST) -> set[int | float]:
+        return {
+            value
+            for child in ast.walk(node)
+            if isinstance(child, ast.Constant)
+            and (value := _numeric_constant(child)) is not None
+        }
+
+    stem_units: dict[str, set[str]] = {}
+    stem_lines: dict[str, int] = {}
+    for node in ast.walk(tree):
+        for name, lineno in bound_names(node):
+            unit = _unit_for(name)
+            if unit is not None:
+                stem = name.lower()
+                for suffix in (
+                    "_milliseconds",
+                    "_seconds",
+                    "_minutes",
+                    "_hours",
+                    "_percent",
+                    "_bytes",
+                    "_millis",
+                    "_micros",
+                ):
+                    if stem.endswith(suffix):
+                        stem = stem[: -len(suffix)]
+                        break
+                else:
+                    for suffix in ("_ms", "_us", "_ns", "_kb", "_mb", "_gb", "_tb"):
+                        if stem.endswith(suffix):
+                            stem = stem[: -len(suffix)]
+                            break
+                if stem.endswith(("_sec", "_secs", "_min", "_mins", "_s", "_b")):
+                    stem = stem.rsplit("_", 1)[0]
+                if stem in stem_units and unit not in stem_units[stem]:
+                    findings.append(
+                        PolicyFinding(
+                            rel,
+                            lineno,
+                            1,
+                            "BHUNIT003",
+                            (
+                                f"stem `{stem}` is bound as both "
+                                f"{sorted(stem_units[stem])[0]} and {unit}; "
+                                "one contract per stem"
+                            ),
+                            "warning",
+                        ),
+                    )
+                stem_units.setdefault(stem, set()).add(unit)
+                stem_lines.setdefault(stem, lineno)
+            elif needs_unit(name):
+                findings.append(
+                    PolicyFinding(
+                        rel,
+                        lineno,
+                        1,
+                        "BHUNIT001",
+                        (
+                            f"unit-bearing name `{name}` is bound to a bare "
+                            "number with no unit suffix; suffix the unit "
+                            f"(`{name}_ms`, `{name}_s`, …)"
+                        ),
+                        "warning",
+                    ),
+                )
+        if isinstance(node, (ast.BinOp, ast.Compare)):
+            numbers = expr_numbers(node)
+            if numbers & _CONVERSION_FACTORS:
+                continue
+            units = expr_units(node)
+            dims: dict[str, set[str]] = {}
+            for unit in units:
+                dims.setdefault(_UNIT_DIMENSIONS.get(unit, unit), set()).add(unit)
+            multi = sorted({u for ds in dims.values() if len(ds) > 1 for u in ds})
+            if multi:
+                findings.append(
+                    PolicyFinding(
+                        rel,
+                        node.lineno,
+                        node.col_offset + 1,
+                        "BHUNIT002",
+                        (
+                            f"mixing {multi[0]} with {multi[1]} in one "
+                            "expression; convert explicitly (×/÷1000)"
+                        ),
+                        "error",
+                    ),
+                )
+                continue
+            bare = {n for n in numbers if n != 0 and n != 0.0}
+            scales = isinstance(node, ast.BinOp) and not isinstance(
+                node.op, (ast.Add, ast.Sub)
+            )
+            if units and bare and not scales:
+                findings.append(
+                    PolicyFinding(
+                        rel,
+                        node.lineno,
+                        node.col_offset + 1,
+                        "BHUNIT002",
+                        (
+                            f"bare number in {sorted(units)[0]} arithmetic; "
+                            "suffix the unit or convert explicitly"
+                        ),
+                        "error",
+                    ),
+                )
+    return findings
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.discover-env-uses work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -472,22 +727,26 @@ class _FinallyJumpVisitor(ast.NodeVisitor):
     # Control flow inside nested scopes does not exit the enclosing finally.
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-functiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_FunctionDef(self, _node: ast.FunctionDef) -> None:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        _ = node
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_AsyncFunctionDef(self, _node: ast.AsyncFunctionDef) -> None:
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        _ = node
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_Lambda(self, _node: ast.Lambda) -> None:
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        _ = node
         return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-classdef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
-    def visit_ClassDef(self, _node: ast.ClassDef) -> None:
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        _ = node
         return
 
 
@@ -744,6 +1003,7 @@ def _scan_source_policies(
                         "note",
                     ),
                 )
+        findings.extend(_scan_unit_policies(tree, rel))
     return findings
 
 
@@ -883,10 +1143,8 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                 other_texts = []
                 for operand in operands:
                     if isinstance(operand, (ast.Name, ast.Attribute, ast.Call)):
-                        try:
+                        with suppress(ValueError, TypeError):
                             other_texts.append(ast.unparse(operand).lower())
-                        except (ValueError, TypeError):
-                            pass
                 if any(len(value) >= 200 for value in string_literals) and any(
                     re.search(r"(?:generated|source|code|script|sql|html|render)", text)
                     for text in other_texts
@@ -906,6 +1164,7 @@ def _scan_test_policies(root: Path, test_paths: Iterable[str]) -> list[PolicyFin
                             "warning",
                         ),
                     )
+        findings.extend(_scan_unit_policies(tree, rel))
     return findings
 
 
@@ -1036,14 +1295,6 @@ def _roundtrip_inventory(
                                 (qualified, qualified_counterpart, rel, node.lineno),
                             )
     return pairs, orphans
-
-
-# trace:v1 id=impl.src-bughunt-policy_scan.-roundtrip-pairs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def _roundtrip_pairs(
-    root: Path,
-    source_paths: Iterable[str],
-) -> list[tuple[str, str, str, int]]:
-    return _roundtrip_inventory(root, source_paths)[0]
 
 
 # trace:v1 id=impl.src-bughunt-policy_scan.-scan-roundtrip-coverage work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC

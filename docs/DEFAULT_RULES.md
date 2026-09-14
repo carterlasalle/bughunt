@@ -64,6 +64,24 @@ Rules:
 
 `bughunt configure --auto` creates or refreshes only a BugHunt-managed block in `.env.example`; user-owned lines are preserved and secret-like variables are always emitted blank.
 
+<!-- trace:exempt reason=repo-docs-move-no-product-behavior -->
+## Unit contracts
+
+Unit-bearing names must carry their unit, and one expression must not mix
+units of one dimension. Call keyword arguments are the callee's contract
+and are never flagged.
+
+- `BHUNIT001` (warning): `timeout = 10` binds a unit-bearing stem to a
+  bare number; suffix the unit (`timeout_s`). Suffixed names (`timeout_ms`),
+  computed values (`size = len(x)`), and dimensionless counts (`retries`)
+  are clean.
+- `BHUNIT002` (error): `deadline_ms + grace_s`, or unit arithmetic with a
+  bare number (`elapsed_ms + 500`). An explicit `×/÷1000` (or 1024) factor
+  reads as a deliberate conversion and is exempt, as is comparison
+  against 0.
+- `BHUNIT003` (warning): one stem bound in two units in one file
+  (`timeout_ms` and `timeout_s`) is an ambiguous contract.
+
 <!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Architecture and persistence boundaries
 

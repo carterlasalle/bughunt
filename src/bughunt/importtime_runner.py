@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from contextlib import suppress
 
 
 # trace:v1 id=impl.src-bughunt-importtime_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -41,10 +42,8 @@ def main(argv: list[str] | None = None) -> int:
             if line.startswith("import time:"):
                 parts = line.split("|")
                 if len(parts) >= 3 and parts[-1].strip() == module:
-                    try:
+                    with suppress(ValueError):
                         cumulative_us = int(parts[1].strip())
-                    except ValueError:
-                        pass
         ms = cumulative_us / 1000.0
         samples.append({"module": module, "ms": ms, "returncode": proc.returncode})
         if proc.returncode != 0:

@@ -90,6 +90,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bughunt"]
 
+[tool.hatch.build]
+# trace:v1 id=ops.build-artifacts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+artifacts = ["src/bughunt/py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
@@ -135,3 +139,19 @@ branch = true
 [tool.coverage.report]
 # trace:exempt reason=repo-scaffolding-no-product-behavior
 show_missing = true
+
+# trace:v1 id=ops.refurb-disable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+[tool.refurb]
+# Micro-style modernizations with zero bug value (tuple-vs-list membership,
+# ==-chains, Path(), f-string-vs-str): churn, not correctness. Codes with
+# type assumptions or structural value (FURB123/143/107/113/138/...) stay on.
+# trace:v1 id=ops.refurb-disable-list work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+disable = [
+  "FURB109",
+  "FURB108",
+  "FURB171",
+  "FURB124",
+  "FURB153",
+  "FURB183",
+  "FURB110",
+]

@@ -57,7 +57,6 @@ from .technology import (
     target_python,
 )
 
-APP = "BugHunt"
 CONFIG_NAME = "bughunt.toml"
 REPORT_DIR = ".bughunt/reports"
 CACHE_DIR = ".bughunt/cache"
@@ -337,7 +336,7 @@ def debt_report(ledger: list[DebtEntry], results: list[Result]) -> list[dict[str
         rows.append(
             {
                 "signal": entry.signal,
-                "paths": list(entry.paths),
+                "paths": entry.paths.copy(),
                 "recorded": entry.count,
                 "live": live,
                 "delta": live - entry.count,
@@ -462,12 +461,13 @@ def debt_review(root: Path) -> int:
     return 1 if grew else 0
 
 
+# trace:v1 id=impl.src-bughunt-cli.result work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class Result:
     name: str
     category: str
     status: Status
-    duration: float = 0.0
+    duration_s: float = 0.0
     exit_code: int | None = None
     findings: list[Finding] = field(default_factory=list)
     command: list[str] = field(default_factory=list)
@@ -898,12 +898,12 @@ def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[F
     patterns = [
         re.compile(
             r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*"
-            r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            + r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
             re.IGNORECASE,
         ),
         re.compile(
             r"^(?P<path>.+?):(?P<line>\d+):\s*"
-            r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
+            + r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
             re.IGNORECASE,
         ),
     ]
@@ -2556,7 +2556,7 @@ def build_checks(
         semgrep_cmd.append(
             "--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only",
         )
-    for c in dict.fromkeys(str(x) for x in semgrep_cfgs):
+    for c in dict.fromkeys(semgrep_cfgs):
         semgrep_cmd.extend(["--config", c])
     semgrep_cmd.extend(py)
     add(
@@ -3345,7 +3345,10 @@ def build_checks(
         merged_custom: list[dict[str, Any]] = []
         seen_custom: set[tuple[str, tuple[str, ...]]] = set()
         for item in [*explicit_custom, *generated_custom]:
-            command = tuple(str(x) for x in item.get("command", []))
+            raw_command = item.get("command", [])
+            if not isinstance(raw_command, list):
+                continue
+            command = tuple(str(x) for x in raw_command)
             key = (str(item.get("name", "custom")), command)
             if not command or key in seen_custom:
                 continue
@@ -4177,7 +4180,7 @@ class LiveRunState:
                 glyph,
                 result.name,
                 result.category,
-                f"{result.duration:.1f}s",
+                f"{result.duration_s:.1f}s",
                 escape(detail[:120]),
             )
 
@@ -4280,7 +4283,7 @@ async def run_process(
                     name=check.name,
                     category=check.category,
                     status=status,
-                    duration=time.perf_counter() - started,
+                    duration_s=time.perf_counter() - started,
                     command=check.command,
                     stdout=stdout[-raw_limit:],
                     stderr=stderr[-raw_limit:],
@@ -4295,7 +4298,7 @@ async def run_process(
                 name=check.name,
                 category=check.category,
                 status=Status.ERROR,
-                duration=time.perf_counter() - started,
+                duration_s=time.perf_counter() - started,
                 command=check.command,
                 note=f"could not execute: {exc}",
             ),
@@ -4340,7 +4343,7 @@ async def run_process(
             name=check.name,
             category=check.category,
             status=status,
-            duration=time.perf_counter() - started,
+            duration_s=time.perf_counter() - started,
             exit_code=exit_code,
             findings=findings,
             command=check.command,
@@ -4480,7 +4483,7 @@ async def run_codeql(
         record_progress=False,
     )
     ar = await run_process(analyze, raw_limit, progress)
-    ar.duration = time.perf_counter() - started
+    ar.duration_s = time.perf_counter() - started
     ar.artifacts.append(str(sarif))
     if ar.status == Status.ERROR:
         return ar
@@ -4556,7 +4559,7 @@ async def run_pysa(
     )
     result = await run_process(check, raw_limit, progress)
     result.artifacts.append(str(out_dir))
-    if PYSA_NO_PROVIDER in (result.stdout or "") + (result.stderr or ""):
+    if PYSA_NO_PROVIDER in result.stdout + result.stderr:
         result.status = Status.SKIPPED
         result.findings = []
         result.note = (
@@ -4640,7 +4643,7 @@ async def run_mutmut(
         name="mutmut",
         category="mutation",
         status=Status.FINDINGS if findings else Status.PASS,
-        duration=rr.duration + rs.duration,
+        duration_s=rr.duration_s + rs.duration_s,
         exit_code=rr.exit_code,
         findings=findings,
         command=rr.command,
@@ -5124,7 +5127,7 @@ def render_terminal(
             r.category,
             str(r.count) if r.count else "—",
             str(fix_count) if fix_count else "—",
-            f"{r.duration:.1f}s" if r.duration else "—",
+            f"{r.duration_s:.1f}s" if r.duration_s else "—",
             Text(
                 note,
                 style="dim" if r.status in {Status.SKIPPED, Status.NA} else "none",
@@ -5284,7 +5287,7 @@ def write_reports(
                 continue
             odc_counts[odc_class(result.category, finding)] += 1
     payload: dict[str, Any] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "generated_at": now.isoformat(),
         "profile": profile,
         "root": str(cfg.root),
@@ -5725,7 +5728,7 @@ exploration.
         lines.append(
             (
                 f"| {r.status.value} | `{r.name}` | {r.category} | {r.count} | "
-                f"{r.duration:.1f}s | {note} |"
+                f"{r.duration_s:.1f}s | {note} |"
             ),
         )
     lines += ["", "## Findings", ""]

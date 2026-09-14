@@ -232,3 +232,38 @@ def test_generated_source_exact_string_assertion_is_flagged(tmp_path: Path) -> N
     )
     findings = scan_policy(tmp_path, ["src"], ["tests"])
     assert any(item.code == "BHTEST005" for item in findings)
+
+
+# trace:v1 id=test.tests-test-policy-metrics.test-unit-suffix-rules work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_unit_suffix_rules(tmp_path: Path) -> None:
+    src = _pkg(tmp_path)
+    (src / "timing.py").write_text(
+        "timeout = 10\n"
+        "timeout_ms = 5000\n"
+        "retries = 3\n"
+        "total = deadline_ms + grace_s\n"
+        "backoff_s = backoff_ms / 1000\n"
+        "timeout_ms = 5\n"
+        "timeout_s = 1\n",
+    )
+    findings = scan_policy(tmp_path, ["src"], ["tests"])
+    by_code = {}
+    for item in findings:
+        by_code.setdefault(item.code, []).append(item)
+    assert len(by_code.get("BHUNIT001", [])) == 1
+    assert len(by_code.get("BHUNIT002", [])) == 1
+    assert len(by_code.get("BHUNIT003", [])) >= 1
+
+
+# trace:v1 id=test.tests-test-policy-metrics.test-unit-rules-ignore-idiom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_unit_rules_ignore_idiom(tmp_path: Path) -> None:
+    src = _pkg(tmp_path)
+    (src / "ok.py").write_text(
+        "import subprocess\n"
+        "size = len(items)\n"
+        "backoff_ms = backoff_ms * 2\n"
+        "if elapsed_ms > 0:\n"
+        "    subprocess.run(cmd, timeout=10)\n",
+    )
+    findings = scan_policy(tmp_path, ["src"], ["tests"])
+    assert not [item for item in findings if (item.code or "").startswith("BHUNIT")]
