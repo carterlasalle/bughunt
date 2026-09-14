@@ -883,3 +883,14 @@ def test_malformed_custom_command_skipped(tmp_path: Path) -> None:
     }
     checks, _ = cli.build_checks(cfg, "pr")
     assert not any(c.name == "custom:broken" for c in checks)
+
+
+def test_mutmut_signal_groups_by_function() -> None:
+    from bughunt.cli import Finding
+
+    finding = Finding(
+        tool="mutmut",
+        message="survived __mutmut_12_x",
+    )
+    assert "__mutmut_<n>" in finding.signal_key
+    assert "__mutmut_12" not in finding.signal_key

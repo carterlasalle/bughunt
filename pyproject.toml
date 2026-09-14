@@ -159,6 +159,11 @@ branch = true
 [tool.coverage.report]
 # trace:exempt reason=repo-scaffolding-no-product-behavior
 show_missing = true
+# Entry-point trampolines only: `if __name__ == "__main__"` blocks contain no
+# product logic (main() itself is tested). This is coverage.py's canonical
+# exclusion example, not a gap being hidden.
+# trace:v1 id=ops.coverage-main-exclude work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+exclude_lines = ["if __name__ == ['\"]__main__['\"]:"]
 
 # trace:v1 id=ops.refurb-disable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 [tool.refurb]

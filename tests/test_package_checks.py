@@ -60,3 +60,35 @@ def test_tool_failures_become_structured_findings(
     payload = json.loads(capsys.readouterr().out)
     assert payload["findings"]
     assert all(item["code"] == "BHPKG001" for item in payload["findings"])
+
+
+def test_run_failure_is_structured_error(monkeypatch) -> None:
+    import subprocess
+
+    from bughunt import package_checks
+
+    def _boom(*_a, **_k):
+        raise OSError("nope")
+
+    monkeypatch.setattr(subprocess, "run", _boom)
+    result = package_checks._run(["tool"], Path("."))
+    assert result["returncode"] == 255
+
+
+def test_empty_dist_skips_twine(monkeypatch, tmp_path: Path, capsys) -> None:
+    import json
+
+    from bughunt import package_checks
+
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "pkg"\n')
+    (tmp_path / "uv.lock").write_text("")
+    (tmp_path / ".git").mkdir()
+
+    def _ok(cmd: list[str], root) -> dict[str, object]:
+        return {"command": cmd, "returncode": 0, "stdout": "ok", "stderr": ""}
+
+    monkeypatch.setattr(package_checks, "_run", _ok)
+    monkeypatch.setattr("shutil.which", lambda *_a, **_k: "/bin/tool")
+    assert package_checks.main([str(tmp_path)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["findings"] == []

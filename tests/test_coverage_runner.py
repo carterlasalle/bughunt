@@ -32,3 +32,55 @@ def test_runner_produces_json_report(tmp_path: Path, capsys) -> None:
     assert out.exists()
     payload = json.loads(out.read_text())
     assert "files" in payload
+
+
+def test_no_args_is_usage_error(monkeypatch, capsys) -> None:
+    import sys
+
+    from bughunt.coverage_runner import main
+
+    monkeypatch.setattr(sys, "argv", ["bughunt-coverage"])
+    assert main([]) == 2
+    assert "root required" in capsys.readouterr().out
+
+
+def test_failing_tests_propagate_returncode(tmp_path: Path) -> None:
+    from bughunt.coverage_runner import main
+
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    _ = (pkg / "__init__.py").write_text("X = 1\n")
+    tests = tmp_path / "tests"
+    _ = tests.mkdir()
+    _ = (tests / "test_bad.py").write_text("def test_no() -> None:\n    assert False\n")
+    assert main([str(tmp_path)]) == 2
+
+
+def test_corrupt_coverage_json_is_reported(tmp_path: Path) -> None:
+    from bughunt.coverage_runner import main
+
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    _ = (pkg / "__init__.py").write_text("X = 1\n")
+    tests = tmp_path / "tests"
+    _ = tests.mkdir()
+    _ = (tests / "test_ok.py").write_text("def test_ok() -> None:\n    assert True\n")
+    out = tmp_path / ".bughunt" / "cache" / "coverage.json"
+    out.parent.mkdir(parents=True)
+    _ = out.write_text("{corrupt")
+    assert main([str(tmp_path)]) == 2
+
+
+def test_report_failure_is_error(tmp_path: Path) -> None:
+    from bughunt.coverage_runner import main
+
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    _ = (pkg / "__init__.py").write_text("X = 1\n")
+    tests = tmp_path / "tests"
+    _ = tests.mkdir()
+    _ = (tests / "test_ok.py").write_text("def test_ok() -> None:\n    assert True\n")
+    # No coverage.ini and no pre-existing artifact: the inner tests pass
+    # but `coverage json` cannot emit a report, exercising the report-failure
+    # branch rather than the parse-failure branch.
+    assert main([str(tmp_path)]) == 2

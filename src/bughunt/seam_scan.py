@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from typing_extensions import override
@@ -102,9 +102,12 @@ def _rel(root: Path, path: Path) -> str:
         return path.as_posix()
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-call-name work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _call_name(node: ast.AST | None) -> str:
     if isinstance(node, ast.Name):
         return node.id
+    if isinstance(node, ast.Call):
+        return _call_name(node.func)
     if isinstance(node, ast.Attribute):
         prefix = _call_name(node.value)
         return f"{prefix}.{node.attr}" if prefix else node.attr
@@ -128,12 +131,14 @@ def _dict_literal_keys(node: ast.AST) -> set[str]:
     }
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-DictState work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class _DictState:
     writes: set[str]
     reads: set[str]
     boundary: bool = False
     line: int = 1
+    soft_reads: set[str] = field(default_factory=set)
 
 
 # trace:v1 id=impl.src-bughunt-seam_scan.-functioncollector work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -202,13 +207,19 @@ class _FunctionCollector(ast.NodeVisitor):
             obj = node.func.value.id
             if node.func.attr in {"get", "pop", "setdefault"} and node.args:
                 key = _string_key(node.args[0])
-                if key is not None:
+                # URL-path-shaped `.get("/...")` is an HTTP call, not a dict
+                # read; recording it fabricates seam dictionaries from clients.
+                if key is not None and not (
+                    node.func.attr == "get" and key.startswith("/")
+                ):
                     state = self._state(obj, node.lineno)
                     if node.func.attr == "setdefault":
                         state.writes.add(key)
                     else:
                         state.reads.add(key)
-        if leaf in SERIALIZATION_BOUNDARIES:
+                        if node.func.attr == "get":
+                            state.soft_reads.add(key)
+        if leaf in SERIALIZATION_BOUNDARIES or call in SERIALIZATION_BOUNDARIES:
             for arg in node.args:
                 if isinstance(arg, ast.Name) and arg.id in self.dicts:
                     self.dicts[arg.id].boundary = True
@@ -348,6 +359,7 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
     return findings
 
 
+# trace:v1 id=impl.src-bughunt-seam_scan.-external-http-without-validation work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
     for node in ast.walk(tree):
@@ -356,10 +368,13 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
         collector = _FunctionCollector()
         collector.visit(node)
         for name, state in collector.dicts.items():
-            if not state.boundary:
-                continue
-            missing = sorted(state.reads - state.writes)
-            unused = sorted(state.writes - state.reads)
+            # Only hard (subscript) reads of never-written keys are flagged.
+            # `.get()` reads are defensive by design, and "written but not
+            # read locally" is usually cross-function consumption, whole-object
+            # return, or serialization — not drift. Both leniencies were proven
+            # against dogfood false positives before this rule first fired.
+            hard_reads = state.reads - state.soft_reads
+            missing = sorted(hard_reads - state.writes) if state.boundary else []
             if missing:
                 findings.append(
                     SeamFinding(
@@ -373,20 +388,6 @@ def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFindi
                         rel,
                         state.line,
                         "error",
-                    ),
-                )
-            if unused and state.reads:
-                findings.append(
-                    SeamFinding(
-                        "BHSEAM001",
-                        (
-                            f"serialized/seam dictionary `{name}` writes key(s) never "
-                            f"consumed in the same scope: {', '.join(unused)}; "
-                            "possible dead or renamed contract fields"
-                        ),
-                        rel,
-                        state.line,
-                        "warning",
                     ),
                 )
         # An HTTP .json() result that is directly indexed without any explicit

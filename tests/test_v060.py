@@ -63,6 +63,20 @@ def test_coverage_parser_reports_line_and_branch_gaps(tmp_path: Path) -> None:
     assert summary["missing_branches"] == 1
 
 
+def test_coverage_parser_skips_non_dict_files(tmp_path: Path) -> None:
+    import json
+
+    from bughunt.coverage_tools import _ranges, parse_coverage_json
+
+    assert _ranges([]) == []
+    assert _ranges([5]) == [(5, 5)]
+    assert _ranges([1, 2, 3, 7]) == [(1, 3), (7, 7)]
+    report = tmp_path / "coverage.json"
+    report.write_text(json.dumps({"files": {"src/a.py": [1, 2]}}))
+    findings, _ = parse_coverage_json(report)
+    assert findings == []
+
+
 # trace:v1 id=test.tests-test-v060.test-seam-scanner-finds-producer-consumer-key-drift work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_seam_scanner_finds_producer_consumer_key_drift(tmp_path: Path) -> None:
     _python_repo(tmp_path)

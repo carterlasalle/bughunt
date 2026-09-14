@@ -118,3 +118,16 @@ def test_subscript_annotation_read(tmp_path: Path) -> None:
         + "    z = cast(str, y)\n",
     )
     assert [f.code for f in findings] == ["BHEVID001"]
+
+
+def test_subscript_accumulator_target_is_ignored(tmp_path: Path) -> None:
+    findings = _scan_root(
+        tmp_path,
+        "w.py",
+        "def f(items):\n"
+        + "    acc = {}\n"
+        + "    for i in items:\n"
+        + "        acc[i] = acc.get(i, 0) + 1\n"
+        + "    return acc\n",
+    )
+    assert [item.code for item in findings if item.code == "BHEVID003"] == []
