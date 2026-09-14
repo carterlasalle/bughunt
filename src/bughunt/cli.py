@@ -136,6 +136,7 @@ PR_CORRECTNESS_FLOOR = [
     "system-ir",
     "tracelayer",
     "verify-gaps",
+    "protocol",
     "runtime-types",
     "doctest",
     "pydoclint",
@@ -596,6 +597,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "system-ir",
                     "tracelayer",
                     "verify-gaps",
+                    "protocol",
                     "schemathesis",
                     "atheris",
                     "custom",
@@ -632,6 +634,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "system-ir",
                     "tracelayer",
                     "verify-gaps",
+                    "protocol",
                     "schemathesis",
                     "atheris",
                     "custom",
@@ -2258,6 +2261,23 @@ def build_checks(
                     lambda o, e, c: parse_bughunt_helper("verify-gaps", o, e, c),
                     findings_exit_codes={1},
                 )
+
+        # Protocol correctness (magic methods, generators, assert misuse)
+        # runs as a pure-AST native check over first-party sources.
+        if "protocol" in wanted:
+            add(
+                "protocol",
+                "protocol-correctness",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.protocol_scan",
+                    str(root),
+                    *cfg.source_paths,
+                ],
+                lambda o, e, c: parse_bughunt_helper("protocol", o, e, c),
+                findings_exit_codes={1},
+            )
     # Target-specific fuzz / API / custom checks. Explicit config and safe
     # auto-discovered targets are merged. Auto-discovery never points at a
     # non-local HTTP server.
