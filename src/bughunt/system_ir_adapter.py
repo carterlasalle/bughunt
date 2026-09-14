@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -159,6 +160,24 @@ def graph_findings(root: Path) -> list[dict[str, object]]:
                         "severity": "error",
                     }
                 )
+    _, stdout, _ = _run(cli, root, "status")
+    match = re.search(r"likely_internal_unresolved=(\d+)", stdout or "")
+    if match and int(match.group(1)) > 0:
+        resolved = re.search(r"calls:\s*resolved=(\d+)", stdout or "")
+        out.append(
+            {
+                "tool": "scc",
+                "code": "scc:unresolved-references",
+                "message": (
+                    f"scc left {match.group(1)} likely-internal call/reference "
+                    "edges unresolved (resolved="
+                    f"{resolved.group(1) if resolved else 'unknown'}); "
+                    "graph-based seam/contract conclusions are partial "
+                    "over these edges"
+                ),
+                "severity": "warning",
+            }
+        )
     return out
 
 

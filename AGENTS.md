@@ -3095,9 +3095,13 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
 
 ## Durable learnings
 
-- Scaffolding (LICENSE, CI, env example) is honestly accounted with
-  `# trace:exempt reason=repo-scaffolding-no-product-behavior`, except YAML
-  keys, which need real `trace:v1` markers (`trace marker suggest`).
+- Scaffolding (LICENSE, CI, env example) is honestly accounted with semantic
+  `# trace:exempt` reasons (`license-text-`, `packaging-metadata-`,
+  `tool-config-`, `env-template-...-no-product-behavior`). Do NOT use
+  `repo-scaffolding-*` wording: TL015 flags bootstrap-style reasons and a
+  dirty pyproject.toml fails `test_verify_clean_on_real_repo` → coverage
+  ERROR → INCOMPLETE scan. YAML keys need real `trace:v1` markers
+  (`trace marker suggest`).
 - Etching receipts (ruff/mypy/coverage counts) into AGENTS.md beats re-adding
   the same debt conversation every session.
 - Run scans as `uv run --frozen bughunt …` from the repo root. An isolated
@@ -3131,6 +3135,20 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   line, not the use line. Generated noxfile sessions must `chdir(ROOT)` and
   install the dev group (`. --group dev -r pyproject.toml`). Pysa PASS +
   no longer degrades to ERROR (cry-wolf); provider ERROR still degrades.
+
+- 2026-09-14 scan audit: `CI=true` (set by harness and real CI) makes
+  Hypothesis auto-load its derandomized "ci" profile, so HypoFuzz skipped
+  every target (`sets_derandomize` → exit 5). Fix: `Check.env_scrub`
+  (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI`) on the hypofuzz ring;
+  presence alone triggers it, blanking does not help. First `@given`
+  property test: `_ranges` round-trip in `tests/test_v060.py`.
+- 2026-09-14 scan audit: scc `drift` needs history and `check-invariants`
+  needs declared invariants, so both are silent on a fresh tree; the
+  adapter now also surfaces `scc status` `likely_internal_unresolved`
+  as one warning aggregate (`scc:unresolved-references`; 3369 on this
+  tree). TL015 flags `scaffolding`/`bootstrap` wording in exempt reasons;
+  `.env.example` now uses a semantic reason. `.bugcorpus/generated/`
+  is gitignored (regenerable scan output).
 ---
 
 ## Last maintenance review

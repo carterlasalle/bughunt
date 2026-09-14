@@ -44,3 +44,6 @@ bun.lock
 
 # bughunt regenerates the JS toolchain manifest on every scan; never commit it.
 package.json
+
+# Regenerable scan output; the BugCase sources under .bugcorpus/corpus/ stay tracked.
+.bugcorpus/generated/

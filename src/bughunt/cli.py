@@ -1188,6 +1188,7 @@ def build_checks(
         empty_scope_markers: tuple[str, ...] | None = None,
         check_timeout: int | None = None,
         env: dict[str, str] | None = None,
+        env_scrub: tuple[str, ...] | None = None,
         timeout_is_success: bool = False,
     ) -> None:
         if name not in wanted:
@@ -1228,6 +1229,7 @@ def build_checks(
                 else set(),
                 empty_scope_markers=empty_scope_markers or (),
                 env=env,
+                env_scrub=env_scrub or (),
                 timeout_is_success=timeout_is_success,
             ),
         )
@@ -1923,6 +1925,11 @@ def build_checks(
                 check_timeout=budget,
                 timeout_is_success=True,
                 env={"PYTHONHASHSEED": str(repro_seed)},
+                # Fuzzing is generation: it needs Hypothesis randomized. The
+                # "ci" settings profile (auto-loaded whenever these vars exist;
+                # see hypothesis/_settings.py _CI_VARS) sets derandomize=True,
+                # which makes HypoFuzz skip every target and exit 5.
+                env_scrub=("CI", "GITHUB_ACTIONS", "GITLAB_CI", "CIRCLECI"),
                 skip_exit_codes={5},
             )
 
@@ -3335,10 +3342,13 @@ async def run_process(
             progress.activity(check.name, activity_tail.strip()[-500:])
 
     try:
+        child_env = {**os.environ, **(check.env or {})}
+        for name in check.env_scrub:
+            _ = child_env.pop(name, None)
         proc = await asyncio.create_subprocess_exec(
             *check.command,
             cwd=str(check.cwd),
-            env={**os.environ, **(check.env or {})},
+            env=child_env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

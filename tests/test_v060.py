@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from bughunt.cli import (
     Check,
@@ -425,3 +427,12 @@ def test_odoo_capability_detected(tmp_path: Path) -> None:
     )
     inventory = discover_technologies(tmp_path, persist=False)
     assert inventory.has("odoo")
+
+
+# trace:v1 id=test.tests-test-v060.test-ranges-round-trip-property work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@given(lines=st.lists(st.integers(min_value=1, max_value=9999), max_size=60))
+def test_ranges_round_trip_property(lines: list[int]) -> None:
+    from bughunt.coverage_tools import _ranges
+
+    flat = [n for start, end in _ranges(lines) for n in range(start, end + 1)]
+    assert flat == sorted(set(lines))

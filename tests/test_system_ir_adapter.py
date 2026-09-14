@@ -150,3 +150,19 @@ def test_graph_findings_skips_non_dict(monkeypatch, tmp_path: Path) -> None:
         system_ir_adapter, "_run", lambda *a, **k: (0, '["nope", 42]', "")
     )
     assert system_ir_adapter.graph_findings(tmp_path) == []
+
+
+# trace:v1 id=test.tests-test-system-ir-adapter.test-unresolved-references-surface work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_unresolved_references_surface(tmp_path: Path) -> None:
+    from bughunt.system_ir_adapter import export, graph_findings
+
+    root = _mini(tmp_path)
+    _ = (root / "b.py").write_text("def real() -> int:\n    return 1\n")
+    _ = (root / "src" / "a.py").write_text(
+        "from b import missing_name\n\n\ndef caller():\n    missing_name()\n"
+    )
+    _, error = export(root)
+    assert error is None
+    findings = graph_findings(root)
+    codes = [f["code"] for f in findings]
+    assert "scc:unresolved-references" in codes

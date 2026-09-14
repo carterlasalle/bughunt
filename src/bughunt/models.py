@@ -128,6 +128,10 @@ class Check:
     timeout: int
     cwd: Path
     env: dict[str, str] | None = None
+    # Names removed from the child environment after merging os.environ with
+    # env. Needed when presence alone changes tool behavior (e.g. Hypothesis
+    # loads its derandomized "ci" profile whenever CI-like vars exist).
+    env_scrub: tuple[str, ...] = ()
     configured: bool = True
     findings_exit_codes: set[int] = field(default_factory=lambda: {1})
     skip_exit_codes: set[int] = field(default_factory=set)

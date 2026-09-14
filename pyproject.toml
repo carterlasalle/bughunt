@@ -11,9 +11,9 @@ dependencies = [
     "rich>=14.0",
     "typing-extensions>=4.16.0",
 ]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 license = "MIT"
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -21,13 +21,13 @@ classifiers = [
 ]
 
 [project.urls]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 Homepage = "https://github.com/carterlasalle/bughunt"
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 Repository = "https://github.com/carterlasalle/bughunt"
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 Issues = "https://github.com/carterlasalle/bughunt/issues"
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=packaging-metadata-no-product-behavior
 Changelog = "https://github.com/carterlasalle/bughunt/blob/main/CHANGELOG.md"
 
 [dependency-groups]
@@ -128,7 +128,7 @@ mutate_only_covered_lines = true
 # END BUGHUNT MANAGED MUTMUT CONFIG
 
 [tool.ruff]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 target-version = "py311" # matches requires-python floor; keeps 3.12-only syntax flagged
 # Subprocess auditing rides the default gate (not just PARANOID): every
 # subprocess call carries an audited noqa or a fixed vector. RUF100 would
@@ -143,21 +143,21 @@ select = ["E4", "E7", "E9", "F", "S603", "S607"]
 "tests/**" = ["S607"]
 
 [tool.mypy]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 python_version = "3.12"
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 warn_unused_configs = true
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 ignore_missing_imports = true
 
 [tool.coverage.run]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 source = ["src"]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 branch = true
 
 [tool.coverage.report]
-# trace:exempt reason=repo-scaffolding-no-product-behavior
+# trace:exempt reason=tool-config-no-product-behavior
 show_missing = true
 # Entry-point trampolines only: `if __name__ == "__main__"` blocks contain no
 # product logic (main() itself is tested). This is coverage.py's canonical

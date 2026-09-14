@@ -211,6 +211,33 @@ def test_run_process_handles_huge_single_line_without_readline_limit(
     assert len(result.stdout) == 250000
 
 
+# trace:v1 id=test.tests-test-core.test-run-process-scrubs-env-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_run_process_scrubs_env_names(tmp_path: Path) -> None:
+    import asyncio
+    import json
+    import sys
+
+    from bughunt.cli import Check, run_process
+
+    check = Check(
+        name="env-scrub",
+        category="regression",
+        command=[
+            sys.executable,
+            "-c",
+            "import json, os; print(json.dumps({'scrub': 'BUGHUNT_SCRUB_ME' in os.environ, 'keep': os.environ.get('BUGHUNT_KEEP_ME')}))",
+        ],
+        parser=lambda out, err, code: [],
+        timeout=10,
+        cwd=tmp_path,
+        env={"BUGHUNT_SCRUB_ME": "1", "BUGHUNT_KEEP_ME": "1"},
+        env_scrub=("BUGHUNT_SCRUB_ME",),
+    )
+    result = asyncio.run(run_process(check, 300000))
+    assert result.status == Status.PASS
+    assert json.loads(result.stdout) == {"scrub": False, "keep": "1"}
+
+
 # trace:v1 id=test.tests-test-core.test-deep-profile-is-not-downgraded-to-pr work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_deep_profile_is_not_downgraded_to_pr(
     monkeypatch: pytest.MonkeyPatch,
