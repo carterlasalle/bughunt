@@ -23,6 +23,7 @@ from .technology import (
 _IMPORT_PROBE_TIMEOUT_S = 45
 _BREW_TIMEOUT_S = 30
 _CLIPPY_PROBE_TIMEOUT_S = 15
+_INSTALL_CMD_TIMEOUT_S = 600
 
 
 @dataclass(slots=True)
@@ -127,10 +128,19 @@ def _run(
             text=True,
             capture_output=True,
             check=False,
+            timeout=_INSTALL_CMD_TIMEOUT_S,
             env={**os.environ, **(env or {})},
         )
     except OSError as exc:
         return InstallResult(cmd[-1] if cmd else "command", "ERROR", cmd, str(exc))
+    except subprocess.TimeoutExpired as exc:
+        return InstallResult(
+            cmd[-1] if cmd else "command",
+            "ERROR",
+            cmd,
+            f"installer hung past {_INSTALL_CMD_TIMEOUT_S}s and was killed; "
+            f"retry by hand: {' '.join(cmd)} ({exc})",
+        )
     note = _tail(proc.stdout, proc.stderr)
     return InstallResult(
         cmd[-1] if cmd else "command",
@@ -564,22 +574,28 @@ PROJECT_MODULES: dict[str, str] = {
 }
 
 
-def _inside_project_environment(path: str) -> bool:
+# trace:v1 id=impl.src-bughunt-installers.inside-project-environment work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _inside_project_environment(path: str, root: Path | None = None) -> bool:
     try:
         resolved = Path(path).resolve()
-        prefix = Path(sys.prefix).resolve()
-        return resolved == prefix or prefix in resolved.parents
+        prefixes = [Path(sys.prefix).resolve()]
+        if root is not None:
+            prefixes.append((root / ".venv").resolve())
+        return any(
+            resolved == prefix or prefix in resolved.parents for prefix in prefixes
+        )
     except (OSError, RuntimeError):
         return False
 
 
+# trace:v1 id=impl.src-bughunt-installers.project-component-ready work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _project_component_ready(root: Path, name: str) -> bool:
     module = PROJECT_MODULES.get(name)
     if module and _python_importable(root, module):
         return True
     for executable_name in PROJECT_EXECUTABLES.get(name, ()):
         path = shutil.which(executable_name)
-        if path and _inside_project_environment(path):
+        if path and _inside_project_environment(path, root):
             return True
     return False
 

@@ -59,3 +59,17 @@ def test_technology_engines_selected_when_applicable(tmp_path: Path) -> None:
     checks, skipped = build_checks(_cfg(tmp_path), "pr")
     names = {check.name for check in checks} | {item.name for item in skipped}
     assert {"hadolint", "sqlfluff", "actionlint"} <= names
+
+
+# trace:v1 id=test.tests-test-build-checks.test-alembic-without-config-skips work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_alembic_without_config_skips(tmp_path: Path) -> None:
+    from bughunt.cli import Status, build_checks
+
+    _project(tmp_path, ["alembic-check"])
+    _ = (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\nversion = "0"\ndependencies = ["alembic"]\n'
+    )
+    _, skipped = build_checks(_cfg(tmp_path), "pr")
+    by_name = {item.name: item for item in skipped}
+    assert by_name["alembic-check"].status == Status.SKIPPED
+    assert "no runnable migration config" in (by_name["alembic-check"].note or "")

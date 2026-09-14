@@ -948,3 +948,23 @@ def test_pysa_provider_error_degrades() -> None:
     }
     _reconcile_pysa_provider(by_name)
     assert by_name["pysa"].status == Status.ERROR
+
+
+# trace:v1 id=test.tests-test-core.test-atheris-needs-native work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
+
+    from bughunt import cli as cli_module
+
+    import importlib.util
+
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name: (
+            object()
+            if name == "atheris"
+            else (None if name == "atheris.native" else real_find_spec(name))
+        ),
+    )
+    assert cli_module.atheris_available(tmp_path) is False

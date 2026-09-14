@@ -130,6 +130,7 @@ TECH_DEEP_TOOLS = [*TECH_PR_TOOLS, "clang-tidy", "infer", "pact-contracts"]
 PR_CORRECTNESS_FLOOR = [
     "coverage",
     "seam",
+    "semantic",
     "evidence",
     "packaging",
     "bugcorpus",
@@ -197,6 +198,7 @@ PYTHON_ONLY_TOOLS = {
     "atheris",
     "coverage",
     "seam",
+    "semantic",
     "evidence",
     "packaging",
     "runtime-types",
@@ -595,6 +597,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "mutmut",
                     "bugcorpus",
                     "system-ir",
+                    "semantic",
                     "tracelayer",
                     "verify-gaps",
                     "protocol",
@@ -632,6 +635,7 @@ def _default_config_raw() -> dict[str, Any]:
                     "mutmut",
                     "bugcorpus",
                     "system-ir",
+                    "semantic",
                     "tracelayer",
                     "verify-gaps",
                     "protocol",
@@ -745,7 +749,10 @@ def python_module_available(name: str) -> bool:
 
 # trace:v1 id=impl.src-bughunt-cli.atheris-available work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def atheris_available(root: Path) -> bool:
-    if python_module_available("atheris"):
+    # The pure-Python shim imports without the instrumenting native
+    # extension; harnesses then fail per-target with ModuleNotFoundError.
+    # Ready means the native module (or a built runtime tree) exists.
+    if python_module_available("atheris.native"):
         return True
     runtime = root / ".bughunt" / "runtime" / "atheris"
     return (
@@ -756,9 +763,10 @@ def atheris_available(root: Path) -> bool:
 
 
 # trace:v1 id=impl.src-bughunt-cli.ast-grep-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def ast_grep_executable() -> str | None:
+def ast_grep_executable(root: Path | None = None) -> str | None:
     """Find ast-grep without mistaking util-linux `sg` for ast-grep."""
-    direct = shutil.which("ast-grep")
+    candidates = [target_executable(root, "ast-grep")] if root is not None else []
+    direct = next((c for c in candidates if c), None) or shutil.which("ast-grep")
     if direct:
         return direct
     sg = shutil.which("sg")
@@ -1241,13 +1249,15 @@ def build_checks(
         findings_exit_codes={1},
     )
     ruff_cfg = generated_config(root, "ruff.toml")
-    ruff_cmd = _optional_cmd(executable("ruff"), ["check", *py, "--output-format=json"])
+    ruff_cmd = _optional_cmd(
+        target_executable(root, "ruff"), ["check", *py, "--output-format=json"]
+    )
     if ruff_cmd and ruff_cfg:
         ruff_cmd += ["--config", str(ruff_cfg)]
     add("ruff", "lint", ruff_cmd, parse_ruff, reason="ruff not installed")
     bp_cfg = generated_config(root, "basedpyrightconfig.json")
     bp_cmd = _optional_cmd(
-        executable("basedpyright"),
+        target_executable(root, "basedpyright"),
         ["--outputjson", "--pythonpath", sys.executable],
     )
     if bp_cmd and bp_cfg:
@@ -1262,20 +1272,20 @@ def build_checks(
     )
     mypy_cfg = generated_config(root, "mypy.ini")
     mypy_cmd = _optional_cmd(
-        executable("mypy"),
+        target_executable(root, "mypy"),
         [*py, "--show-error-codes", "--no-pretty", "--no-color-output"],
     )
     if mypy_cmd and mypy_cfg:
         mypy_cmd += ["--config-file", str(mypy_cfg)]
     add("mypy", "types", mypy_cmd, reason="mypy not installed")
     ty_cfg = generated_config(root, "ty.toml")
-    ty_cmd = _optional_cmd(executable("ty"), ["check", *py])
+    ty_cmd = _optional_cmd(target_executable(root, "ty"), ["check", *py])
     if ty_cmd and ty_cfg:
         ty_cmd += ["--config-file", str(ty_cfg)]
     add("ty", "types", ty_cmd, reason="ty not installed", findings_exit_codes={1})
     pyrefly_cfg = generated_config(root, "pyrefly.toml")
     pyrefly_cmd = _optional_cmd(
-        executable("pyrefly"),
+        target_executable(root, "pyrefly"),
         ["check", "--output-format=json"],
     )
     if pyrefly_cmd and pyrefly_cfg:
@@ -1289,7 +1299,9 @@ def build_checks(
         findings_exit_codes={1},
     )
     pylint_cfg = generated_config(root, "pylintrc")
-    pylint_cmd = _optional_cmd(executable("pylint"), [*py, "--output-format=json2"])
+    pylint_cmd = _optional_cmd(
+        target_executable(root, "pylint"), [*py, "--output-format=json2"]
+    )
     if pylint_cmd and pylint_cfg:
         pylint_cmd += ["--rcfile", str(pylint_cfg)]
     add(
@@ -1316,7 +1328,7 @@ def build_checks(
     else:
         pylint_tests_cfg = generated_config(root, "pylintrc-tests")
         pylint_tests_cmd = _optional_cmd(
-            executable("pylint"),
+            target_executable(root, "pylint"),
             [*tests, "--output-format=json2"],
         )
         if pylint_tests_cmd and pylint_tests_cfg:
@@ -1355,7 +1367,7 @@ def build_checks(
         findings_exit_codes={1},
     )
 
-    complexipy = executable("complexipy")
+    complexipy = target_executable(root, "complexipy")
     complexipy_cmd = (
         [
             complexipy,
@@ -1380,7 +1392,7 @@ def build_checks(
         findings_exit_codes={1},
     )
 
-    radon = executable("radon")
+    radon = target_executable(root, "radon")
     radon_cmd = [radon, "mi", "-j", "-s", *src] if radon else None
     add(
         "radon",
@@ -1391,7 +1403,7 @@ def build_checks(
         findings_exit_codes=set(),
     )
 
-    lizard = executable("lizard")
+    lizard = target_executable(root, "lizard")
     lizard_cmd = (
         [
             lizard,
@@ -1429,7 +1441,7 @@ def build_checks(
         "vulture",
         "dead-code",
         _optional_cmd(
-            executable("vulture"),
+            target_executable(root, "vulture"),
             [
                 *py,
                 "--min-confidence",
@@ -1441,12 +1453,14 @@ def build_checks(
         findings_exit_codes={3},
     )
     bandit_cfg = generated_config(root, "bandit.yaml")
-    bandit_cmd = _optional_cmd(executable("bandit"), ["-r", *src, "-f", "json", "-q"])
+    bandit_cmd = _optional_cmd(
+        target_executable(root, "bandit"), ["-r", *src, "-f", "json", "-q"]
+    )
     if bandit_cmd and bandit_cfg:
         bandit_cmd += ["-c", str(bandit_cfg)]
     add("bandit", "security", bandit_cmd, parse_bandit, reason="bandit not installed")
     deptry_cmd = _optional_cmd(
-        executable("deptry"),
+        target_executable(root, "deptry"),
         [
             *src,
             "--extend-exclude",
@@ -1462,7 +1476,7 @@ def build_checks(
         parse_deptry,
         reason="deptry not installed",
     )
-    import_linter = executable("lint-imports", "import-linter")
+    import_linter = target_executable(root, "lint-imports", "import-linter")
     generated_import_cfg = generated_config(root, "importlinter.toml")
     if import_linter and generated_import_cfg:
         add(
@@ -1496,7 +1510,7 @@ def build_checks(
             ),
         )
 
-    sg = ast_grep_executable()
+    sg = ast_grep_executable(root)
     sgconfig = generated_config(root, "sgconfig.yml")
     if not sgconfig:
         sgconfig = next(
@@ -1520,7 +1534,7 @@ def build_checks(
         reason="ast-grep missing or no generated/project sgconfig.yml",
     )
 
-    semgrep = executable("semgrep")
+    semgrep = target_executable(root, "semgrep")
     semgrep_settings = cfg.raw.get("semgrep", {})
     requested_semgrep = list(semgrep_settings.get("configs", []))
     # `auto` requires Semgrep's metrics/inventory exchange. BugHunt keeps metrics
@@ -1576,7 +1590,7 @@ def build_checks(
         findings_exit_codes=set(range(1, 256)),
     )
 
-    crosshair = executable("crosshair")
+    crosshair = target_executable(root, "crosshair")
     crosshair_cmd = None
     if crosshair:
         per_path = "8" if profile == "all" else ("5" if profile == "deep" else "3")
@@ -1731,6 +1745,21 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
+        if "semantic" in wanted:
+            add(
+                "semantic",
+                "semantic-contracts",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.semantic_scan",
+                    str(root),
+                    ",".join(cfg.source_paths),
+                ],
+                lambda o, e, c: parse_bughunt_helper("semantic", o, e, c),
+                findings_exit_codes={1},
+            )
+
         if "packaging" in wanted:
             add(
                 "packaging",
@@ -1780,7 +1809,7 @@ def build_checks(
             )
 
         if "pydoclint" in wanted:
-            pd = executable("pydoclint")
+            pd = target_executable(root, "pydoclint")
             add(
                 "pydoclint",
                 "doc-contracts",
@@ -1790,7 +1819,7 @@ def build_checks(
             )
 
         if "refurb" in wanted:
-            rb = executable("refurb")
+            rb = target_executable(root, "refurb")
             add(
                 "refurb",
                 "correctness-modernization",
@@ -1896,7 +1925,7 @@ def build_checks(
             )
 
         if "hypofuzz" in wanted:
-            hypothesis_cli = executable("hypothesis")
+            hypothesis_cli = target_executable(root, "hypothesis")
             budget = int(
                 cfg.raw.get("hypofuzz", {}).get(
                     f"{profile}_seconds",
@@ -1934,7 +1963,7 @@ def build_checks(
             )
 
         if "griffe" in wanted:
-            griffe = executable("griffe")
+            griffe = target_executable(root, "griffe")
             baseline = technology.git_baseline
             packages = python_package_names(root, cfg.source_paths)
             if griffe and baseline and packages:
@@ -1979,7 +2008,7 @@ def build_checks(
             )
 
         if "python-matrix" in wanted:
-            nox = executable("nox")
+            nox = target_executable(root, "nox")
             noxfile = root / ".bughunt" / "generated" / "noxfile.py"
             add(
                 "python-matrix",
@@ -2074,6 +2103,9 @@ def build_checks(
                 and target_has_module(_target_py, "pytest_benchmark")
             ):
                 cmd = [pytest, "-q", "--benchmark-only", "--benchmark-autosave"]
+                # xdist auto-activates --benchmark-disable, which conflicts
+                # with --benchmark-only; benchmarks also need serial timing.
+                cmd += ["-p", "no:xdist"]
                 if (root / ".benchmarks").exists():
                     regression = int(
                         cfg.raw.get("performance", {}).get(
@@ -2102,7 +2134,7 @@ def build_checks(
                 )
 
         if "pyanalyze" in wanted:
-            pa = executable("pyanalyze")
+            pa = target_executable(root, "pyanalyze")
             allowed = bool(
                 cfg.raw.get("execution_imports", {}).get(
                     "allow_importing_analyzers",
@@ -2296,7 +2328,7 @@ def build_checks(
             if t.kind == "schemathesis" and t.runnable and t.command
         ]
         added = 0
-        st = executable("st", "schemathesis")
+        st = target_executable(root, "st", "schemathesis")
         schemathesis_ready = bool(st) or python_module_available("schemathesis")
         for target in explicit:
             if not st:
@@ -3111,10 +3143,17 @@ def build_checks(
                 )
 
     alembic = project_executable(root, "alembic")
+    alembic_configured = (root / "alembic.ini").exists() or (
+        root / "alembic" / "env.py"
+    ).exists()
     add_technology(
         "alembic-check",
-        [alembic, "check"] if alembic else None,
-        reason="Alembic project detected but alembic is not installed",
+        [alembic, "check"] if alembic and alembic_configured else None,
+        reason="Alembic project detected but alembic is not installed"
+        if alembic_configured
+        else "Alembic dependency detected but no runnable migration "
+        "config (alembic.ini or alembic/env.py); refusing to fail a "
+        "check that cannot execute",
         findings_exit_codes={1},
     )
 
@@ -3692,7 +3731,7 @@ async def run_mutmut(
 ) -> Result:
     if "mutmut" not in cfg.tools(profile):
         return Result("mutmut", "mutation", Status.SKIPPED, note="not in profile")
-    mm = executable("mutmut")
+    mm = target_executable(cfg.root, "mutmut")
     if not mm:
         return Result("mutmut", "mutation", Status.SKIPPED, note="mutmut not installed")
     if not cfg.raw.get("mutmut", {}).get("enabled", True):
@@ -4945,7 +4984,7 @@ def doctor(cfg: Config) -> int:
                 (label, "N/A", "no first-party Python capability detected"),
             )
             return
-        path = executable(*names)
+        path = target_executable(cfg.root, *names)
         engine_rows.append(
             (label, "READY" if path else "MISSING", path or "not on PATH"),
         )
@@ -5026,7 +5065,7 @@ def doctor(cfg: Config) -> int:
     cli_row("bandit", "bandit", python_only=True)
     cli_row("deptry", "deptry", python_only=True)
     cli_row("import-linter", "lint-imports", python_only=True)
-    ag = ast_grep_executable()
+    ag = ast_grep_executable(cfg.root)
     engine_rows.append(("ast-grep", "READY" if ag else "MISSING", ag or "not on PATH"))
     cli_row("semgrep", "semgrep")
     cli_row("CodeQL", "codeql", python_only=True)
@@ -5398,7 +5437,7 @@ def doctor(cfg: Config) -> int:
         ),
         install_name="sqlglot",
     )
-    pynguin = executable("pynguin")
+    pynguin = target_executable(cfg.root, "pynguin")
     guarded.add_row(
         "Pynguin",
         "[green]READY[/]" if pynguin else "[yellow]GUARDED[/]",
@@ -5436,7 +5475,7 @@ def doctor(cfg: Config) -> int:
             "and shfmt does not affect correctness health"
         ),
     )
-    asv = executable("asv")
+    asv = target_executable(cfg.root, "asv")
     guarded.add_row(
         "asv",
         "[green]READY[/]" if asv else "[dim]ALTERNATIVE[/]",
@@ -5445,7 +5484,7 @@ def doctor(cfg: Config) -> int:
             "is the default regression ring"
         ),
     )
-    xdoc = executable("xdoctest")
+    xdoc = target_executable(cfg.root, "xdoctest")
     guarded.add_row(
         "xdoctest",
         "[green]READY[/]" if xdoc else "[dim]ALTERNATIVE[/]",

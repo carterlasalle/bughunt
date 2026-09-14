@@ -161,18 +161,21 @@ def scan(root: Path, profile: str) -> list[dict[str, object]]:
     for item in data.get("findings", []) or []:
         if not isinstance(item, dict):
             continue
-        provenance = "/".join(
-            str(item.get(key, "?")) for key in ("family", "detector", "engine", "state")
-        )
+        detector = str(item.get("detector_id", "?"))
+        family = str(item.get("bug_family", "?"))
+        cases = item.get("bug_cases", [])
+        case = str(cases[0]) if isinstance(cases, list) and cases else "?"
+        provenance = f"{family}/{detector}"
+        line = item.get("start_line")
         out.append(
             {
                 "tool": "bugcorpus",
-                "code": str(item.get("detector") or item.get("bugcase") or "BHBUGC002"),
+                "code": detector if detector != "?" else "BHBUGC002",
                 "path": item.get("path"),
-                "line": item.get("line"),
+                "line": line if isinstance(line, int) else None,
                 "severity": str(item.get("severity", "warning")),
                 "message": (
-                    f"[{provenance}] bug {item.get('bugcase', '?')}: "
+                    f"[{provenance}] bug {case}: "
                     f"{item.get('message', 'historical-bug detector hit')}"
                 ),
             },

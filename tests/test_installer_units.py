@@ -129,3 +129,30 @@ def test_pysa_provider_probe(tmp_path: Path) -> None:
     binary.mkdir(parents=True)
     _ = (binary / "pyrefly").write_text("")
     assert _pysa_provider_present(runtime) is True
+
+
+# trace:v1 id=test.tests-test-installer-units.test-run-kills-hung-command work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_run_kills_hung_command(monkeypatch, tmp_path: Path) -> None:
+    import bughunt.installers as installers
+
+    monkeypatch.setattr(installers, "_INSTALL_CMD_TIMEOUT_S", 1)
+    result = installers._run(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        tmp_path,
+        lambda line: None,
+    )
+    assert result.status == "ERROR"
+    assert "hung past" in result.note
+
+
+# trace:v1 id=test.tests-test-installer-units.test-inside-target-venv work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_inside_target_venv(tmp_path: Path) -> None:
+    from bughunt.installers import _inside_project_environment
+
+    bindir = tmp_path / ".venv" / "bin"
+    bindir.mkdir(parents=True)
+    tool = bindir / "ruff"
+    tool.write_text("#!/bin/sh\n")
+    tool.chmod(0o755)
+    assert _inside_project_environment(str(tool), tmp_path) is True
+    assert _inside_project_environment(str(tool)) is False

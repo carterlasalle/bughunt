@@ -1317,6 +1317,18 @@ JS_TOOL_IGNORES = [
     ".benchmarks/**",
     ".complexipy_cache/**",
     ".import_linter_cache/**",
+    # Nested build output: root-relative `dist/**` does not match
+    # `pkg/dist/bundle.js` (probed 2026-09-15: nested dist was linted).
+    # Leading-`**/` forms are honored by ESLint flat `ignores`, knip
+    # ignoreFiles, and oxlint `--ignore-pattern` (gitignore semantics).
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/coverage/**",
+    "**/htmlcov/**",
 ]
 # Rendered inline into the ESLint templates. Patterns are matched against
 # cwd-relative paths (verified: with `--config`, ESLint resolves `ignores`

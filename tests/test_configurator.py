@@ -143,6 +143,7 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
     # ignores verbatim and oxlint takes the same list as CLI flags.
     assert ".venv/**" in JS_TOOL_IGNORES
     assert ".omp/**" in JS_TOOL_IGNORES
+    assert "**/dist/**" in JS_TOOL_IGNORES
     for text in (_eslint_config(True), _eslint_config(False)):
         assert "__BUGHUNT" not in text
         assert "import.meta.url" not in text

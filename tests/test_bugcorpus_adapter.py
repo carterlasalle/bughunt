@@ -46,15 +46,15 @@ def test_scan_normalizes_provenance(monkeypatch, tmp_path: Path) -> None:
                 {
                     "findings": [
                         {
-                            "bugcase": "BC-1",
-                            "family": "injection",
-                            "detector": "D1",
-                            "engine": "semgrep",
-                            "state": "blocking",
-                            "message": "bad",
+                            "detector_id": "D1",
+                            "bug_family": "injection",
+                            "bug_cases": ["BC-1"],
                             "path": "a.py",
-                            "line": 3,
+                            "start_line": 3,
                             "severity": "error",
+                            "confidence": "high",
+                            "message": "bad",
+                            "fingerprint": "fp1",
                         },
                         "junk",
                     ],
@@ -66,8 +66,10 @@ def test_scan_normalizes_provenance(monkeypatch, tmp_path: Path) -> None:
     assert len(findings) == 1
     item = findings[0]
     assert item["code"] == "D1"
-    assert "injection/D1/semgrep/blocking" in str(item["message"])
+    assert item["line"] == 3
+    assert "injection/D1" in str(item["message"])
     assert "BC-1" in str(item["message"])
+    assert "?" not in str(item["message"])
 
 
 def test_missing_cli_is_error_not_clean(monkeypatch, tmp_path: Path) -> None:
