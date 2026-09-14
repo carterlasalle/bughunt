@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -276,6 +277,8 @@ def _call_explicit_keys(call: ast.Call) -> set[str]:
 def _kwargs_forwards(
     tree: ast.AST,
     infos: dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]],
+    *,
+    include_unknown: bool = False,
 ) -> dict[str, str]:
     """Map wrappers to the callee they forward **kwargs to."""
     forward: dict[str, str] = {}
@@ -287,7 +290,7 @@ def _kwargs_forwards(
             for child in ast.walk(node):
                 if isinstance(child, ast.Call):
                     callee = _call_name(child.func).rsplit(".", 1)[-1]
-                    if callee in infos and any(
+                    if (callee in infos or include_unknown) and any(
                         kw.arg is None
                         and isinstance(kw.value, ast.Name)
                         and kw.value.id == kwarg
@@ -301,6 +304,8 @@ def _kwargs_forwards(
 def _kwargs_call_keys(
     tree: ast.AST,
     infos: dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]],
+    *,
+    include_unknown: bool = False,
 ) -> dict[str, list[tuple[int, set[str]]]]:
     """Map callees to the explicit keyword keys each call site passes."""
     call_keys: dict[str, list[tuple[int, set[str]]]] = {}
@@ -308,7 +313,7 @@ def _kwargs_call_keys(
         if isinstance(node, ast.Call):
             callee = _call_name(node.func).rsplit(".", 1)[-1]
             keys = _call_explicit_keys(node)
-            if callee in infos and keys:
+            if (callee in infos or include_unknown) and keys:
                 call_keys.setdefault(callee, []).append((node.lineno, keys))
     return call_keys
 
@@ -350,6 +355,140 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                             f"**kwargs forwarding chain {root_name} -> {current} can "
                             f"forward key(s) not accepted by terminal signature: "
                             f"{', '.join(unexpected)}"
+                        ),
+                        rel,
+                        line,
+                        "error",
+                    ),
+                )
+    return findings
+
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-graph-callees work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _graph_callees(root: Path) -> dict[str, tuple[str, str]]:
+    """Unambiguous cross-file callee targets from the cached System IR.
+
+    Maps callee short name -> (target file, target symbol) using SCC `calls`
+    edges, but only when the name resolves to exactly one target. Ambiguous
+    names stay unresolved: a wrong-file signature is worse than silence.
+    The cache is used only when its key matches the current tree; a stale
+    graph never produces findings.
+    """
+    from bughunt.system_ir_adapter import _cache_key, _cli
+
+    cli = _cli()
+    if cli is None:
+        return {}
+    cache = root / ".bughunt" / "cache" / "system-ir.json"
+    if not cache.is_file():
+        return {}
+    try:
+        payload = json.loads(cache.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if payload.get("cache_key") != _cache_key(root, cli):
+        return {}
+    data = payload.get("system_ir")
+    if not isinstance(data, dict):
+        return {}
+    relationships = data.get("relationships", [])
+    if not isinstance(relationships, list):
+        return {}
+    candidates: dict[str, set[tuple[str, str]]] = {}
+    for rel in relationships:
+        if not isinstance(rel, dict) or rel.get("predicate") != "calls":
+            continue
+        subject, target = rel.get("subject"), rel.get("object")
+        if not isinstance(subject, str) or not isinstance(target, str):
+            continue
+        marker = "/symbol/"
+        if marker not in target:
+            continue
+        # Symbol ids look like .../symbol/<path>/<name>; recover both.
+        _, _, rest = target.partition(marker)
+        if "/" not in rest:
+            continue
+        file_path, _, symbol_name = rest.rpartition("/")
+        candidate = (root / file_path).resolve()
+        try:
+            rel_path = candidate.relative_to(root.resolve()).as_posix()
+        except ValueError:
+            continue
+        candidates.setdefault(symbol_name, set()).add((rel_path, symbol_name))
+    return {
+        name: next(iter(targets))
+        for name, targets in candidates.items()
+        if len(targets) == 1
+    }
+
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-terminal-signature work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _terminal_signature(
+    root: Path, cache: dict[str, ast.AST], file: str, name: str
+) -> tuple[set[str], bool] | None:
+    """Exact (params, has_kwargs) for a function read from source, cached."""
+    if file not in cache:
+        try:
+            cache[file] = ast.parse((root / file).read_text(errors="replace"))
+        except (OSError, SyntaxError):
+            return None
+    for node in ast.walk(cache[file]):
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ):
+            params = {
+                arg.arg
+                for arg in [
+                    *node.args.posonlyargs,
+                    *node.args.args,
+                    *node.args.kwonlyargs,
+                ]
+                if arg.arg not in {"self", "cls"}
+            }
+            return params, node.args.kwarg is not None
+    return None
+
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-drift-graph work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _kwargs_drift_graph(
+    tree: ast.AST, rel: str, root: Path, graph: dict[str, tuple[str, str]]
+) -> list[SeamFinding]:
+    """BHSEAM002 across one file boundary via SCC call edges."""
+    infos = _function_infos(tree)
+    forward = _kwargs_forwards(tree, infos, include_unknown=True)
+    call_keys = _kwargs_call_keys(tree, infos, include_unknown=True)
+    findings: list[SeamFinding] = []
+    sources: dict[str, ast.AST] = {}
+    for root_name, calls in call_keys.items():
+        current = root_name
+        visited: set[str] = set()
+        while current in forward and current not in visited:
+            visited.add(current)
+            current = forward[current]
+        if current in infos:
+            continue
+        target = graph.get(current)
+        if target is None:
+            continue
+        target_file, target_name = target
+        signature = _terminal_signature(root, sources, target_file, target_name)
+        if signature is None:
+            continue
+        allowed, has_kwargs = signature
+        if has_kwargs:
+            continue
+        for line, keys in calls:
+            unexpected = sorted(keys - allowed)
+            if unexpected:
+                findings.append(
+                    SeamFinding(
+                        "BHSEAM002",
+                        (
+                            f"**kwargs forwarding chain {root_name} -> "
+                            f"{target_file}:{target_name} can forward key(s) "
+                            f"not accepted by the cross-file terminal "
+                            f"signature: {', '.join(unexpected)}"
                         ),
                         rel,
                         line,
@@ -741,6 +880,7 @@ def scan_seams(
     test_paths: Iterable[str],
 ) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
+    graph = _graph_callees(root)
     for path in _iter_python(root, source_paths):
         try:
             tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
@@ -749,6 +889,7 @@ def scan_seams(
             continue
         rel = _rel(root, path)
         findings.extend(_kwargs_drift(tree, rel))
+        findings.extend(_kwargs_drift_graph(tree, rel, root, graph))
         findings.extend(_producer_consumer_key_drift(tree, rel))
         findings.extend(_external_http_without_validation(tree, rel))
     findings.extend(_schema_drift(root, source_paths))
