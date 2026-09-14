@@ -206,6 +206,7 @@ class Finding:
     severity: str = "error"
     fixable: bool = False
     fix_safety: str | None = None
+    accepted: bool = False
     fix_preview: str | None = None
 
     # trace:v1 id=impl.src-bughunt-cli.finding.fingerprint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -249,6 +250,216 @@ class Finding:
     @property
     def finding_id(self) -> str:
         return f"BH-{self.fingerprint.upper()}"
+
+
+# trace:v1 id=impl.src-bughunt-cli.debt-ledger work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@dataclass(slots=True)
+class DebtEntry:
+    """One accepted finding-debt record from debt.toml.
+
+    Accepted findings stay visible in the report's debt section but leave
+    the fix queue, top signals, hotspots, and risk map, so known debt
+    cannot habituate reviewers into missing new findings. Growth beyond
+    the recorded count surfaces in `debt review`.
+    """
+
+    signal: str
+    paths: list[str]
+    count: int
+    reason: str
+
+
+# trace:v1 id=impl.src-bughunt-cli.load-debt-ledger work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def load_debt_ledger(root: Path) -> list[DebtEntry]:
+    """Load debt.toml; fail open (mark nothing) with a loud warning."""
+    path = root / "debt.toml"
+    if not path.exists():
+        return []
+    try:
+        data = tomllib.loads(path.read_text())
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        print(f"warning: ignoring unreadable debt.toml: {exc}", file=sys.stderr)
+        return []
+    entries: list[DebtEntry] = []
+    raw = data.get("debt", [])
+    if not isinstance(raw, list):
+        print("warning: ignoring debt.toml with non-list debt", file=sys.stderr)
+        return []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            entries.append(
+                DebtEntry(
+                    signal=str(item["signal"]),
+                    paths=[str(p) for p in item.get("paths", [])],
+                    count=int(item.get("count", 0)),
+                    reason=str(item.get("reason", "")),
+                )
+            )
+        except (KeyError, ValueError, TypeError):
+            print(
+                f"warning: skipping malformed debt entry: {item!r:.80}", file=sys.stderr
+            )
+    return entries
+
+
+# trace:v1 id=impl.src-bughunt-cli.mark-accepted work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def mark_accepted(results: list[Result], ledger: list[DebtEntry]) -> dict[str, int]:
+    """Flag ledger-matching findings; return live counts per entry index."""
+    live: dict[str, int] = {}
+    for result in results:
+        for finding in result.findings:
+            for i, entry in enumerate(ledger):
+                if (
+                    finding.signal_key == entry.signal
+                    and (finding.path or "") in entry.paths
+                ):
+                    finding.accepted = True
+                    live[str(i)] = live.get(str(i), 0) + 1
+                    break
+    return live
+
+
+# trace:v1 id=impl.src-bughunt-cli.debt-report work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def debt_report(ledger: list[DebtEntry], results: list[Result]) -> list[dict[str, Any]]:
+    """Per-entry recorded-vs-live counts; growth means new findings."""
+    rows: list[dict[str, Any]] = []
+    for entry in ledger:
+        live = sum(
+            1
+            for result in results
+            for finding in result.findings
+            if finding.accepted
+            and finding.signal_key == entry.signal
+            and (finding.path or "") in entry.paths
+        )
+        rows.append(
+            {
+                "signal": entry.signal,
+                "paths": list(entry.paths),
+                "recorded": entry.count,
+                "live": live,
+                "delta": live - entry.count,
+                "reason": entry.reason,
+            }
+        )
+    return rows
+
+
+# trace:v1 id=impl.src-bughunt-cli.debt-latest-report work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _debt_latest_report(root: Path) -> Path | None:
+    """Newest report dir containing a report.json, if any."""
+    reports = root / REPORT_DIR
+    if not reports.exists():
+        return None
+    candidates = sorted(
+        (p for p in reports.iterdir() if (p / "report.json").exists()),
+        key=lambda p: p.stat().st_mtime,
+    )
+    return candidates[-1] if candidates else None
+
+
+# trace:v1 id=impl.src-bughunt-cli.debt-snapshot work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def debt_snapshot(root: Path, signals: list[str], reason: str) -> int:
+    """Record per-signal-per-file counts from the latest report into debt.toml."""
+    if not signals:
+        print("error: snapshot needs at least one --signal", file=sys.stderr)
+        return 2
+    if not reason:
+        print("error: snapshot needs a --reason (why is this debt?)", file=sys.stderr)
+        return 2
+    report_dir = _debt_latest_report(root)
+    if report_dir is None:
+        print("error: no report.json found; run a scan first", file=sys.stderr)
+        return 1
+    report = json.loads((report_dir / "report.json").read_text())
+    counts: dict[tuple[str, str], int] = {}
+    for result in report.get("results", []):
+        for item in result.get("findings", []) or []:
+            finding = Finding(
+                tool=str(item.get("tool", "")),
+                message=str(item.get("message", "")),
+                path=item.get("path"),
+                line=item.get("line"),
+                column=item.get("column"),
+                code=item.get("code"),
+                severity=str(item.get("severity", "error")),
+            )
+            if finding.signal_key in signals:
+                key = (finding.signal_key, finding.path or "")
+                counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        print("no findings match the given signals; nothing recorded")
+        return 1
+    ledger = load_debt_ledger(root)
+    wanted = set(signals)
+    ledger = [e for e in ledger if e.signal not in wanted]
+    for (signal, path), count in sorted(counts.items()):
+        ledger.append(
+            DebtEntry(signal=signal, paths=[path], count=count, reason=reason)
+        )
+    lines = [
+        "# Accepted finding debt. Entries here stay visible in the report's",
+        "# debt section but leave the fix queue, top signals, hotspots, and",
+        "# risk map. Growth beyond the recorded count surfaces in `debt review`.",
+        "# Re-snapshot with `bughunt debt snapshot`; inspect with `bughunt debt review`.",
+        "",
+    ]
+    for entry in ledger:
+        lines += [
+            "[[debt]]",
+            f"signal = {entry.signal!r}",
+            f"paths = {[entry.paths[0]]!r}"
+            if len(entry.paths) == 1
+            else f"paths = {entry.paths!r}",
+            f"count = {entry.count}",
+            f"reason = {entry.reason!r}",
+            "",
+        ]
+    (root / "debt.toml").write_text("\n".join(lines))
+    print(f"recorded {len(counts)} debt entries from {report_dir.name}")
+    return 0
+
+
+# trace:v1 id=impl.src-bughunt-cli.debt-review work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def debt_review(root: Path) -> int:
+    """Diff the ledger against the latest report; exit 1 on growth."""
+    ledger = load_debt_ledger(root)
+    if not ledger:
+        print("no debt recorded in debt.toml")
+        return 0
+    report_dir = _debt_latest_report(root)
+    if report_dir is None:
+        print("error: no report.json found; run a scan first", file=sys.stderr)
+        return 1
+    report = json.loads((report_dir / "report.json").read_text())
+    live: dict[tuple[str, str], int] = {}
+    for result in report.get("results", []):
+        for item in result.get("findings", []) or []:
+            finding = Finding(
+                tool=str(item.get("tool", "")),
+                message=str(item.get("message", "")),
+                path=item.get("path"),
+                line=item.get("line"),
+                column=item.get("column"),
+                code=item.get("code"),
+                severity=str(item.get("severity", "error")),
+            )
+            key = (finding.signal_key, finding.path or "")
+            live[key] = live.get(key, 0) + 1
+    grew = 0
+    for entry in ledger:
+        for path in entry.paths:
+            current = live.get((entry.signal, path), 0)
+            delta = current - entry.count
+            state = "GREW" if delta > 0 else ("SHRANK" if delta < 0 else "OK")
+            if delta > 0:
+                grew += 1
+            print(
+                f"{state}: {entry.signal} @ {path} recorded={entry.count} live={current}"
+            )
+    return 1 if grew else 0
 
 
 @dataclass(slots=True)
@@ -1744,6 +1955,8 @@ def type_disagreement_result(results: list[Result]) -> Result | None:
         if result.name not in checker_names:
             continue
         for f in result.findings:
+            if f.accepted:
+                continue
             if f.path and f.line:
                 by_location.setdefault((f.path, f.line), {}).setdefault(
                     result.name,
@@ -1792,6 +2005,8 @@ def correlated_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     buckets: dict[tuple[str, int], list[Finding]] = {}
     for r in results:
         for f in r.findings:
+            if f.accepted:
+                continue
             if f.path and f.line:
                 buckets.setdefault((f.path, f.line), []).append(f)
     out: list[dict[str, Any]] = []
@@ -1833,6 +2048,8 @@ def logical_issue_groups(results: list[Result]) -> list[dict[str, Any]]:
     buckets: dict[tuple[str, int, str], list[tuple[Result, Finding]]] = {}
     for result in results:
         for finding in result.findings:
+            if finding.accepted:
+                continue
             if finding.path and finding.line:
                 key = (
                     finding.path,
@@ -4544,6 +4761,8 @@ def signal_groups(results: list[Result]) -> list[dict[str, Any]]:
     grouped: dict[str, list[Finding]] = {}
     for result in results:
         for finding in result.findings:
+            if finding.accepted:
+                continue
             grouped.setdefault(finding.signal_key, []).append(finding)
     out: list[dict[str, Any]] = []
     for key, findings in grouped.items():
@@ -4585,10 +4804,13 @@ def signal_label(group: dict[str, Any], max_len: int = 88) -> str:
     return label if len(label) <= max_len else label[: max_len - 1] + "…"
 
 
+# trace:v1 id=impl.src-bughunt-cli.hotspot-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def hotspot_files(results: list[Result]) -> list[tuple[str, int]]:
     counter: Counter[str] = Counter()
     for result in results:
         for finding in result.findings:
+            if finding.accepted:
+                continue
             if finding.path:
                 counter[finding.path] += 1
     return counter.most_common(20)
@@ -4597,7 +4819,10 @@ def hotspot_files(results: list[Result]) -> list[tuple[str, int]]:
 # trace:v1 id=impl.src-bughunt-cli.autofix-summary work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def autofix_summary(results: list[Result]) -> dict[str, Any]:
     fixable = [
-        finding for result in results for finding in result.findings if finding.fixable
+        finding
+        for result in results
+        for finding in result.findings
+        if finding.fixable and not finding.accepted
     ]
     safe = [
         finding for finding in fixable if (finding.fix_safety or "").lower() == "safe"
@@ -4641,6 +4866,8 @@ def agent_queue(results: list[Result]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for result in results:
         for finding in result.findings:
+            if finding.accepted:
+                continue
             verify = (
                 command_by_tool.get(result.name)
                 or command_by_tool.get(finding.tool)
@@ -4732,6 +4959,8 @@ def risk_map(results: list[Result]) -> list[dict[str, Any]]:
     }
     for result in results:
         for f in result.findings:
+            if f.accepted:
+                continue
             if not f.path:
                 continue
             row = by_file.setdefault(
@@ -4886,7 +5115,9 @@ def render_terminal(
             note = f"{where} {first.message}".strip()
             if len(note) > 96:
                 note = note[:93] + "..."
-        fix_count = sum(1 for finding in r.findings if finding.fixable)
+        fix_count = sum(
+            1 for finding in r.findings if finding.fixable and not finding.accepted
+        )
         table.add_row(
             Text(glyph, style=status_style(r.status)),
             r.name,
@@ -5040,9 +5271,17 @@ def write_reports(
     correlations = correlated_issue_groups(results)
     logical_issues = logical_issue_groups(results)
     risks = risk_map(results)
+    ledger = load_debt_ledger(cfg.root)
+    mark_accepted(results, ledger)
+    debt = debt_report(ledger, results)
+    accepted_total = sum(
+        1 for result in results for finding in result.findings if finding.accepted
+    )
     odc_counts: Counter[str] = Counter()
     for result in results:
         for finding in result.findings:
+            if finding.accepted:
+                continue
             odc_counts[odc_class(result.category, finding)] += 1
     payload: dict[str, Any] = {
         "schema_version": 2,
@@ -5059,6 +5298,7 @@ def write_reports(
             "skipped": sum(r.status == Status.SKIPPED for r in results),
             "not_applicable": sum(r.status == Status.NA for r in results),
             "findings": sum(r.count for r in results),
+            "accepted": accepted_total,
             "distinct_signals": len(groups),
             "autofixable": fixes["total"],
             "safe_autofixable": fixes["safe"],
@@ -5081,6 +5321,7 @@ def write_reports(
         "top_signals": groups,
         "hotspots": [{"path": p, "count": c} for p, c in hotspots],
         "agent_queue": queue,
+        "debt": debt,
         "results": [result_to_dict(r) for r in results],
     }
 
@@ -5513,6 +5754,26 @@ exploration.
             "_No normalized findings from defenses that successfully executed._",
             "",
         ]
+    lines += ["## Accepted debt", ""]
+    if debt:
+        lines += [
+            "_Known debt, excluded from the fix queue and top signals. "
+            "A positive delta means new findings since the snapshot — investigate._",
+            "",
+            "| Signal | Files | Recorded | Live | Delta | Reason |",
+            "|---|---|---:|---:|---:|---|",
+        ]
+        for row in debt:
+            files = ", ".join(f"`{p}`" for p in row["paths"][:3])
+            if len(row["paths"]) > 3:
+                files += f" (+{len(row['paths']) - 3} more)"
+            lines.append(
+                f"| `{row['signal']}` | {files} | {row['recorded']} "
+                f"| {row['live']} | {row['delta']:+d} | {row['reason']} |"
+            )
+        lines += [""]
+    else:
+        lines += ["_No accepted debt recorded in debt.toml._", ""]
     lines += ["## Execution failures / unavailable defenses", ""]
     for r in results:
         if r.status in {Status.ERROR, Status.SKIPPED}:
@@ -6597,6 +6858,7 @@ async def run_all(
             live.update(progress.render(), refresh=True)
 
     canonicalize_findings(cfg.root, results)
+    mark_accepted(results, load_debt_ledger(cfg.root))
     if "type-disagreement" in effective_tools:
         disagreement = type_disagreement_result(results)
         if disagreement is not None:
@@ -6760,6 +7022,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         "doctor",
         help="show available defenses and missing configuration",
     )
+    debt_p = sub.add_parser(
+        "debt",
+        help="snapshot or review accepted finding debt",
+    )
+    debt_sub = debt_p.add_subparsers(dest="debt_command", required=True)
+    snap_p = debt_sub.add_parser(
+        "snapshot",
+        help="record current findings as accepted debt in debt.toml",
+    )
+    _ = snap_p.add_argument("--signal", action="append", default=[])
+    _ = snap_p.add_argument("--reason", default="")
+    _ = debt_sub.add_parser(
+        "review",
+        help="diff debt.toml against the latest report",
+    )
 
     args = parser.parse_args(argv)
     root = args.root.resolve()
@@ -6770,6 +7047,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "doctor":
         return doctor(cfg)
+    if args.command == "debt":
+        if args.debt_command == "snapshot":
+            return debt_snapshot(root, list(args.signal or []), str(args.reason or ""))
+        return debt_review(root)
 
     if args.command == "configure":
         _ = auto_configure(cfg)

@@ -59,5 +59,6 @@ paths = [
   "uv.lock",
   ".python-version",
   "skills-lock.json",
+  "debt.toml",
 ]
 extensions = []

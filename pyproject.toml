@@ -110,6 +110,7 @@ target-version = "py311" # matches requires-python floor; keeps 3.12-only syntax
 # subprocess call carries an audited noqa or a fixed vector. RUF100 would
 # otherwise flag the PARANOID-serving noqas as unused under this config.
 # trace:v1 id=ops.ruff-select work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+[tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "S603", "S607"]
 
 [tool.ruff.lint.per-file-ignores]
