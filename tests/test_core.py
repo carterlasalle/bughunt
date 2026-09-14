@@ -89,7 +89,7 @@ def test_install_only_cli_is_wired(
 
 
 def test_text_findings_extracts_mypy_error_code() -> None:
-    from bughunt.cli import text_findings
+    from bughunt.parsers import text_findings
 
     got = text_findings(
         "mypy",
@@ -113,7 +113,7 @@ def test_import_linter_requires_real_config(tmp_path: Path) -> None:
 
 
 def test_pylint_json2_messages_are_individual_findings() -> None:
-    from bughunt.cli import parse_json_list
+    from bughunt.parsers import parse_json_list
 
     raw = (
         '{"messages":[{"type":"warning","path":"a.py","line":2,"column":0,'
@@ -286,7 +286,7 @@ def test_quick_alias_routes_fast(
 
 
 def test_deptry_parser_preserves_dependency_rule_codes() -> None:
-    from bughunt.cli import parse_deptry
+    from bughunt.parsers import parse_deptry
 
     raw = (
         "src/a.py:4:0: DEP004 'pytest' imported but declared as "
@@ -303,7 +303,7 @@ def test_pyrefly_parser_uses_named_diagnostic_instead_of_internal_negative_code(
 ):
     import json
 
-    from bughunt.cli import parse_pyrefly
+    from bughunt.parsers import parse_pyrefly
 
     raw = json.dumps(
         {
@@ -502,7 +502,7 @@ def test_ruff_fix_metadata_is_preserved() -> None:
 
 
 def test_semgrep_fix_metadata_is_preserved() -> None:
-    from bughunt.cli import parse_semgrep
+    from bughunt.parsers import parse_semgrep
 
     raw = (
         '{"results":[{"check_id":"x","path":"a.py","start":{"line":1,"col":1},'
@@ -604,20 +604,24 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 
 
 def test_complexity_parsers_preserve_tool_specific_signals() -> None:
-    from bughunt.cli import parse_complexipy, parse_lizard, parse_radon_mi
+    from bughunt.parsers import parse_complexipy, parse_lizard, parse_radon_mi
 
     complexipy = parse_complexipy("src/a.py f 17\n", "", 1)
-    assert complexipy and complexipy[0].code == "COG001"
+    assert complexipy
+    assert complexipy[0].code == "COG001"
 
     lizard = parse_lizard(
         "src/a.py:12: warning: f has 14 CCN and 90 NLOC [CCN > 10]\n",
         "",
         1,
     )
-    assert lizard and lizard[0].tool == "lizard"
+    assert lizard
+    assert lizard[0].tool == "lizard"
 
     radon = parse_radon_mi('{"src/a.py":{"mi":8.5,"rank":"C"}}', "", 0)
-    assert radon and radon[0].code == "RADON_MI" and radon[0].severity == "error"
+    assert radon
+    assert radon[0].code == "RADON_MI"
+    assert radon[0].severity == "error"
 
 
 # trace:v1 id=test.tests-test-core.test-full-alias-accepts-no-install-missing work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -714,7 +718,7 @@ def test_config_skip_opts_out_of_defenses(tmp_path: Path) -> None:
     from bughunt import cli
 
     assert cli.Config(tmp_path, {"execution": {"skip": ["pylint-tests"]}}).skip == [
-        "pylint-tests"
+        "pylint-tests",
     ]
     assert cli.Config(tmp_path, {}).skip == []
     cfg = cli.load_config(tmp_path)
@@ -879,7 +883,7 @@ def test_malformed_custom_command_skipped(tmp_path: Path) -> None:
 
     cfg = cli.load_config(tmp_path)
     cfg.raw["custom"] = {
-        "checks": [{"name": "broken", "category": "x", "command": "pytest -q"}]
+        "checks": [{"name": "broken", "category": "x", "command": "pytest -q"}],
     }
     checks, _ = cli.build_checks(cfg, "pr")
     assert not any(c.name == "custom:broken" for c in checks)
@@ -894,3 +898,26 @@ def test_mutmut_signal_groups_by_function() -> None:
     )
     assert "__mutmut_<n>" in finding.signal_key
     assert "__mutmut_12" not in finding.signal_key
+
+
+def test_pysa_provider_findings_note_without_degrade() -> None:
+    from bughunt.cli import Result, Status, _reconcile_pysa_provider
+
+    by_name = {
+        "pysa": Result("pysa", "taint", Status.PASS),
+        "pyrefly": Result("pyrefly", "types", Status.FINDINGS, note="x"),
+    }
+    _reconcile_pysa_provider(by_name)
+    assert by_name["pysa"].status == Status.PASS
+    assert "Pyrefly is findings" in (by_name["pysa"].note or "")
+
+
+def test_pysa_provider_error_degrades() -> None:
+    from bughunt.cli import Result, Status, _reconcile_pysa_provider
+
+    by_name = {
+        "pysa": Result("pysa", "taint", Status.PASS),
+        "pyrefly": Result("pyrefly", "types", Status.ERROR, note="boom"),
+    }
+    _reconcile_pysa_provider(by_name)
+    assert by_name["pysa"].status == Status.ERROR

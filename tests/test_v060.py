@@ -208,8 +208,10 @@ def test_main_pytest_seed_is_recorded_not_hard_pinned_zero(
     checks, _ = build_checks(cfg, "deep")
     canonical = next(c for c in checks if c.name == "pytest")
     randomized = next(c for c in checks if c.name == "pytest-random")
-    assert canonical.env and canonical.env["PYTHONHASHSEED"] == "17"
-    assert randomized.env and randomized.env["PYTHONHASHSEED"] != "0"
+    assert canonical.env
+    assert canonical.env["PYTHONHASHSEED"] == "17"
+    assert randomized.env
+    assert randomized.env["PYTHONHASHSEED"] != "0"
     assert "--randomly-seed=" in " ".join(randomized.command)
 
 
@@ -242,7 +244,8 @@ def test_correlations_and_risk_map_preserve_independent_evidence(
         ),
     ]
     correlated = correlated_issue_groups(results)
-    assert correlated and correlated[0]["tool_count"] == 3
+    assert correlated
+    assert correlated[0]["tool_count"] == 3
     risks = risk_map(results)
     assert risks[0]["path"] == "src/a.py"
     assert risks[0]["branch_gaps"] == 1

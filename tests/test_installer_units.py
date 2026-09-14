@@ -8,9 +8,9 @@ from pathlib import Path
 def test_run_outcomes() -> None:
     from bughunt.installers import _run
 
-    assert _run(["true"], Path("."), lambda line: None).status == "PASS"
-    assert _run(["false"], Path("."), lambda line: None).status == "ERROR"
-    missing = _run(["/nonexistent-tool-xyz"], Path("."), lambda line: None)
+    assert _run(["true"], Path(), lambda line: None).status == "PASS"
+    assert _run(["false"], Path(), lambda line: None).status == "ERROR"
+    missing = _run(["/nonexistent-tool-xyz"], Path(), lambda line: None)
     assert missing.status == "ERROR"
 
 
@@ -28,7 +28,7 @@ def test_install_cmd_dry_run_and_note_rewrite() -> None:
     dry = _install_cmd(
         "tool",
         ["true"],
-        Path("."),
+        Path(),
         dry_run=True,
         emit=lambda line: None,
         note="would install tool",
@@ -37,7 +37,7 @@ def test_install_cmd_dry_run_and_note_rewrite() -> None:
     live = _install_cmd(
         "tool",
         ["true"],
-        Path("."),
+        Path(),
         dry_run=False,
         emit=lambda line: None,
         note="would install tool",

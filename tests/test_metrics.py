@@ -42,8 +42,9 @@ async def fetch(items):
 
 
 def test_every_visitor_counts() -> None:
-    from bughunt.metrics_scan import _metric_for_function
     import ast
+
+    from bughunt.metrics_scan import _metric_for_function
 
     node = ast.parse(EVERYTHING).body[0]
     assert isinstance(node, ast.AsyncFunctionDef)

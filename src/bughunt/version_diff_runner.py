@@ -43,6 +43,11 @@ SAMPLES: dict[str, list[Any]] = {
 }
 
 
+# Upper bound (seconds) for local git object reads. History inspection must
+# never stall a scan on a pathological repository.
+_GIT_TIMEOUT_S = 10
+
+
 # trace:v1 id=impl.src-bughunt-version_diff_runner.-git-show work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _git_show(root: Path, ref: str, rel: str) -> str | None:
     if not shutil.which("git"):
@@ -57,7 +62,7 @@ def _git_show(root: Path, ref: str, rel: str) -> str | None:
         capture_output=True,
         text=True,
         check=False,
-        timeout=10,
+        timeout=_GIT_TIMEOUT_S,
     )
     return p.stdout if p.returncode == 0 else None
 
@@ -155,7 +160,7 @@ def _compile_function(node: ast.FunctionDef) -> Any:
         else {name: __builtins__.get(name) for name in SAFE_CALLS}
     )
     # Sandboxed differential harness: AST-gated to SAFE_CALLS with restricted builtins.
-    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102  # nosec B102
+    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102  # nosec B102; nosemgrep
     return ns[node.name]
 
 
@@ -213,12 +218,13 @@ def main(argv: list[str] | None = None) -> int:
                     for a in [*newf[name].args.posonlyargs, *newf[name].args.args]
                 ]:
                     continue
+                # Uncompilable sampled pairs are skipped, not findings.
                 try:
                     old_fn, new_fn = (
                         _compile_function(oldf[name]),
                         _compile_function(newf[name]),
                     )
-                except Exception:  # noqa: BLE001, S112 - differential harness: uncompilable sampled pairs are skipped, not findings
+                except Exception:  # noqa: BLE001, S112 - oracle skip  # nosec
                     continue
                 compared += 1
                 cases = itertools.product(*new_info[1])

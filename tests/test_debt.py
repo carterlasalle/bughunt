@@ -35,7 +35,7 @@ def test_mark_accepted_flags_only_matching_signal_and_path() -> None:
             "types",
             Status.FINDINGS,
             findings=[target, other_signal, other_path],
-        )
+        ),
     ]
     ledger = [
         DebtEntry(
@@ -43,7 +43,7 @@ def test_mark_accepted_flags_only_matching_signal_and_path() -> None:
             paths=["src/pkg/mod.py"],
             count=1,
             reason="test",
-        )
+        ),
     ]
     mark_accepted(results, ledger)
     assert target.accepted is True
@@ -69,8 +69,11 @@ def test_consumers_exclude_accepted_findings() -> None:
         results,
         [
             DebtEntry(
-                signal=debt.signal_key, paths=["src/pkg/mod.py"], count=1, reason="t"
-            )
+                signal=debt.signal_key,
+                paths=["src/pkg/mod.py"],
+                count=1,
+                reason="t",
+            ),
         ],
     )
     assert debt.signal_key not in {g["key"] for g in signal_groups(results)}
@@ -79,7 +82,8 @@ def test_consumers_exclude_accepted_findings() -> None:
 
 
 def test_malformed_ledger_fails_open(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     from bughunt.cli import load_debt_ledger
 
@@ -111,12 +115,12 @@ def test_snapshot_review_roundtrip(tmp_path: Path) -> None:
                                 "line": 10,
                                 "code": "misc",
                                 "severity": "error",
-                            }
+                            },
                         ],
-                    }
-                ]
-            }
-        )
+                    },
+                ],
+            },
+        ),
     )
     rc = debt_snapshot(tmp_path, [target.signal_key], "test debt")
     assert rc == 0
@@ -131,7 +135,7 @@ def test_snapshot_review_roundtrip(tmp_path: Path) -> None:
             "line": 20,
             "code": "misc",
             "severity": "error",
-        }
+        },
     )
     (report_dir / "report.json").write_text(json.dumps(report))
     assert debt_review(tmp_path) == 1
@@ -161,10 +165,10 @@ def test_snapshot_path_filter_scopes_entries(tmp_path: Path) -> None:
                     {
                         "name": "mypy",
                         "findings": [item("src/a.py", 1), item("src/b.py", 2)],
-                    }
-                ]
-            }
-        )
+                    },
+                ],
+            },
+        ),
     )
     target = _finding()
     assert debt_snapshot(tmp_path, [target.signal_key], "scoped", ["src/a.py"]) == 0

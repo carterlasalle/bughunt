@@ -1221,7 +1221,7 @@ def _openapi_server(path: Path) -> str | None:
             if isinstance(host, str) and host.split(":")[0] in {
                 "localhost",
                 "127.0.0.1",
-                "0.0.0.0",
+                "0.0.0.0",  # nosec B104 - compared, never bound
             }:
                 return f"{schemes[0]}://{host}{base}"
         except json.JSONDecodeError:

@@ -1,11 +1,9 @@
 # Copyright (c) 2026 Carter LaSalle
 """Stale tool-output cleanup (must survive read-only analyzer droppings)."""
 
-from pathlib import Path
-
-
 import os
 import stat
+from pathlib import Path
 
 from bughunt.cli import _reset_tool_dir
 

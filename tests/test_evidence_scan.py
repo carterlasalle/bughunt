@@ -3,8 +3,6 @@
 
 from pathlib import Path
 
-import pytest
-
 
 def _scan_root(tmp_path: Path, name: str, source: str):
     from bughunt.evidence_scan import scan
@@ -55,23 +53,17 @@ def test_clean_code_has_no_findings(tmp_path: Path) -> None:
     assert findings == []
 
 
-def test_main_reports_json_contract(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    import json
-
-    from bughunt.evidence_scan import main
+def test_scan_reports_clean_then_dirty_tree(tmp_path: Path) -> None:
+    from bughunt.evidence_scan import scan
 
     src = tmp_path / "src"
     _ = src.mkdir(exist_ok=True)
     _ = (src / "ok.py").write_text("def f(x: int) -> int:\n    return x\n")
-    assert main([str(tmp_path), "src"]) == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["findings"] == []
+    assert scan(tmp_path, ["src"]) == []
     _ = (src / "bad.py").write_text(
-        "def f(x: int) -> None:\n" + "    y: object = x\n" + "    z = cast(str, y)\n"
+        "def f(x: int) -> None:\n" + "    y: object = x\n" + "    z = cast(str, y)\n",
     )
-    assert main([str(tmp_path), "src"]) == 1
+    assert [f.code for f in scan(tmp_path, ["src"])] == ["BHEVID001"]
 
 
 def test_nested_duplicate_findings_deduped(tmp_path: Path) -> None:

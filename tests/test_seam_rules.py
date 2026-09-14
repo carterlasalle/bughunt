@@ -98,7 +98,7 @@ def test_wall_clock_with_freeze_marker_is_quiet(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
     _ = (src / "seams.py").write_text(
-        "import time\n\n\ndef now_ms():\n" + "    return time.time()\n"
+        "import time\n\n\ndef now_ms():\n" + "    return time.time()\n",
     )
     tests = tmp_path / "tests"
     tests.mkdir(exist_ok=True)

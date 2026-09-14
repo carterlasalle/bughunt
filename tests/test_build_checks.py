@@ -15,7 +15,7 @@ def _project(root: Path, tools: list[str]) -> None:
         '[project]\npython_paths = ["src"]\nsource_paths = ["src"]\n'
         + 'test_paths = ["tests"]\n[profiles.pr]\ntools = '
         + str(tools).replace("'", '"')
-        + "\n"
+        + "\n",
     )
 
 
@@ -30,7 +30,8 @@ def test_excluded_tools_are_not_wanted(tmp_path: Path) -> None:
     check_names = {check.name for check in checks}
     skip_names = {item.name for item in skipped}
     assert "compile" in check_names
-    assert "ruff" not in check_names and "bandit" not in check_names
+    assert "ruff" not in check_names
+    assert "bandit" not in check_names
     assert {"ruff", "bandit"} <= skip_names
 
 

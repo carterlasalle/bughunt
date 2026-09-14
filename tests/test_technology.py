@@ -329,7 +329,8 @@ def test_tsc_gated_on_tsconfig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     _, skipped = build_checks(cfg, "pr")
     tsc_skip = next(r for r in skipped if r.name == "tsc")
     assert tsc_skip.status == Status.SKIPPED
-    assert tsc_skip.note is not None and "tsconfig" in tsc_skip.note
+    assert tsc_skip.note is not None
+    assert "tsconfig" in tsc_skip.note
     (tmp_path / "tsconfig.json").write_text("{}")
     checks, _ = build_checks(cfg, "pr")
     assert any(c.name == "tsc" for c in checks)

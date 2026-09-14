@@ -65,8 +65,10 @@ def test_shipped_astgrep_rules_have_positive_negative_tests(tmp_path: Path) -> N
     tests_dir = tmp_path / ".bughunt/configs/ast-grep/tests"
     finally_test = (tests_dir / "bughunt-return-in-finally-test.yml").read_text()
     swallowed_test = (tests_dir / "bughunt-swallowed-exception-test.yml").read_text()
-    assert "valid:" in finally_test and "invalid:" in finally_test
-    assert "valid:" in swallowed_test and "invalid:" in swallowed_test
+    assert "valid:" in finally_test
+    assert "invalid:" in finally_test
+    assert "valid:" in swallowed_test
+    assert "invalid:" in swallowed_test
 
 
 # trace:v1 id=test.tests-test-configurator.test-configure-all-ships-correctness-first-semgrep-rules work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -181,7 +183,11 @@ def test_pyrefly_implicit_bool_scoped(tmp_path: Path) -> None:
 
     (tmp_path / "src").mkdir()
     text = _pyrefly_config(
-        tmp_path / ".bughunt/configs", tmp_path, ["src"], ["src"], "3.11"
+        tmp_path / ".bughunt/configs",
+        tmp_path,
+        ["src"],
+        ["src"],
+        "3.11",
     )
     assert "implicit-bool = false" in text
 

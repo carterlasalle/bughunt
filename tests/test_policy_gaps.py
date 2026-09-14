@@ -28,14 +28,14 @@ def test_assigned_name_shapes() -> None:
     tree = ast.parse("PORT = int(os.getenv('PORT', 0))\n")
     assign = tree.body[0]
     assert isinstance(assign, ast.Assign)
-    parents: dict[ast.AST, ast.AST] = {child: assign for child in ast.walk(assign)}
+    parents: dict[ast.AST, ast.AST] = dict.fromkeys(ast.walk(assign), assign)
     call = assign.value
     assert isinstance(call, ast.Call)
     assert _assigned_name(call, parents) == "PORT"
     tree2 = ast.parse("A = B = f()\n")
     multi = tree2.body[0]
     assert isinstance(multi, ast.Assign)
-    parents2: dict[ast.AST, ast.AST] = {child: multi for child in ast.walk(multi)}
+    parents2: dict[ast.AST, ast.AST] = dict.fromkeys(ast.walk(multi), multi)
     assert _assigned_name(multi.value, parents2) is None
 
 
@@ -49,7 +49,7 @@ def test_env_discovery_forms(tmp_path: Path) -> None:
         + "HOST = os.environ['APP_HOST']\n"
         + "PORT = int(os.getenv('APP_PORT', 8080))\n"
         + "FLAG = os.getenv('APP_FLAG')\n"
-        + "HOST2 = os.environ['APP_HOST']\n"
+        + "HOST2 = os.environ['APP_HOST']\n",
     )
     uses = {item.name: item for item in discover_env_uses(tmp_path, ["src"])}
     assert uses["APP_HOST"].required is True
@@ -95,7 +95,8 @@ def test_ensure_env_example_round_trip(tmp_path: Path) -> None:
     src.mkdir()
     _ = (src / "cfg.py").write_text("import os\nHOST = os.environ['APP_HOST']\n")
     path, uses = ensure_env_example(tmp_path, ["src"])
-    assert path is not None and path.exists()
+    assert path is not None
+    assert path.exists()
     assert [item.name for item in uses] == ["APP_HOST"]
     path2, _ = ensure_env_example(tmp_path, ["src"])
     assert path2 == path
@@ -141,6 +142,46 @@ def test_finally_jump_visitor_scopes() -> None:
         + "            return 2\n"
         + "        cb = lambda: 3\n"
         + "        class C:\n"
-        + "            pass\n"
+        + "            pass\n",
     )
     assert len(_finally_jump_nodes(tree)) == 2
+
+
+def test_contradictory_string_concat_checks(tmp_path: Path) -> None:
+    from bughunt.policy_scan import _scan_check_contradictions
+
+    _ = (tmp_path / "ruff.toml").write_text('[lint]\nselect = ["ISC003"]\n')
+    _ = (tmp_path / "basedpyrightconfig.json").write_text(
+        '{"reportImplicitStringConcatenation": "error"}'
+    )
+    findings = _scan_check_contradictions(tmp_path)
+    assert [item.code for item in findings] == ["BHPLC001"]
+
+
+def test_scoped_side_is_quiet(tmp_path: Path) -> None:
+    from bughunt.policy_scan import _scan_check_contradictions
+
+    _ = (tmp_path / "ruff.toml").write_text(
+        '[lint]\nselect = ["ALL"]\nignore = ["ISC003"]\n'
+    )
+    _ = (tmp_path / "basedpyrightconfig.json").write_text(
+        '{"reportImplicitStringConcatenation": "error"}'
+    )
+    assert _scan_check_contradictions(tmp_path) == []
+
+
+def test_booleaness_contradiction(tmp_path: Path) -> None:
+    from bughunt.policy_scan import _scan_check_contradictions
+
+    _ = (tmp_path / ".pylintrc").write_text(
+        "[MESSAGES CONTROL]\nenable=use-implicit-booleaness-not-comparison-to-zero\n"
+    )
+    _ = (tmp_path / "pyrefly.toml").write_text("[errors]\nimplicit-bool = true\n")
+    findings = _scan_check_contradictions(tmp_path)
+    assert [item.code for item in findings] == ["BHPLC001"]
+
+
+def test_no_configs_is_quiet(tmp_path: Path) -> None:
+    from bughunt.policy_scan import _scan_check_contradictions
+
+    assert _scan_check_contradictions(tmp_path) == []

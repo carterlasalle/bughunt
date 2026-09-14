@@ -10,7 +10,7 @@ def test_git_show_without_git_returns_none(monkeypatch) -> None:
     from bughunt.version_diff_runner import _git_show
 
     monkeypatch.setattr(shutil, "which", lambda *_a, **_k: None)
-    assert _git_show(Path("."), "HEAD", "x.py") is None
+    assert _git_show(Path(), "HEAD", "x.py") is None
 
 
 def test_git_show_failed_process_returns_none(monkeypatch, tmp_path: Path) -> None:
@@ -61,7 +61,8 @@ def test_brew_prefix_failed_probe_is_none(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_package_manager_without_managers_returns_none(
-    monkeypatch, tmp_path: Path
+    monkeypatch,
+    tmp_path: Path,
 ) -> None:
     import shutil
 
@@ -130,7 +131,8 @@ def test_reset_tool_dir_tolerates_chmod_failure(monkeypatch, tmp_path: Path) -> 
 
 
 def test_project_component_ready_without_tool_is_false(
-    monkeypatch, tmp_path: Path
+    monkeypatch,
+    tmp_path: Path,
 ) -> None:
     import shutil
 
@@ -156,13 +158,17 @@ def test_install_atheris_dry_run_never_executes(monkeypatch, tmp_path: Path) -> 
 
     monkeypatch.setattr(shutil, "which", lambda *_a, **_k: None)
     results = _install_atheris(
-        tmp_path, "/nonexistent/uv", dry_run=True, emit=lambda _line: None
+        tmp_path,
+        "/nonexistent/uv",
+        dry_run=True,
+        emit=lambda _line: None,
     )
     assert isinstance(results, list)
 
 
 def test_install_technology_tools_without_tools_stays_empty(
-    monkeypatch, tmp_path: Path
+    monkeypatch,
+    tmp_path: Path,
 ) -> None:
     import shutil
 
@@ -190,7 +196,9 @@ def test_doctor_without_tools_reports_na(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_pact_main_survives_port_exhaustion(
-    monkeypatch, tmp_path: Path, capsys
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
 ) -> None:
     import socket
     import sys
@@ -209,3 +217,34 @@ def test_pact_main_survives_port_exhaustion(
     monkeypatch.setattr(socket, "socket", _blow_up)
     assert pact_main([str(tmp_path), "mod:app", "pact.json"]) == 2
     assert "loopback port" in capsys.readouterr().out
+
+
+def test_ensure_mutmut_config_survives_backup_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import shutil
+
+    from bughunt.configurator import _ensure_mutmut_config
+
+    _ = (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\n')
+    src = tmp_path / "src"
+    src.mkdir()
+
+    def _boom(*args, **kwargs):
+        raise OSError("read-only filesystem")
+
+    monkeypatch.setattr(shutil, "copy2", _boom)
+    artifact = _ensure_mutmut_config(tmp_path, ["src"], [])
+    assert artifact.state in ("READY", "REVIEW")
+
+
+def test_target_has_module_survives_probe_crash(monkeypatch) -> None:
+    import subprocess
+
+    from bughunt.technology import target_has_module
+
+    def _boom(*args, **kwargs):
+        raise OSError("no interpreter")
+
+    monkeypatch.setattr(subprocess, "run", _boom)
+    assert target_has_module("/nonexistent/python", "json") is False

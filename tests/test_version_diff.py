@@ -92,7 +92,7 @@ def test_identical_tree_is_clean(tmp_path: Path, capsys) -> None:
     src = tmp_path / "src"
     src.mkdir()
     _ = (src / "calc.py").write_text(
-        "def add(a: int, b: int) -> int:\n    return a + b\n"
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
     )
     _git("add", ".", cwd=tmp_path)
     _git("commit", "-qm", "base", cwd=tmp_path)

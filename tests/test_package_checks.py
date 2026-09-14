@@ -15,7 +15,9 @@ def test_empty_dir_passes_with_no_checks(tmp_path: Path, capsys) -> None:
 
 
 def test_missing_tools_degrade_to_no_findings(
-    monkeypatch, tmp_path: Path, capsys
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
 ) -> None:
     import json
     import shutil
@@ -30,7 +32,9 @@ def test_missing_tools_degrade_to_no_findings(
 
 
 def test_tool_failures_become_structured_findings(
-    monkeypatch, tmp_path: Path, capsys
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
 ) -> None:
     import json
 
@@ -71,7 +75,7 @@ def test_run_failure_is_structured_error(monkeypatch) -> None:
         raise OSError("nope")
 
     monkeypatch.setattr(subprocess, "run", _boom)
-    result = package_checks._run(["tool"], Path("."))
+    result = package_checks._run(["tool"], Path())
     assert result["returncode"] == 255
 
 

@@ -33,14 +33,24 @@ def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
         "from __future__ import annotations\n\n"
         "import os\n"
         "import secrets\n"
+        "from pathlib import Path\n"
         "import nox\n\n"
         f"PYTHONS = {versions}\n"
         f"TEST_PATHS = {paths}\n\n"
         "# trace:exempt reason=generated-by-bughunt-configure-do-not-hand-edit\n"
         '@nox.session(python=PYTHONS, venv_backend="uv|virtualenv")\n'
         "def tests(session):\n"
-        '    session.install(".", "pytest", "hypothesis", "pytest-randomly", '
-        '"pytest-timeout")\n'
+        "    # Nox invokes this file from .bughunt/generated/; anchor every\n"
+        "    # session at the repository root so relative installs and test\n"
+        "    # paths resolve against the project, not the generated file.\n"
+        "    session.chdir(Path(__file__).resolve().parent.parent.parent)\n"
+        "    session.install(\n"
+        '        ".",\n'
+        '        "--group",\n'
+        '        "dev",\n'
+        '        "-r",\n'
+        '        "pyproject.toml",\n'
+        "    )\n"
         "    seed = str(secrets.randbelow(2**31 - 2) + 1)\n"
         '    env = {"PYTHONHASHSEED": seed, "PYTHONASYNCIODEBUG": "1"}\n'
         '    cmd = ["pytest", "-q", "--timeout=300", '

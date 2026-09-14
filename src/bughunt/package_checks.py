@@ -17,6 +17,11 @@ class _CmdResult(TypedDict):
     stderr: str
 
 
+# Upper bound (seconds) for packaging probes. Validation commands must never
+# stall a scan on a wedged tool.
+_PROBE_TIMEOUT_S = 600
+
+
 # trace:v1 id=impl.src-bughunt-package_checks.-run work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _run(cmd: list[str], root: Path) -> _CmdResult:
     try:
@@ -25,7 +30,7 @@ def _run(cmd: list[str], root: Path) -> _CmdResult:
             cwd=root,
             text=True,
             capture_output=True,
-            timeout=600,
+            timeout=_PROBE_TIMEOUT_S,
             check=False,
         )
         return {

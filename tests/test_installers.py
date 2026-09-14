@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 from bughunt.installers import install_all
 
 

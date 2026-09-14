@@ -52,7 +52,8 @@ def test_agent_report_artifacts(tmp_path: Path) -> None:
         ],
     )
     md, js = write_reports(cfg, [result], "all", 1.2)
-    assert md.exists() and js.exists()
+    assert md.exists()
+    assert js.exists()
     agent = md.parent / "agent"
     assert (agent / "queue.json").exists()
     assert (agent / "FIX_QUEUE.md").exists()

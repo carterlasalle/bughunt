@@ -18,8 +18,7 @@ import time
 import tomllib
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -36,6 +35,40 @@ from rich.text import Text
 from bughunt.default_rules import DEFAULT_RULES
 
 from .configurator import JS_TOOL_IGNORES, configure_all, configure_custom_checks
+from .models import Check, DebtEntry, Finding, Result, Status
+from .parsers import (
+    ESLINT_EMPTY_SCOPE,
+    OXLINT_EMPTY_SCOPE,
+    parse_actionlint,
+    parse_ast_grep,
+    parse_bandit,
+    parse_basedpyright,
+    parse_buf_json_lines,
+    parse_bughunt_helper,
+    parse_clippy,
+    parse_complexipy,
+    parse_cppcheck,
+    parse_deal,
+    parse_deptry,
+    parse_eslint,
+    parse_golangci,
+    parse_hadolint,
+    parse_json_list,
+    parse_lizard,
+    parse_oxlint,
+    parse_phpstan,
+    parse_pylint,
+    parse_pyrefly,
+    parse_radon_mi,
+    parse_ruff,
+    parse_sarif,
+    parse_semgrep,
+    parse_shellcheck,
+    parse_sqlfluff,
+    parse_squawk,
+    parse_tflint,
+    text_findings,
+)
 from .discovery import (
     discover_all,
     infer_source_paths,
@@ -99,6 +132,7 @@ PR_CORRECTNESS_FLOOR = [
     "seam",
     "evidence",
     "packaging",
+    "bugcorpus",
     "runtime-types",
     "doctest",
     "pydoclint",
@@ -185,90 +219,6 @@ PYTHON_ONLY_TOOLS = {
 }
 
 
-# trace:v1 id=impl.src-bughunt-cli.status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-class Status(str, Enum):
-    PASS = "PASS"  # nosec B105 - status enum member, not a credential
-    FINDINGS = "FINDINGS"
-    ERROR = "ERROR"
-    SKIPPED = "SKIPPED"
-    NA = "N/A"
-
-
-# trace:v1 id=impl.src-bughunt-cli.finding work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@dataclass(slots=True)
-class Finding:
-    tool: str
-    message: str
-    path: str | None = None
-    line: int | None = None
-    column: int | None = None
-    code: str | None = None
-    severity: str = "error"
-    fixable: bool = False
-    fix_safety: str | None = None
-    accepted: bool = False
-    fix_preview: str | None = None
-
-    # trace:v1 id=impl.src-bughunt-cli.finding.fingerprint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    @property
-    def fingerprint(self) -> str:
-        raw = "|".join(
-            [
-                self.tool,
-                self.code or "",
-                self.path or "",
-                self.message.strip(),
-            ],
-        )
-        return hashlib.sha256(raw.encode()).hexdigest()[:16]
-
-    # trace:v1 id=impl.src-bughunt-cli.finding.signal-key work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-    @property
-    def signal_key(self) -> str:
-        """Group repeated manifestations without merging unrelated diagnostics."""
-        msg = self.message.lower()
-        if self.tool == "mutmut":
-            # Mutation IDs encode a specific mutant number. Group survivors by
-            # owning function so the report says "42 survivors in foo" rather
-            # than manufacturing 42 unrelated signal families.
-            msg = re.sub(r"__mutmut_\d+.*$", "__mutmut_<n>", msg)
-        msg = re.sub(r"`[^`]+`", "`<symbol>`", msg)
-        msg = re.sub(r"(?:[A-Za-z]:)?[/\\][^\s:]+", "<path>", msg)
-        msg = re.sub(r"\b0x[0-9a-f]+\b", "<hex>", msg)
-        msg = re.sub(r"\b\d+(?:\.\d+)?\b", "<n>", msg)
-        msg = re.sub(r"\s+", " ", msg).strip()
-        code = str(self.code) if self.code is not None else ""
-        # Some tools emit placeholder/generic codes (mypy ``misc`` and older
-        # Pyrefly JSON's numeric negative codes). Those are not meaningful bug
-        # families, so include the normalized diagnostic shape as well.
-        generic = not code or code.lower() in {"misc", "unknown", "none", "-1", "-2"}
-        if generic:
-            prefix = f"{self.tool}:{code}:" if code else f"{self.tool}:"
-            return prefix + msg[:180]
-        return f"{self.tool}:{code}"
-
-    @property
-    def finding_id(self) -> str:
-        return f"BH-{self.fingerprint.upper()}"
-
-
-# trace:v1 id=impl.src-bughunt-cli.debt-ledger work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@dataclass(slots=True)
-class DebtEntry:
-    """One accepted finding-debt record from debt.toml.
-
-    Accepted findings stay visible in the report's debt section but leave
-    the fix queue, top signals, hotspots, and risk map, so known debt
-    cannot habituate reviewers into missing new findings. Growth beyond
-    the recorded count surfaces in `debt review`.
-    """
-
-    signal: str
-    paths: list[str]
-    count: int
-    reason: str
-
-
 # trace:v1 id=impl.src-bughunt-cli.load-debt-ledger work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def load_debt_ledger(root: Path) -> list[DebtEntry]:
     """Load debt.toml; fail open (mark nothing) with a loud warning."""
@@ -295,11 +245,12 @@ def load_debt_ledger(root: Path) -> list[DebtEntry]:
                     paths=[str(p) for p in item.get("paths", [])],
                     count=int(item.get("count", 0)),
                     reason=str(item.get("reason", "")),
-                )
+                ),
             )
         except (KeyError, ValueError, TypeError):
             print(
-                f"warning: skipping malformed debt entry: {item!r:.80}", file=sys.stderr
+                f"warning: skipping malformed debt entry: {item!r:.80}",
+                file=sys.stderr,
             )
     return entries
 
@@ -342,7 +293,7 @@ def debt_report(ledger: list[DebtEntry], results: list[Result]) -> list[dict[str
                 "live": live,
                 "delta": live - entry.count,
                 "reason": entry.reason,
-            }
+            },
         )
     return rows
 
@@ -362,7 +313,10 @@ def _debt_latest_report(root: Path) -> Path | None:
 
 # trace:v1 id=impl.src-bughunt-cli.debt-snapshot work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def debt_snapshot(
-    root: Path, signals: list[str], reason: str, paths: list[str] | None = None
+    root: Path,
+    signals: list[str],
+    reason: str,
+    paths: list[str] | None = None,
 ) -> int:
     """Record per-signal-per-file counts from the latest report into debt.toml."""
     if not signals:
@@ -405,7 +359,7 @@ def debt_snapshot(
     ledger = [e for e in ledger if e.signal not in wanted]
     for (signal, path), count in sorted(counts.items()):
         ledger.append(
-            DebtEntry(signal=signal, paths=[path], count=count, reason=reason)
+            DebtEntry(signal=signal, paths=[path], count=count, reason=reason),
         )
     lines = [
         "# Accepted finding debt. Entries here stay visible in the report's",
@@ -465,53 +419,9 @@ def debt_review(root: Path) -> int:
             if delta > 0:
                 grew += 1
             print(
-                f"{state}: {entry.signal} @ {path} recorded={entry.count} live={current}"
+                f"{state}: {entry.signal} @ {path} recorded={entry.count} live={current}",
             )
     return 1 if grew else 0
-
-
-# trace:v1 id=impl.src-bughunt-cli.result work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@dataclass(slots=True)
-class Result:
-    name: str
-    category: str
-    status: Status
-    duration_s: float = 0.0
-    exit_code: int | None = None
-    findings: list[Finding] = field(default_factory=list)
-    command: list[str] = field(default_factory=list)
-    stdout: str = ""
-    stderr: str = ""
-    note: str | None = None
-    artifacts: list[str] = field(default_factory=list)
-    environment: dict[str, str] = field(default_factory=dict)
-
-    @property
-    def count(self) -> int:
-        return len(self.findings)
-
-
-# trace:v1 id=impl.src-bughunt-cli.check work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-@dataclass(slots=True)
-class Check:
-    name: str
-    category: str
-    command: list[str]
-    parser: Callable[[str, str, int], list[Finding]]
-    timeout: int
-    cwd: Path
-    env: dict[str, str] | None = None
-    configured: bool = True
-    skip_reason: str | None = None
-    findings_exit_codes: set[int] = field(default_factory=lambda: {1})
-    skip_exit_codes: set[int] = field(default_factory=set)
-    # Banner substrings proving the tool ran but had nothing in scope (as
-    # opposed to erroring). When the exit code is a findings code yet the
-    # parser yields nothing and a marker is present, the result is SKIPPED
-    # ("nothing in scope") instead of a synthetic FINDINGS entry.
-    empty_scope_markers: tuple[str, ...] = ()
-    record_progress: bool = True
-    timeout_is_success: bool = False
 
 
 # trace:v1 id=impl.src-bughunt-cli.config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -901,982 +811,6 @@ def import_linter_configured(root: Path) -> bool:
     return False
 
 
-# trace:v1 id=impl.src-bughunt-cli.text-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    if exit_code == 0:
-        return []
-    lines = (stdout + "\n" + stderr).splitlines()
-    findings: list[Finding] = []
-    patterns = [
-        re.compile(
-            r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+):\s*"
-            + r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"^(?P<path>.+?):(?P<line>\d+):\s*"
-            + r"(?:(?P<severity>error|warning|note):\s*)?(?P<msg>.+)$",
-            re.IGNORECASE,
-        ),
-    ]
-    for line in lines:
-        for pat in patterns:
-            m = pat.match(line.strip())
-            if not m:
-                continue
-            gd = m.groupdict()
-            message = gd.get("msg", line).strip()
-            code = None
-            code_match = re.search(r"\s+\[([A-Za-z0-9_.-]+)\]$", message)
-            if code_match:
-                code = code_match.group(1)
-                message = message[: code_match.start()].rstrip()
-            findings.append(
-                Finding(
-                    tool=tool,
-                    path=gd.get("path"),
-                    line=int(gd["line"]) if gd.get("line") else None,
-                    column=int(gd["col"]) if gd.get("col") else None,
-                    code=code,
-                    message=message,
-                    severity=(gd.get("severity") or "error").lower(),
-                ),
-            )
-            break
-    if not findings:
-        # A failing analysis with no parseable location is still a finding-like
-        # signal, but tool crashes are classified separately by the runner.
-        meaningful = next((x.strip() for x in reversed(lines) if x.strip()), "")
-        if meaningful:
-            findings.append(Finding(tool=tool, message=meaningful[:1000]))
-    return findings
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-ruff work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings("ruff", stdout, stderr, exit_code)
-    out = []
-    for item in data:
-        loc = item.get("location", {})
-        code = item.get("code")
-        severity = "error"
-        # ALL really means ALL. Presentation/convention diagnostics are retained,
-        # but ranked below likely correctness/security findings in agent queues.
-        if code and (
-            code.startswith(
-                ("D", "COM", "Q", "I", "N", "PTH", "T20", "TD", "FIX", "ERA", "EM"),
-            )
-            or code in {"E501", "W505"}
-        ):
-            severity = "note"
-        fix = item.get("fix") if isinstance(item, dict) else None
-        applicability = None
-        preview = None
-        if isinstance(fix, dict):
-            applicability = str(fix.get("applicability") or "unknown").lower()
-            preview = fix.get("message")
-        out.append(
-            Finding(
-                tool="ruff",
-                path=item.get("filename"),
-                line=loc.get("row"),
-                column=loc.get("column"),
-                code=code,
-                message=item.get("message", "Ruff finding"),
-                severity=severity,
-                fixable=isinstance(fix, dict),
-                fix_safety=applicability,
-                fix_preview=str(preview) if preview else None,
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-basedpyright work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_basedpyright(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings("basedpyright", stdout, stderr, exit_code)
-    out = []
-    for item in data.get("generalDiagnostics", []):
-        start = item.get("range", {}).get("start", {})
-        out.append(
-            Finding(
-                tool="basedpyright",
-                path=item.get("file"),
-                line=(start.get("line") + 1)
-                if isinstance(start.get("line"), int)
-                else None,
-                column=(start.get("character") + 1)
-                if isinstance(start.get("character"), int)
-                else None,
-                code=item.get("rule"),
-                message=item.get("message", "Type error"),
-                severity=item.get("severity", "error"),
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-json-list work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_json_list(
-    tool: str,
-    stdout: str,
-    stderr: str,
-    exit_code: int,
-) -> list[Finding]:
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings(tool, stdout, stderr, exit_code)
-
-    if isinstance(data, dict):
-        # Common wrappers.
-        for key in ("results", "errors", "issues", "diagnostics", "messages"):
-            if isinstance(data.get(key), list):
-                data = data[key]
-                break
-        else:
-            data = []
-
-    out: list[Finding] = []
-    for item in data if isinstance(data, list) else []:
-        if not isinstance(item, dict):
-            continue
-        start = item.get("start") or item.get("location") or {}
-        if isinstance(start, dict) and "start" in start:
-            start = start.get("start", {})
-        path = item.get("path") or item.get("file") or item.get("filename")
-        if isinstance(path, dict):
-            path = path.get("path")
-        msg = (
-            item.get("message")
-            or item.get("description")
-            or item.get("name")
-            or str(item)
-        )
-        code = (
-            item.get("code")
-            or item.get("rule")
-            or item.get("check_id")
-            or item.get("message-id")
-            or item.get("symbol")
-        )
-        line = item.get("line")
-        col = item.get("column")
-        if isinstance(start, dict):
-            line = line or start.get("line") or start.get("row")
-            col = col or start.get("column") or start.get("col")
-        out.append(
-            Finding(
-                tool=tool,
-                path=str(path) if path else None,
-                line=int(line) if isinstance(line, int) else None,
-                column=int(col) if isinstance(col, int) else None,
-                code=str(code) if code else None,
-                message=str(msg),
-                severity=str(
-                    item.get("severity") or item.get("type") or "error",
-                ).lower(),
-            ),
-        )
-    if not out and exit_code:
-        return text_findings(tool, stdout, stderr, exit_code)
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-pyrefly work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_pyrefly(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    """Parse Pyrefly JSON using the diagnostic *name*, not its internal numeric code."""
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings("pyrefly", stdout, stderr, exit_code)
-    if isinstance(data, dict):
-        for key in ("errors", "diagnostics", "results", "messages"):
-            if isinstance(data.get(key), list):
-                data = data[key]
-                break
-    out: list[Finding] = []
-    for item in data if isinstance(data, list) else []:
-        if not isinstance(item, dict):
-            continue
-        start = item.get("start") or item.get("location") or {}
-        if isinstance(start, dict) and isinstance(start.get("start"), dict):
-            start = start["start"]
-        path = item.get("path") or item.get("file") or item.get("filename")
-        if isinstance(path, dict):
-            path = path.get("path") or path.get("uri")
-        name = item.get("name") or item.get("rule") or item.get("check_id")
-        internal = item.get("code")
-        out.append(
-            Finding(
-                tool="pyrefly",
-                path=str(path) if path else None,
-                line=(
-                    item.get("line")
-                    or (start.get("line") if isinstance(start, dict) else None)
-                ),
-                column=(
-                    item.get("column")
-                    or (start.get("column") if isinstance(start, dict) else None)
-                ),
-                code=str(name or internal)
-                if (name is not None or internal is not None)
-                else None,
-                message=str(
-                    item.get("message")
-                    or item.get("description")
-                    or name
-                    or "Pyrefly finding",
-                ),
-                severity=str(
-                    item.get("severity") or item.get("type") or "error",
-                ).lower(),
-            ),
-        )
-    return out or (
-        text_findings("pyrefly", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-pylint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_pylint(
-    stdout: str, stderr: str, exit_code: int, tool: str = "pylint"
-) -> list[Finding]:
-    """Parse Pylint JSON2, ranking convention/refactor/info below bug diagnostics."""
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings(tool, stdout, stderr, exit_code)
-    if isinstance(data, dict):
-        data = data.get("messages", data.get("results", []))
-    out: list[Finding] = []
-    for item in data if isinstance(data, list) else []:
-        if not isinstance(item, dict):
-            continue
-        kind = str(item.get("type") or item.get("category") or "error").lower()
-        severity = {
-            "fatal": "error",
-            "error": "error",
-            "warning": "warning",
-            "refactor": "note",
-            "convention": "note",
-            "info": "note",
-        }.get(kind, "warning")
-        out.append(
-            Finding(
-                tool=tool,
-                path=item.get("path") or item.get("abspath") or item.get("module"),
-                line=item.get("line"),
-                column=item.get("column"),
-                code=item.get("symbol")
-                or item.get("message-id")
-                or item.get("messageId"),
-                message=str(item.get("message") or "Pylint finding"),
-                severity=severity,
-            ),
-        )
-    return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-deptry work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    """Parse deptry's text output, including pyproject findings without line numbers."""
-    out: list[Finding] = []
-    pattern = re.compile(
-        r"^(?P<path>.+?)(?::(?P<line>\d+):(?P<col>\d+))?:\s+"
-        r"(?P<code>DEP\d{3})\s+(?P<msg>.+)$",
-    )
-    for raw in (stdout + "\n" + stderr).splitlines():
-        m = pattern.match(raw.strip())
-        if not m:
-            continue
-        gd = m.groupdict()
-        out.append(
-            Finding(
-                tool="deptry",
-                path=gd["path"],
-                line=int(gd["line"]) if gd.get("line") else None,
-                column=int(gd["col"]) if gd.get("col") else None,
-                code=gd["code"],
-                message=gd["msg"],
-                severity="error",
-            ),
-        )
-    return out or text_findings("deptry", stdout, stderr, exit_code)
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-semgrep work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings("semgrep", stdout, stderr, exit_code)
-    out = []
-    for item in data.get("results", []):
-        extra = item.get("extra", {})
-        start = item.get("start", {})
-        out.append(
-            Finding(
-                tool="semgrep",
-                path=item.get("path"),
-                line=start.get("line"),
-                column=start.get("col"),
-                code=item.get("check_id"),
-                message=extra.get("message", "Semgrep finding"),
-                severity=str(extra.get("severity", "error")).lower(),
-                fixable=bool(extra.get("fix")),
-                fix_safety="rule" if extra.get("fix") else None,
-                fix_preview=str(extra.get("fix"))[:500] if extra.get("fix") else None,
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-deal work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    """Parse `python -m deal lint --json` JSON-lines output."""
-    out: list[Finding] = []
-    for line in stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except json.JSONDecodeError:
-            # Malformed payload carries no data; skipped
-            continue
-        if not isinstance(item, dict):
-            continue
-        out.append(
-            Finding(
-                tool="deal",
-                path=item.get("filename") or item.get("path"),
-                line=item.get("row") or item.get("line"),
-                column=item.get("col") or item.get("column"),
-                code=item.get("code"),
-                message=item.get("text")
-                or item.get("message")
-                or item.get("value")
-                or "Deal contract finding",
-                severity="error",
-            ),
-        )
-    if out:
-        return out
-    return text_findings("deal", stdout, stderr, exit_code)
-
-
-def parse_bandit(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError:
-        return text_findings("bandit", stdout, stderr, exit_code)
-    return [
-        Finding(
-            tool="bandit",
-            path=i.get("filename"),
-            line=i.get("line_number"),
-            column=i.get("col_offset"),
-            code=i.get("test_id"),
-            message=i.get("issue_text", "Bandit finding"),
-            severity=str(i.get("issue_severity", "error")).lower(),
-        )
-        for i in data.get("results", [])
-    ]
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-ast-grep work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_ast_grep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings("ast-grep", stdout, stderr, exit_code)
-    out = []
-    for i in data:
-        rng = i.get("range", {})
-        start = rng.get("start", {})
-        out.append(
-            Finding(
-                tool="ast-grep",
-                path=i.get("file"),
-                line=(start.get("line") + 1)
-                if isinstance(start.get("line"), int)
-                else None,
-                column=(start.get("column") + 1)
-                if isinstance(start.get("column"), int)
-                else None,
-                code=i.get("ruleId"),
-                message=i.get("message") or i.get("text") or "ast-grep finding",
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-complexipy work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_complexipy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    out: list[Finding] = []
-    for line in (stdout + "\n" + stderr).splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith(("Analyzing", "Summary", "─", "=")):
-            continue
-        match = re.match(
-            r"^(?P<path>.+?\.py)\s+(?P<name>\S+)\s+(?P<score>\d+)\s*$",
-            stripped,
-        )
-        if not match:
-            continue
-        score = int(match.group("score"))
-        out.append(
-            Finding(
-                tool="complexipy",
-                path=match.group("path"),
-                code="COG001",
-                message=(
-                    f"`{match.group('name')}` cognitive complexity is {score} "
-                    "(budget 10)"
-                ),
-                severity="warning" if score <= 20 else "error",
-            ),
-        )
-    if not out and exit_code not in {0, 1}:
-        return text_findings("complexipy", stdout, stderr, exit_code)
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-radon-mi work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_radon_mi(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings("radon", stdout, stderr, exit_code)
-    out: list[Finding] = []
-    if not isinstance(data, dict):
-        return out
-    for path, item in data.items():
-        if not isinstance(item, dict):
-            continue
-        mi = item.get("mi")
-        rank = item.get("rank")
-        if not isinstance(mi, (int, float)) or mi > 19:
-            continue
-        out.append(
-            Finding(
-                tool="radon",
-                path=str(path),
-                code="RADON_MI",
-                message=f"maintainability index is {mi:.1f} (rank {rank or '?'})",
-                severity="error" if mi <= 9 else "warning",
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-lizard work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_lizard(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    out: list[Finding] = []
-    pattern = re.compile(
-        r"^(?P<path>.+?):(?P<line>\d+):\s*warning:\s*(?P<msg>.+)$",
-        re.IGNORECASE,
-    )
-    for line in (stdout + "\n" + stderr).splitlines():
-        match = pattern.match(line.strip())
-        if not match:
-            continue
-        msg = match.group("msg")
-        code = (
-            "LIZARD_CCN"
-            if "CCN" in msg
-            else ("LIZARD_NLOC" if "NLOC" in msg else "LIZARD")
-        )
-        out.append(
-            Finding(
-                tool="lizard",
-                path=match.group("path"),
-                line=int(match.group("line")),
-                code=code,
-                message=msg,
-                severity="warning",
-            ),
-        )
-    if not out and exit_code not in {0, 1}:
-        return text_findings("lizard", stdout, stderr, exit_code)
-    return out
-
-
-def _severity(value: object, default: str = "error") -> str:
-    raw = str(value or default).lower()
-    if raw in {"fatal", "critical", "high", "error"}:
-        return "error"
-    if raw in {"warn", "warning", "medium"}:
-        return "warning"
-    if raw in {"info", "information", "note", "low", "style"}:
-        return "note"
-    return default
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-actionlint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_actionlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    """Parse actionlint's one-JSON-object-per-diagnostic formatter."""
-    out: list[Finding] = []
-    for line in stdout.splitlines():
-        try:
-            item = json.loads(line)
-        except json.JSONDecodeError:
-            # Malformed payload carries no data; skipped
-            continue
-        if not isinstance(item, dict):
-            continue
-        out.append(
-            Finding(
-                tool="actionlint",
-                path=item.get("filepath") or item.get("file"),
-                line=item.get("line"),
-                column=item.get("column") or item.get("col"),
-                code=item.get("kind") or item.get("code"),
-                message=str(item.get("message") or "GitHub Actions workflow problem"),
-                severity="error",
-            ),
-        )
-    return out or (
-        text_findings("actionlint", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-shellcheck work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_shellcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings("shellcheck", stdout, stderr, exit_code)
-    comments = data.get("comments", []) if isinstance(data, dict) else data
-    out: list[Finding] = []
-    for item in comments if isinstance(comments, list) else []:
-        if not isinstance(item, dict):
-            continue
-        out.append(
-            Finding(
-                tool="shellcheck",
-                path=item.get("file"),
-                line=item.get("line"),
-                column=item.get("column"),
-                code=f"SC{item.get('code')}" if item.get("code") is not None else None,
-                message=str(item.get("message") or "ShellCheck finding"),
-                severity=_severity(item.get("level"), "warning"),
-            ),
-        )
-    return out or (
-        text_findings("shellcheck", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-sqlfluff work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_sqlfluff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings("sqlfluff", stdout, stderr, exit_code)
-    out: list[Finding] = []
-    for file_item in data if isinstance(data, list) else []:
-        if not isinstance(file_item, dict):
-            continue
-        path = file_item.get("filepath") or file_item.get("path")
-        for item in file_item.get("violations", []) or []:
-            if not isinstance(item, dict):
-                continue
-            out.append(
-                Finding(
-                    tool="sqlfluff",
-                    path=str(path) if path else None,
-                    line=item.get("start_line_no") or item.get("line_no"),
-                    column=item.get("start_line_pos") or item.get("line_pos"),
-                    code=item.get("code"),
-                    message=str(
-                        item.get("description")
-                        or item.get("message")
-                        or "SQLFluff finding",
-                    ),
-                    severity="error",
-                ),
-            )
-    return out or (
-        text_findings("sqlfluff", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-hadolint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_hadolint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings("hadolint", stdout, stderr, exit_code)
-    return (
-        [
-            Finding(
-                tool="hadolint",
-                path=item.get("file"),
-                line=item.get("line"),
-                column=item.get("column"),
-                code=item.get("code"),
-                message=str(item.get("message") or "Hadolint finding"),
-                severity=_severity(item.get("level"), "warning"),
-            )
-            for item in data
-            if isinstance(item, dict)
-        ]
-        if isinstance(data, list)
-        else text_findings("hadolint", stdout, stderr, exit_code)
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-tflint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_tflint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings("tflint", stdout, stderr, exit_code)
-    out: list[Finding] = []
-    for item in data.get("issues", []) if isinstance(data, dict) else []:
-        if not isinstance(item, dict):
-            continue
-        rule = item.get("rule") or {}
-        rng = item.get("range") or {}
-        start = rng.get("start") or {}
-        out.append(
-            Finding(
-                tool="tflint",
-                path=rng.get("filename") or item.get("filename"),
-                line=start.get("line"),
-                column=start.get("column"),
-                code=rule.get("name") if isinstance(rule, dict) else None,
-                message=str(item.get("message") or "TFLint finding"),
-                severity=_severity(
-                    rule.get("severity") if isinstance(rule, dict) else None,
-                    "warning",
-                ),
-            ),
-        )
-    return out or (
-        text_findings("tflint", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-golangci work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_golangci(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings("golangci-lint", stdout, stderr, exit_code)
-    issues = (
-        data.get("Issues", data.get("issues", [])) if isinstance(data, dict) else []
-    )
-    out: list[Finding] = []
-    for item in issues if isinstance(issues, list) else []:
-        if not isinstance(item, dict):
-            continue
-        pos = item.get("Pos") or item.get("pos") or {}
-        out.append(
-            Finding(
-                tool="golangci-lint",
-                path=pos.get("Filename") or pos.get("filename"),
-                line=pos.get("Line") or pos.get("line"),
-                column=pos.get("Column") or pos.get("column"),
-                code=item.get("FromLinter")
-                or item.get("fromLinter")
-                or item.get("linter"),
-                message=str(
-                    item.get("Text") or item.get("text") or "Go correctness finding",
-                ),
-                severity="error",
-            ),
-        )
-    return out or (
-        text_findings("golangci-lint", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-clippy work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_clippy(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    out: list[Finding] = []
-    for line in stdout.splitlines():
-        try:
-            item = json.loads(line)
-        except json.JSONDecodeError:
-            # Malformed payload carries no data; skipped
-            continue
-        if not isinstance(item, dict) or item.get("reason") != "compiler-message":
-            continue
-        msg = item.get("message") or {}
-        if not isinstance(msg, dict) or msg.get("level") not in {"error", "warning"}:
-            continue
-        spans = msg.get("spans") or []
-        primary = next(
-            (x for x in spans if isinstance(x, dict) and x.get("is_primary")),
-            {},
-        )
-        code_obj = msg.get("code") or {}
-        out.append(
-            Finding(
-                tool="clippy",
-                path=primary.get("file_name"),
-                line=primary.get("line_start"),
-                column=primary.get("column_start"),
-                code=code_obj.get("code") if isinstance(code_obj, dict) else None,
-                message=str(msg.get("message") or "Clippy finding"),
-                severity=_severity(msg.get("level")),
-            ),
-        )
-    return out or (
-        text_findings("clippy", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-cppcheck work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_cppcheck(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    import xml.etree.ElementTree as ET
-
-    try:
-        root = ET.fromstring(stderr.strip())  # nosec B405 B314 - own tool output
-    except ET.ParseError:
-        return text_findings("cppcheck", stdout, stderr, exit_code)
-    out: list[Finding] = []
-    for error in root.findall(".//error"):
-        locations = error.findall("location")
-        loc = locations[0] if locations else None
-        out.append(
-            Finding(
-                tool="cppcheck",
-                path=loc.get("file") if loc is not None else None,
-                line=int(str(loc.get("line")))
-                if loc is not None and str(loc.get("line") or "").isdigit()
-                else None,
-                column=int(str(loc.get("column")))
-                if loc is not None and str(loc.get("column") or "").isdigit()
-                else None,
-                code=error.get("id"),
-                message=error.get("verbose") or error.get("msg") or "Cppcheck finding",
-                severity=_severity(error.get("severity"), "warning"),
-            ),
-        )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-phpstan work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_phpstan(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings("phpstan", stdout, stderr, exit_code)
-    out: list[Finding] = []
-    files = data.get("files", {}) if isinstance(data, dict) else {}
-    for path, payload in files.items() if isinstance(files, dict) else []:
-        if not isinstance(payload, dict):
-            continue
-        for item in payload.get("messages", []) or []:
-            if not isinstance(item, dict):
-                continue
-            out.append(
-                Finding(
-                    tool="phpstan",
-                    path=str(path),
-                    line=item.get("line"),
-                    code=item.get("identifier"),
-                    message=str(item.get("message") or "PHPStan finding"),
-                    severity="error",
-                ),
-            )
-    out.extend(
-        Finding(tool="phpstan", message=str(message), severity="error")
-        for message in data.get("errors", [])
-        if isinstance(data, dict)
-    )
-    return out or (
-        text_findings("phpstan", stdout, stderr, exit_code) if exit_code else []
-    )
-
-
-# Banner ESLint prints (to stderr) when ignore patterns exclude every file
-# under the lint target. The caller maps this to SKIPPED ("nothing in scope")
-# via empty_scope_markers.
-ESLINT_EMPTY_SCOPE = "all of the files matching the glob pattern"
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-eslint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_eslint(
-    stdout: str,
-    stderr: str,
-    exit_code: int,
-    *,
-    tool: str = "eslint",
-) -> list[Finding]:
-    if ESLINT_EMPTY_SCOPE in stdout or ESLINT_EMPTY_SCOPE in stderr:
-        return []
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings(tool, stdout, stderr, exit_code)
-    out: list[Finding] = []
-    if isinstance(data, dict):
-        data = data.get("results") or data.get("diagnostics") or data.get("files") or []
-        if isinstance(data, dict):
-            data = [
-                {"filePath": k, **(v if isinstance(v, dict) else {})}
-                for k, v in data.items()
-            ]
-    for file_item in data if isinstance(data, list) else []:
-        if not isinstance(file_item, dict):
-            continue
-        path = (
-            file_item.get("filePath")
-            or file_item.get("path")
-            or file_item.get("filename")
-        )
-        messages = (
-            file_item.get("messages") or file_item.get("diagnostics") or [file_item]
-        )
-        for item in messages if isinstance(messages, list) else []:
-            if not isinstance(item, dict):
-                continue
-            out.append(
-                Finding(
-                    tool=tool,
-                    path=str(path) if path else item.get("file"),
-                    line=item.get("line") or item.get("start_line"),
-                    column=item.get("column") or item.get("start_column"),
-                    code=item.get("ruleId") or item.get("rule_id") or item.get("code"),
-                    message=str(
-                        item.get("message")
-                        or item.get("description")
-                        or f"{tool} finding",
-                    ),
-                    severity="error"
-                    if item.get("severity") in {2, "error"}
-                    else "warning",
-                    fixable=bool(item.get("fix")),
-                    fix_safety="review" if item.get("fix") else None,
-                ),
-            )
-    return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
-
-
-# Banner oxlint prints when ignore patterns exclude every candidate file.
-# The caller maps this to SKIPPED ("nothing in scope") via empty_scope_markers.
-OXLINT_EMPTY_SCOPE = "No files found to lint"
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-oxlint work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_oxlint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    if OXLINT_EMPTY_SCOPE in stdout:
-        return []
-    return parse_eslint(stdout, stderr, exit_code, tool="oxlint")
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-squawk work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_squawk(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    try:
-        data = json.loads(stdout or "[]")
-    except json.JSONDecodeError:
-        return text_findings("squawk", stdout, stderr, exit_code)
-    if isinstance(data, dict):
-        data = (
-            data.get("messages") or data.get("diagnostics") or data.get("results") or []
-        )
-    return parse_json_list("squawk", json.dumps(data), stderr, exit_code)
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-buf-json-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_buf_json_lines(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
-    out: list[Finding] = []
-    for raw in stdout.splitlines():
-        try:
-            item = json.loads(raw)
-        except json.JSONDecodeError:
-            # Malformed payload carries no data; skipped
-            continue
-        if not isinstance(item, dict):
-            continue
-        out.append(
-            Finding(
-                tool="buf",
-                path=item.get("path") or item.get("filename"),
-                line=item.get("start_line") or item.get("line"),
-                column=item.get("start_column") or item.get("column"),
-                code=item.get("rule_id") or item.get("rule"),
-                message=str(item.get("message") or "Buf schema finding"),
-                severity="error",
-            ),
-        )
-    return out or (text_findings("buf", stdout, stderr, exit_code) if exit_code else [])
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-sarif work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_sarif(path: Path, tool: str) -> list[Finding]:
-    if not path.exists():
-        return []
-    try:
-        data = json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return []
-    out: list[Finding] = []
-    for run in data.get("runs", []):
-        for result in run.get("results", []):
-            locs = result.get("locations", [])
-            phys = (locs[0].get("physicalLocation", {}) if locs else {}) or {}
-            art = phys.get("artifactLocation", {})
-            region = phys.get("region", {})
-            msg = result.get("message", {})
-            out.append(
-                Finding(
-                    tool=tool,
-                    path=art.get("uri"),
-                    line=region.get("startLine"),
-                    column=region.get("startColumn"),
-                    code=result.get("ruleId"),
-                    message=msg.get("text") or msg.get("markdown") or "SARIF finding",
-                    severity=result.get("level", "error"),
-                ),
-            )
-    return out
-
-
-# trace:v1 id=impl.src-bughunt-cli.parse-bughunt-helper work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def parse_bughunt_helper(
-    tool: str,
-    stdout: str,
-    stderr: str,
-    exit_code: int,
-) -> list[Finding]:
-    """Parse BugHunt helper modules that emit {findings:[...]} JSON."""
-    try:
-        data = json.loads(stdout or "{}")
-    except json.JSONDecodeError:
-        return text_findings(tool, stdout, stderr, exit_code)
-    raw = data.get("findings", []) if isinstance(data, dict) else []
-    out: list[Finding] = []
-    for item in raw if isinstance(raw, list) else []:
-        if not isinstance(item, dict):
-            continue
-        out.append(
-            Finding(
-                tool=str(item.get("tool") or tool),
-                message=str(item.get("message") or "BugHunt helper finding"),
-                path=str(item.get("path")) if item.get("path") else None,
-                line=int(item["line"]) if isinstance(item.get("line"), int) else None,
-                column=int(item["column"])
-                if isinstance(item.get("column"), int)
-                else None,
-                code=str(item.get("code")) if item.get("code") is not None else None,
-                severity=str(item.get("severity") or "warning"),
-            ),
-        )
-    return out
-
-
 # trace:v1 id=impl.src-bughunt-cli.python-package-names work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
     """Infer importable first-party top-level packages without importing them."""
@@ -1897,6 +831,21 @@ def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
                 if child.is_dir() and (child / "__init__.py").exists()
             )
     return list(dict.fromkeys(x for x in names if x.isidentifier()))
+
+
+# trace:v1 id=impl.src-bughunt-cli.-publishable-package-json work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _publishable_package_json(root: Path) -> Path | None:
+    """A package.json publint can actually pack: name and version declared."""
+    path = root / "package.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not data.get("name") or not data.get("version"):
+        return None
+    return path
 
 
 # trace:v1 id=impl.src-bughunt-cli.local-schema-pairs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -2353,7 +1302,8 @@ def build_checks(
     else:
         pylint_tests_cfg = generated_config(root, "pylintrc-tests")
         pylint_tests_cmd = _optional_cmd(
-            executable("pylint"), [*tests, "--output-format=json2"]
+            executable("pylint"),
+            [*tests, "--output-format=json2"],
         )
         if pylint_tests_cmd and pylint_tests_cfg:
             pylint_tests_cmd += ["--rcfile", str(pylint_tests_cfg)]
@@ -2457,14 +1407,23 @@ def build_checks(
     vulture_confidence = (
         "0" if profile in {"deep", "all"} else ("60" if profile == "pr" else "80")
     )
+    # Vulture cannot see framework dispatch: ast.NodeVisitor invokes
+    # visit_<Node> methods by reflection, so every AST visitor reads as dead.
+    # All ast node classes are CamelCase, keeping this pattern tight.
+    vulture_ignored = "visit_[A-Z]*"
     add(
         "vulture",
         "dead-code",
         _optional_cmd(
             executable("vulture"),
-            [*py, "--min-confidence", vulture_confidence],
+            [
+                *py,
+                "--min-confidence",
+                vulture_confidence,
+                "--ignore-names",
+                vulture_ignored,
+            ],
         ),
-        reason="vulture not installed",
         findings_exit_codes={3},
     )
     bandit_cfg = generated_config(root, "bandit.yaml")
@@ -3198,21 +2157,33 @@ def build_checks(
                 ),
             )
 
-    # Bug Corpus is the V2 learning subsystem, not a third-party executable.
-    # Keep it visible as an intentional blind spot until the integrated engine
-    # lands rather than pretending an imaginary `bugcorpus` package is missing.
+    # BugCorpus is consumed as a real ring through bugcorpus_adapter: the
+    # installed CLI's verify/scan/coverage contracts, normalized with BugCase,
+    # family, detector, engine, and state preserved. No corpus means N/A.
     if "bugcorpus" in wanted:
-        skipped.append(
-            Result(
-                "bugcorpus",
-                "historical/custom-static",
-                Status.SKIPPED,
-                note=(
-                    "integrated Bug Corpus execution is a V2 feature; "
-                    "see docs/V2_SPEC.md"
+        if not (root / ".bugcorpus").is_dir():
+            skipped.append(
+                Result(
+                    "bugcorpus",
+                    "historical-bugs",
+                    Status.NA,
+                    note="not applicable: no .bugcorpus corpus in this repository",
                 ),
-            ),
-        )
+            )
+        else:
+            add(
+                "bugcorpus",
+                "historical-bugs",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.bugcorpus_adapter",
+                    str(root),
+                    profile,
+                ],
+                lambda o, e, c: parse_bughunt_helper("bugcorpus", o, e, c),
+                findings_exit_codes={1},
+            )
 
     # Target-specific fuzz / API / custom checks. Explicit config and safe
     # auto-discovered targets are merged. Auto-discovery never points at a
@@ -3785,7 +2756,7 @@ def build_checks(
     if run_clang_tidy and compile_db:
         clang_cmd = [
             run_clang_tidy,
-            f"-p={Path(compile_db[0]).parent or Path('.')}",
+            f"-p={Path(compile_db[0]).parent or Path()}",
             "-checks=-*,clang-analyzer-*,bugprone-*,concurrency-*",
             "-warnings-as-errors=*",
         ]
@@ -3949,13 +2920,13 @@ def build_checks(
     )
 
     publint = project_executable(root, "publint")
-    package_json = root / "package.json"
+    package_json = _publishable_package_json(root)
     add_technology(
         "publint",
-        [publint, str(package_json)] if publint and package_json.exists() else None,
+        [publint, str(package_json)] if publint and package_json else None,
         reason=(
             "JavaScript package detected but publint is not installed/package.json "
-            "missing"
+            "missing or not publishable (name/version required)"
         ),
         findings_exit_codes={1},
     )
@@ -4315,7 +3286,6 @@ async def run_process(
                     stderr=stderr[-raw_limit:],
                     findings=timeout_findings,
                     note=note,
-                    environment=dict(check.env or {}),
                 ),
             )
     except (FileNotFoundError, PermissionError, OSError) as exc:
@@ -4376,7 +3346,6 @@ async def run_process(
             stdout=stdout[-raw_limit:],
             stderr=stderr[-raw_limit:],
             note=parse_error,
-            environment=dict(check.env or {}),
         ),
     )
 
@@ -5798,7 +4767,7 @@ exploration.
                 files += f" (+{len(row['paths']) - 3} more)"
             lines.append(
                 f"| `{row['signal']}` | {files} | {row['recorded']} "
-                f"| {row['live']} | {row['delta']:+d} | {row['reason']} |"
+                f"| {row['live']} | {row['delta']:+d} | {row['reason']} |",
             )
         lines += [""]
     else:
@@ -5901,6 +4870,26 @@ def doctor(cfg: Config) -> int:
             f"{len(DEFAULT_RULES)} shipped rules; inspect with `uv run bughunt rules`",
         ),
     )
+    from .bugcorpus_adapter import _cli as _bugcorpus_cli
+
+    corpus_dir = cfg.root / ".bugcorpus"
+    if not corpus_dir.is_dir():
+        engine_rows.append(("BugCorpus", "N/A", "no .bugcorpus corpus in this repo"))
+    elif _bugcorpus_cli() is None:
+        engine_rows.append(
+            ("BugCorpus", "MISSING", "corpus present but bugcorpus CLI not on PATH"),
+        )
+    else:
+        from .bugcorpus_adapter import verify as _bugcorpus_verify
+
+        ok, _ = _bugcorpus_verify(cfg.root)
+        engine_rows.append(
+            (
+                "BugCorpus",
+                "READY" if ok else "ERROR",
+                "corpus verify passed" if ok else "corpus verify failed; see scan",
+            ),
+        )
     cli_row("complexipy", "complexipy", python_only=True)
     cli_row("radon", "radon", python_only=True)
     cli_row("lizard", "lizard")
@@ -6123,7 +5112,7 @@ def doctor(cfg: Config) -> int:
             continue
         if engine == "clippy":
             cargo = project_executable(cfg.root, "cargo")
-            path = cargo if cargo else None
+            path = cargo or None
         elif engine == "django-migrations":
             path = (
                 str(cfg.root / "manage.py")
@@ -6893,6 +5882,12 @@ async def run_all(
                 disagreement,
             ]
     by_name = {result.name: result for result in results}
+    _reconcile_pysa_provider(by_name)
+    return results, time.perf_counter() - started
+
+
+# trace:v1 id=impl.src-bughunt-cli.-reconcile-pysa-provider work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _reconcile_pysa_provider(by_name: dict[str, Result]) -> None:
     pysa_result = by_name.get("pysa")
     pyrefly_result = by_name.get("pyrefly")
     if (
@@ -6909,11 +5904,13 @@ async def run_all(
             if pysa_result.note
             else dependency_note
         )
-        # A clean taint result cannot be called coverage-clean while its current
-        # type-information provider is known not to check cleanly.
-        if pysa_result.status == Status.PASS:
+        # A provider that reported diagnostics still ran and still provides
+        # types; only a provider that FAILED to execute degrades a clean taint
+        # result into an error. Downgrading on mere findings would keep this
+        # ring permanently red on any dynamic codebase (cry-wolf), while the
+        # note above preserves the caveat visibly.
+        if pysa_result.status == Status.PASS and pyrefly_result.status == Status.ERROR:
             pysa_result.status = Status.ERROR
-    return results, time.perf_counter() - started
 
 
 def exit_code_for(cfg: Config, results: list[Result]) -> int:
@@ -7157,7 +6154,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if unknown_skips:
         parser.error(
             "unknown defense(s) for --skip / execution.skip: "
-            + ", ".join(unknown_skips)
+            + ", ".join(unknown_skips),
         )
 
     if args.command in {"all", "full", "skipmutmut"} and args.install_missing:

@@ -12,6 +12,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 _GIT_TIMEOUT_S = 8
+# Upper bound (seconds) for interpreter probes. A wedged interpreter must
+# never stall capability detection.
+_MODULE_PROBE_TIMEOUT_S = 15
 IGNORED_DIRS = {
     ".git",
     ".hg",
@@ -717,7 +720,7 @@ def target_has_module(python: str, name: str) -> bool:
                 name,
             ],
             capture_output=True,
-            timeout=15,
+            timeout=_MODULE_PROBE_TIMEOUT_S,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):

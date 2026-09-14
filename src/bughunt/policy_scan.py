@@ -274,7 +274,7 @@ _UNIT_STEMS = frozenset(
         "height",
         "memory",
         "capacity",
-    }
+    },
 )
 _BARE_UNIT_NAMES = frozenset(
     {
@@ -296,7 +296,7 @@ _BARE_UNIT_NAMES = frozenset(
         "mb",
         "gb",
         "tb",
-    }
+    },
 )
 _UNIT_DIMENSIONS = {
     "milliseconds": "time",
@@ -311,7 +311,7 @@ _UNIT_DIMENSIONS = {
     "gigabytes": "size",
     "terabytes": "size",
 }
-_CONVERSION_FACTORS = frozenset({1000, 1000.0, 1024, 1024.0})
+_CONVERSION_FACTORS = frozenset({1000, 1024})
 
 
 # trace:v1 id=impl.src-bughunt-policy-scan.-scan-unit-policies work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -478,9 +478,10 @@ def _scan_unit_policies(tree: ast.AST, rel: str) -> list[PolicyFinding]:
                     ),
                 )
                 continue
-            bare = {n for n in numbers if n != 0 and n != 0.0}
+            bare = {n for n in numbers if n != 0}
             scales = isinstance(node, ast.BinOp) and not isinstance(
-                node.op, (ast.Add, ast.Sub)
+                node.op,
+                (ast.Add, ast.Sub),
             )
             if units and bare and not scales:
                 findings.append(
@@ -730,25 +731,21 @@ class _FinallyJumpVisitor(ast.NodeVisitor):
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         _ = node
-        return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-asyncfunctiondef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         _ = node
-        return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-lambda work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
     def visit_Lambda(self, node: ast.Lambda) -> None:
         _ = node
-        return
 
     # trace:v1 id=impl.src-bughunt-policy-scan.visit-classdef work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @override
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         _ = node
-        return
 
 
 def _finally_jump_nodes(tree: ast.AST) -> list[ast.Return | ast.Break | ast.Continue]:
@@ -1368,6 +1365,112 @@ def _scan_roundtrip_coverage(
     return out
 
 
+# Pairs of checks that cannot both be satisfied: each side mandates what the
+# other forbids. Calibrated from real dogfood collisions (ADR-005 and the
+# ISC003/implicit-concat split). Emitted as findings, never auto-resolved:
+# the repo must scope one side explicitly.
+# (tool-a, check-a, tool-b, check-b, rationale)
+_CONTRADICTIONS: tuple[tuple[str, str, str, str, str], ...] = (
+    (
+        "ruff",
+        "ISC003",
+        "basedpyright",
+        "reportImplicitStringConcatenation",
+        "explicit `+`-joined strings vs implicit adjacent literals",
+    ),
+    (
+        "pylint",
+        "use-implicit-booleaness-not-comparison-to-zero",
+        "pyrefly",
+        "implicit-bool",
+        "explicit `== 0` comparisons vs truthiness tests",
+    ),
+)
+
+
+# trace:v1 id=impl.src-bughunt-policy-scan.-check-enabled work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _check_enabled(tool: str, check: str, root: Path) -> bool:
+    """Whether a check is enabled in the repo's own config files."""
+    if tool == "ruff":
+        for name in ("ruff.toml", ".ruff.toml", "pyproject.toml"):
+            path = root / name
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(errors="replace")
+            except OSError:
+                continue
+            select = re.search(r"(?ms)^\s*select\s*=\s*\[(.*?)\]", text)
+            ignore = re.search(r"(?ms)^\s*ignore\s*=\s*\[(.*?)\]", text)
+            selected = select and (
+                check in select.group(1) or '"ALL"' in select.group(1)
+            )
+            ignored = ignore and check in ignore.group(1)
+            if selected and not ignored:
+                return True
+        return False
+    if tool == "basedpyright":
+        for name in ("basedpyrightconfig.json", "pyrightconfig.json"):
+            path = root / name
+            if not path.is_file():
+                continue
+            with suppress(OSError, json.JSONDecodeError):
+                data = json.loads(path.read_text(errors="replace"))
+                value = data.get(check)
+                if value not in (None, False, "none", "off"):
+                    return True
+        return False
+    if tool == "pylint":
+        for name in (".pylintrc", "pylintrc", "pyproject.toml", "setup.cfg"):
+            path = root / name
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(errors="replace")
+            except OSError:
+                continue
+            if check in text and "disable" not in text.split(check)[0][-200:]:
+                return True
+        return False
+    if tool == "pyrefly":
+        for name in ("pyrefly.toml", ".pyrefly.toml", "pyproject.toml"):
+            path = root / name
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(errors="replace")
+            except OSError:
+                continue
+            if re.search(rf"(?m)^\s*{re.escape(check)}\s*=\s*true", text):
+                return True
+        return False
+    return False
+
+
+# trace:v1 id=impl.src-bughunt-policy-scan.-scan-check-contradictions work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _scan_check_contradictions(root: Path) -> list[PolicyFinding]:
+    findings: list[PolicyFinding] = []
+    for tool_a, check_a, tool_b, check_b, rationale in _CONTRADICTIONS:
+        if _check_enabled(tool_a, check_a, root) and _check_enabled(
+            tool_b, check_b, root
+        ):
+            findings.append(
+                PolicyFinding(
+                    "bughunt.toml",
+                    1,
+                    1,
+                    "BHPLC001",
+                    (
+                        f"contradictory checks simultaneously enabled: "
+                        f"{tool_a}:{check_a} vs {tool_b}:{check_b} "
+                        f"({rationale}); scope one side explicitly"
+                    ),
+                    "warning",
+                )
+            )
+    return findings
+
+
 # trace:v1 id=impl.src-bughunt-policy_scan.scan work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def scan(
     root: Path,
@@ -1429,6 +1532,7 @@ def scan(
     findings.extend(_scan_source_policies(root, source_paths))
     findings.extend(_scan_test_policies(root, test_paths))
     findings.extend(_scan_roundtrip_coverage(root, source_paths, test_paths))
+    findings.extend(_scan_check_contradictions(root))
     return findings
 
 

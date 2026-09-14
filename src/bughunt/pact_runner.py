@@ -11,6 +11,14 @@ from pathlib import Path
 from urllib.request import urlopen
 
 
+# Subprocess-safety bounds (seconds), not tunable operational knobs: the probe
+# poll interval, teardown grace periods, and provider-start deadline all bound
+# teardown/cleanup waits so a hung child cannot stall a scan.
+_PROBE_TIMEOUT_S = 0.5
+_TEARDOWN_TIMEOUT_S = 2.0
+_WAIT_TIMEOUT_S = 5.0
+
+
 def _port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -37,7 +45,8 @@ def _wait_http(url: str, proc: subprocess.Popen[str], timeout_s: float = 20.0) -
         if proc.poll() is not None:
             return False
         try:
-            with urlopen(url, timeout=0.5):  # nosec B310 - scheme-guarded above
+            # Scheme-guarded above.
+            with urlopen(url, timeout=_PROBE_TIMEOUT_S):  # nosec B310; nosemgrep
                 return True
         except (OSError, HTTPException):
             time.sleep(0.15)
@@ -96,7 +105,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if not _wait_http(url, proc):
             out, err = (
-                proc.communicate(timeout=2) if proc.poll() is not None else ("", "")
+                proc.communicate(timeout=_TEARDOWN_TIMEOUT_S)
+                if proc.poll() is not None
+                else ("", "")
             )
             print(
                 json.dumps(
@@ -135,10 +146,10 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         proc.terminate()
         try:
-            _ = proc.wait(timeout=5)
+            _ = proc.wait(timeout=_WAIT_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             proc.kill()
-            _ = proc.wait(timeout=5)
+            _ = proc.wait(timeout=_WAIT_TIMEOUT_S)
     print(
         json.dumps(
             {

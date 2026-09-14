@@ -3121,6 +3121,16 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   (path-scoped rules + precision-over-recall benchmark discipline); application
   pending owner pick.
 
+- 2026-09-14 correctness sweep: cross-config RUF100 is unsafe (strict-config
+  `--fix` strips S603/S607 audit noquas the default gate requires; reverted,
+  `reportImplicitStringConcatenation` — excluded from autofix, recorded in the
+  BHPLC001 contradiction table. Dual audit markers: ruff reads only the FIRST
+  `#` comment for noqa, bandit scans ALL `#` comments for nosec, so the
+  working pattern is `# noqa: CODES - reason  # nosec` (bare nosec; coded
+  `# nosec Bxxx` is unreliable — B112 ignores it). B405 fires on the import
+  line, not the use line. Generated noxfile sessions must `chdir(ROOT)` and
+  install the dev group (`. --group dev -r pyproject.toml`). Pysa PASS +
+  no longer degrades to ERROR (cry-wolf); provider ERROR still degrades.
 ---
 
 ## Last maintenance review

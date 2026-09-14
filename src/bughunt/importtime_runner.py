@@ -7,6 +7,11 @@ import sys
 from contextlib import suppress
 
 
+# Upper bound (seconds) for one import-profiling child. Startup profiling must
+# never stall a scan on a pathological import.
+_IMPORT_TIMEOUT_S = 120
+
+
 # trace:v1 id=impl.src-bughunt-importtime_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
@@ -35,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             text=True,
             capture_output=True,
             check=False,
-            timeout=120,
+            timeout=_IMPORT_TIMEOUT_S,
         )
         cumulative_us = 0
         for line in proc.stderr.splitlines():

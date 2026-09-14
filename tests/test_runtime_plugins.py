@@ -3,7 +3,6 @@
 
 from pathlib import Path
 
-
 from bughunt.runtime_plugins import (
     TRACE_EXEMPT_PY,
     blockbuster_plugin,
@@ -36,3 +35,9 @@ def test_write_runtime_plugins_stamps_output(tmp_path: Path) -> None:
     assert len(paths) == 2
     for path in paths:
         _assert_adjacent_exempt(path.read_text())
+
+
+def test_noxfile_anchors_sessions_at_root() -> None:
+    text = noxfile(["3.12"], ["tests"])
+    assert "session.chdir(Path(__file__).resolve().parent.parent.parent)" in text
+    assert '"--group"' in text and '"dev"' in text

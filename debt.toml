@@ -1096,12 +1096,6 @@ count = 1
 reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
 
 [[debt]]
-signal = "vulture:unused attribute 'caption' (<n>% confidence)"
-paths = ['src/bughunt/cli.py']
-count = 2
-reason = 'vulture framework-dispatch and schema/attr noise: visit_* called by ast, dataclass fields and Rich attrs read outside the tree'
-
-[[debt]]
 signal = "vulture:unused method 'visit_annassign' (<n>% confidence)"
 paths = ['src/bughunt/metrics_scan.py']
 count = 1
@@ -1310,18 +1304,6 @@ signal = 'ast-grep:bughunt-swallowed-exception'
 paths = ['src/bughunt/technology.py']
 count = 2
 reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
-
-[[debt]]
-signal = 'policy:BHTEST001'
-paths = ['tests/test_technology.py']
-count = 1
-reason = 'white-box unit tests of config internals with no public path exposing the contract'
-
-[[debt]]
-signal = 'policy:BHTEST001'
-paths = ['tests/test_tool_dir.py']
-count = 1
-reason = 'white-box unit tests of config internals with no public path exposing the contract'
 
 [[debt]]
 signal = 'complexipy:COG001'
@@ -1616,3 +1598,87 @@ signal = 'ruff:C901'
 paths = ['src/bughunt/version_diff_runner.py']
 count = 1
 reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'policy:BHTEST001'
+paths = ['tests/test_technology.py']
+count = 1
+reason = 'white-box unit tests of internal helpers with no narrower public path; names are the contract'
+
+[[debt]]
+signal = 'policy:BHTEST001'
+paths = ['tests/test_tool_dir.py']
+count = 1
+reason = 'white-box unit tests of internal helpers with no narrower public path; names are the contract'
+
+[[debt]]
+signal = 'codeql:py/ineffectual-statement'
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'codeql false positive on effectful await; verified by reading'
+
+[[debt]]
+signal = 'codeql:py/implicit-string-concatenation-in-list'
+paths = ['src/bughunt/cli.py']
+count = 1
+reason = 'intentional adjacent literals; tracked by BHPLC001'
+
+[[debt]]
+signal = "vulture:unused attribute 'caption' (<n>% confidence)"
+paths = ['src/bughunt/cli.py']
+count = 2
+reason = 'rich Table.caption written for render; vulture cannot see framework reads'
+
+[[debt]]
+signal = "vulture:unused method 'do_get' (<n>% confidence)"
+paths = ['tests/test_pact.py']
+count = 1
+reason = 'http.server protocol dispatch by reflection'
+
+[[debt]]
+signal = "vulture:unused method 'log_message' (<n>% confidence)"
+paths = ['tests/test_pact.py']
+count = 1
+reason = 'http.server protocol dispatch by reflection'
+
+[[debt]]
+signal = 'uv:BHPKG001'
+paths = ['']
+count = 1
+reason = 'z3-solver platform wheel mismatch in this env; not our dependency tree'
+
+[[debt]]
+signal = 'pytest-async-blocking:in run_all'
+paths = ['src/bughunt/cli.py']
+count = 3
+reason = 'sequential setup-phase I/O before Live display starts; no concurrent work starved'
+
+[[debt]]
+signal = 'pytest-async-blocking:in build_checks'
+paths = ['src/bughunt/cli.py']
+count = 3
+reason = 'setup-phase discovery I/O; see run_all'
+
+[[debt]]
+signal = 'pytest-async-blocking:in main'
+paths = ['src/bughunt/cli.py']
+count = 3
+reason = 'argparse/config entry; not concurrent'
+
+[[debt]]
+signal = 'pytest-no-network:in _port'
+paths = ['src/bughunt/pact_runner.py']
+count = 3
+reason = 'loopback port allocation is the feature; 127.0.0.1 only'
+
+[[debt]]
+signal = 'pytest-no-network:in test_port_binds_loopback'
+paths = ['tests/test_pact.py']
+count = 1
+reason = 'loopback-only socket test; no external network'
+
+[[debt]]
+signal = 'pytest-no-network:in main'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'loopback provider verification; 127.0.0.1 only'

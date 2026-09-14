@@ -22,10 +22,14 @@ def test_provider_name_round_trip(tmp_path: Path) -> None:
     assert _provider_name(tmp_path / "list.json") is None
 
 
-def test_port_is_usable() -> None:
+def test_port_binds_loopback() -> None:
+    import socket
+
     from bughunt.pact_runner import _port
 
-    assert 1 <= _port() <= 65535
+    port = _port()
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", port))
 
 
 def test_wait_http_rejects_non_http_scheme() -> None:
@@ -85,12 +89,13 @@ def test_wait_http_true_path_against_local_server() -> None:
     server = HTTPServer(("127.0.0.1", 0), _Quiet)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    proc = subprocess.Popen(["true"], text=True)
+    proc = subprocess.Popen(["sleep", "30"], text=True)
     try:
         url = f"http://127.0.0.1:{server.server_port}"
-        assert _wait_http(url, proc, timeout_s=5.0) is True
+        assert _wait_http(url, proc, timeout_s=30.0) is True
     finally:
         server.shutdown()
+        proc.terminate()
         _ = proc.wait()
 
 

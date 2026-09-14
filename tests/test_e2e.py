@@ -11,11 +11,11 @@ def _fixture(tmp_path: Path) -> Path:
     tests = tmp_path / "tests"
     _ = tests.mkdir()
     _ = (tests / "test_a.py").write_text(
-        "from a import add\n\ndef test_add() -> None:\n    assert add(1, 2) == 3\n"
+        "from a import add\n\ndef test_add() -> None:\n    assert add(1, 2) == 3\n",
     )
     _ = (tmp_path / "bughunt.toml").write_text(
         '[project]\npython_paths = ["src"]\nsource_paths = ["src"]\n'
-        'test_paths = ["tests"]\n[profiles.fast]\ntools = ["compile"]\n'
+        'test_paths = ["tests"]\n[profiles.fast]\ntools = ["compile"]\n',
     )
     return tmp_path
 
@@ -113,7 +113,7 @@ def test_pact_json_files_filter(tmp_path: Path) -> None:
 
     pact = tmp_path / "p.json"
     _ = pact.write_text(
-        json.dumps({"consumer": {}, "provider": {}, "interactions": []})
+        json.dumps({"consumer": {}, "provider": {}, "interactions": []}),
     )
     _ = (tmp_path / "plain.json").write_text("{}")
     _ = (tmp_path / "broken.json").write_text("{")
@@ -150,12 +150,12 @@ def test_debt_snapshot_records_report(tmp_path: Path) -> None:
                                 "path": "src/a.py",
                                 "line": 1,
                                 "severity": "warning",
-                            }
-                        ]
-                    }
-                ]
-            }
-        )
+                            },
+                        ],
+                    },
+                ],
+            },
+        ),
     )
     assert debt_snapshot(tmp_path, ["ruff:F401"], "test debt", None) == 0
     assert (tmp_path / "debt.toml").exists()
@@ -178,7 +178,7 @@ def test_debt_review_without_report_is_error(tmp_path: Path) -> None:
 
     _ = (tmp_path / "debt.toml").write_text(
         "[[debt]]\nsignal = 'ruff:F401'\npaths = ['src/a.py']\n"
-        + "count = 1\nreason = 'test'\n"
+        + "count = 1\nreason = 'test'\n",
     )
     assert debt_review(tmp_path) == 1
 
@@ -187,7 +187,22 @@ def test_tools_all_falls_back_to_profile_union(tmp_path: Path) -> None:
     from bughunt.cli import load_config
 
     _ = (tmp_path / "bughunt.toml").write_text(
-        '[project]\n[profiles.pr]\ntools = ["compile"]\n'
+        '[project]\n[profiles.pr]\ntools = ["compile"]\n',
     )
     cfg = load_config(tmp_path, tmp_path / "bughunt.toml")
     assert "compile" in cfg.tools("all")
+
+
+def test_publishable_package_json_gate(tmp_path: Path) -> None:
+    import json
+
+    from bughunt.cli import _publishable_package_json
+
+    assert _publishable_package_json(tmp_path) is None
+    _ = (tmp_path / "package.json").write_text(json.dumps({"private": True}))
+    assert _publishable_package_json(tmp_path) is None
+    _ = (tmp_path / "package.json").write_text("{broken")
+    assert _publishable_package_json(tmp_path) is None
+    pub = {"name": "x", "version": "0.0.1"}
+    _ = (tmp_path / "package.json").write_text(json.dumps(pub))
+    assert _publishable_package_json(tmp_path) == tmp_path / "package.json"

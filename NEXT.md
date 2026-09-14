@@ -17,30 +17,23 @@ repo-wide coverage gates in AGENTS.md (85% line, 80% branch) pass on a local
 <!-- trace:exempt reason=repo-planning-no-product-behavior -->
 ## 2. Orchestrator splits (dedicated thread)
 
-`build_checks` (511 cognitive), `main`, `install_all`, `discover_*`, and
-`_scan_*_policies` are linear dispatch, not tangled logic — splitting them is
-surgery with regression risk, not sweep filler. The `_kwargs_drift`
-three-phase precedent applies. Complexity signals are ledger-tracked, so
-growth is caught meanwhile. Acceptance per split: identical scan output on
-the repo itself (golden `report.json` diff) plus the full suite green.
+Done first cut 2026-09-14: `parsers.py` (all tool-output parsers) and
+`models.py` (Finding/Result/Check/Status/DebtEntry) extracted from `cli.py`
+with byte-identical scan output (golden `report.json` diff) and 294 green.
+Remaining: `build_checks`, `main`, `install_all`, `discover_*`. Complexity
+signals stay ledger-tracked meanwhile.
 
-<!-- trace:exempt reason=repo-planning-no-product-behavior -->
 ## 3. Confirm the loop-scan numbers
 
-Several batches landed after the last full scan (strict pylint disables,
-E501 clearance, fault tests, unit rules). Run `uv run --frozen bughunt
-skipmutmut`, confirm pylint strict ≈300→lower, ruff actionable down, and no
-new ERROR defenses. Then re-snapshot any shifted ledger counts and commit
-`debt.toml`.
+Superseded by the 2026-09-14 sweep: fresh `skipmutmut` scans run, findings
+fixed at root (pysa calibration, nox CWD/dev-group, backup crash, dead
+fields, timeout naming, audit markers), ledger re-snapshotted below.
 
-<!-- trace:exempt reason=repo-planning-no-product-behavior -->
-## 4. Known-contradictions guard (offered, unbuilt)
+## 4. Known-contradictions guard (built 2026-09-14)
 
-A small table of mutually-contradictory check pairs (pylint
-use-implicit-booleaness vs pyrefly implicit-bool, first entry) that warns
-when both sides are simultaneously enabled. It would have flagged the
-ADR-005 situation before scoping, and doubles as regression protection
-for the calibration ADRs. Build on owner approval.
+BHPLC001 in the policy pack: ISC003 vs basedpyright implicit-concat and
+pylint-booleaness vs pyrefly-implicit-bool fire when both sides are enabled
+in repo configs. Dogfood-quiet on this tree.
 
 <!-- trace:exempt reason=repo-planning-no-product-behavior -->
 ## 5. Taint-style unit tracking and dtype narrowing (specced TODO)

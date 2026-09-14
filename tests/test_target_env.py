@@ -75,7 +75,7 @@ def _exit_five_check(**kwargs):
         command=[sys.executable, "-c", "raise SystemExit(5)"],
         parser=lambda o, e, c: [],
         timeout=30,
-        cwd=Path("."),
+        cwd=Path(),
         **kwargs,
     )
 

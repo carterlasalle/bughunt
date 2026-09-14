@@ -18,6 +18,13 @@ from .technology import (
 )
 
 
+# Probe bounds (seconds) for environment interrogation. Install probes must
+# never stall a scan on a wedged interpreter or package manager.
+_IMPORT_PROBE_TIMEOUT_S = 45
+_BREW_TIMEOUT_S = 30
+_CLIPPY_PROBE_TIMEOUT_S = 15
+
+
 @dataclass(slots=True)
 class InstallResult:
     name: str
@@ -156,7 +163,7 @@ def _python_importable(
             text=True,
             capture_output=True,
             check=False,
-            timeout=45,
+            timeout=_IMPORT_PROBE_TIMEOUT_S,
             env=env,
         )
     except (OSError, subprocess.SubprocessError):
@@ -173,7 +180,7 @@ def _brew_prefix(brew: str, formula: str, root: Path) -> str | None:
             text=True,
             capture_output=True,
             check=False,
-            timeout=30,
+            timeout=_BREW_TIMEOUT_S,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -632,7 +639,7 @@ def _clippy_ready(root: Path) -> bool:
                 cwd=root,
                 text=True,
                 capture_output=True,
-                timeout=15,
+                timeout=_CLIPPY_PROBE_TIMEOUT_S,
                 check=False,
             ).returncode
             == 0

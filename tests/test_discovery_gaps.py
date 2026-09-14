@@ -86,10 +86,10 @@ def test_strategy_expressions() -> None:
 
 def test_name_variant_and_signatures() -> None:
     from bughunt.discovery import (
+        FunctionInfo,
         _name_variant,
         _safe_campaign_function,
         _same_signature,
-        FunctionInfo,
     )
 
     assert _name_variant("parse_json_strict", {"strict"}) == (
@@ -134,7 +134,7 @@ def test_discovers_reference_optimized_pair(tmp_path: Path) -> None:
         + "    total = 0\n"
         + "    for x in items:\n"
         + "        total += x\n"
-        + "    return total\n"
+        + "    return total\n",
     )
     targets = discover_custom_campaigns(tmp_path, ["src"])
     assert len(targets) == 1
@@ -150,7 +150,7 @@ def test_discovers_factory_built_app(tmp_path: Path) -> None:
         "from fastapi import FastAPI\n"
         + "\n\ndef create_app():\n"
         + "    return FastAPI()\n"
-        + "\n\napp = create_app()\n"
+        + "\n\napp = create_app()\n",
     )
     targets = discover_schemathesis(tmp_path, ["src"])
     assert len(targets) == 1
@@ -169,10 +169,10 @@ def test_discovers_fuzz_target_with_seeds(tmp_path: Path) -> None:
         "from parse import fuzz_parse\n"
         + "\n\ndef test_seeds() -> None:\n"
         + "    fuzz_parse(b'raw')\n"
-        + "    fuzz_parse('text')\n"
+        + "    fuzz_parse('text')\n",
     )
     seeds = _literal_seeds(tmp_path, "fuzz_parse")
     assert (b"raw", "bytes") in seeds
-    assert ("text".encode("utf-8"), "str") in seeds
+    assert (b"text", "str") in seeds
     targets = discover_atheris(tmp_path, ["src"])
     assert [target.name for target in targets] == ["parse.fuzz_parse"]
