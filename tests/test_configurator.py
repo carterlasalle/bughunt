@@ -205,3 +205,13 @@ def test_pylint_contracts_scope_idiom() -> None:
     relaxed = _pylint_config(for_tests=True)
     assert "unused-argument" in relaxed
     assert "line-too-long" in relaxed
+
+
+# trace:v1 id=test.tests-test-configurator.test-freethreaded-matrix-needs-opt-in work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_freethreaded_matrix_needs_opt_in(tmp_path: Path) -> None:
+    from bughunt.configurator import _python_matrix_versions
+
+    (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
+    assert "3.14t" not in _python_matrix_versions(tmp_path)
+    (tmp_path / "bughunt.toml").write_text("[matrix]\nfreethreaded = true\n")
+    assert "3.14t" in _python_matrix_versions(tmp_path)

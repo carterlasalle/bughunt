@@ -1618,8 +1618,10 @@ def _configure_technology_overlays(
 def _python_matrix_versions(root: Path) -> list[str]:
     """Default compatibility matrix for supported CPython releases.
 
-    Keep this deterministic and bounded. 3.14t is included as a distinct
-    free-threaded stress interpreter when the project supports 3.14.
+    Keep this deterministic and bounded. The free-threaded interpreter is
+    a distinct compatibility claim (no-GIL races, dependency wheels), so
+    3.14t joins the matrix only with explicit opt-in (`[matrix]`
+    `freethreaded = true` in bughunt.toml), never by default.
     """
     req = str(_toml_project(root).get("requires-python", ""))
     versions = ["3.11", "3.12", "3.13", "3.14"]
@@ -1638,9 +1640,20 @@ def _python_matrix_versions(root: Path) -> list[str]:
     if lower:
         floor = int(lower.group(1))
         versions = [v for v in versions if int(v.split(".")[1]) >= floor]
-    if "3.14" in versions:
+    if "3.14" in versions and _matrix_freethreaded(root):
         versions.append("3.14t")
     return versions or [_python_version(root)]
+
+
+# trace:v1 id=impl.src-bughunt-configurator.-matrix-freethreaded work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _matrix_freethreaded(root: Path) -> bool:
+    """Whether the repo opts into free-threaded matrix coverage."""
+    try:
+        data = tomllib.loads((root / "bughunt.toml").read_text())
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+    matrix = data.get("matrix", {})
+    return bool(isinstance(matrix, dict) and matrix.get("freethreaded", False))
 
 
 # trace:v1 id=impl.src-bughunt-configurator.configure-all work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC

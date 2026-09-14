@@ -261,11 +261,13 @@ def _call_explicit_keys(call: ast.Call) -> set[str]:
     return out
 
 
-# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-drift work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
-    infos = _function_infos(tree)
+# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-forwards work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _kwargs_forwards(
+    tree: ast.AST,
+    infos: dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]],
+) -> dict[str, str]:
+    """Map wrappers to the callee they forward **kwargs to."""
     forward: dict[str, str] = {}
-    call_keys: dict[str, list[tuple[int, set[str]]]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -281,13 +283,30 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
                         for kw in child.keywords
                     ):
                         forward[node.name] = callee
+    return forward
+
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-call-keys work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _kwargs_call_keys(
+    tree: ast.AST,
+    infos: dict[str, tuple[ast.FunctionDef | ast.AsyncFunctionDef, str | None]],
+) -> dict[str, list[tuple[int, set[str]]]]:
+    """Map callees to the explicit keyword keys each call site passes."""
+    call_keys: dict[str, list[tuple[int, set[str]]]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             callee = _call_name(node.func).rsplit(".", 1)[-1]
             keys = _call_explicit_keys(node)
             if callee in infos and keys:
                 call_keys.setdefault(callee, []).append((node.lineno, keys))
+    return call_keys
 
+
+# trace:v1 id=impl.src-bughunt-seam_scan.-kwargs-drift work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
+    infos = _function_infos(tree)
+    forward = _kwargs_forwards(tree, infos)
+    call_keys = _kwargs_call_keys(tree, infos)
     findings: list[SeamFinding] = []
     for root_name, calls in call_keys.items():
         current = root_name
@@ -329,7 +348,6 @@ def _kwargs_drift(tree: ast.AST, rel: str) -> list[SeamFinding]:
     return findings
 
 
-# trace:v1 id=impl.src-bughunt-seam_scan.-external-http-without-validation work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _external_http_without_validation(tree: ast.AST, rel: str) -> list[SeamFinding]:
     findings: list[SeamFinding] = []
     for node in ast.walk(tree):

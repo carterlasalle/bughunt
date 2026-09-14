@@ -1310,3 +1310,309 @@ signal = 'ast-grep:bughunt-swallowed-exception'
 paths = ['src/bughunt/technology.py']
 count = 2
 reason = 'deliberate best-effort fallbacks, each with an explanatory comment; one bad file never fails a scan'
+
+[[debt]]
+signal = 'policy:BHTEST001'
+paths = ['tests/test_technology.py']
+count = 1
+reason = 'white-box unit tests of config internals with no public path exposing the contract'
+
+[[debt]]
+signal = 'policy:BHTEST001'
+paths = ['tests/test_tool_dir.py']
+count = 1
+reason = 'white-box unit tests of config internals with no public path exposing the contract'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/cli.py']
+count = 35
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/configurator.py']
+count = 6
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/coverage_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/coverage_tools.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/discovery.py']
+count = 10
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/evidence_scan.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/installers.py']
+count = 5
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/metrics_scan.py']
+count = 3
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/policy_scan.py']
+count = 12
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/seam_scan.py']
+count = 10
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/technology.py']
+count = 4
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'complexipy:COG001'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/cli.py']
+count = 42
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/configurator.py']
+count = 8
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/coverage_tools.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/discovery.py']
+count = 9
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/evidence_scan.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/importtime_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/installers.py']
+count = 5
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/metrics_scan.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/package_checks.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/pact_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/policy_scan.py']
+count = 7
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/seam_scan.py']
+count = 9
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/technology.py']
+count = 3
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'lizard:LIZARD_CCN'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/cli.py']
+count = 20
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/configurator.py']
+count = 4
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/discovery.py']
+count = 10
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/evidence_scan.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/importtime_runner.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/installers.py']
+count = 6
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/pact_runner.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/policy_scan.py']
+count = 10
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/seam_scan.py']
+count = 14
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/technology.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'pylint:too-complex'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/cli.py']
+count = 9
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/configurator.py']
+count = 2
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/discovery.py']
+count = 4
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/evidence_scan.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/installers.py']
+count = 3
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/policy_scan.py']
+count = 5
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/seam_scan.py']
+count = 5
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/technology.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
+
+[[debt]]
+signal = 'ruff:C901'
+paths = ['src/bughunt/version_diff_runner.py']
+count = 1
+reason = 'structural complexity of orchestrators/dispatchers/analyzers; tracked for growth, split opportunistically (see _kwargs_drift precedent)'
