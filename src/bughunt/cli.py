@@ -15,6 +15,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import tomllib
 from collections import Counter
@@ -6144,8 +6145,12 @@ async def run_all(
         refresh_per_second=4,
         transient=False,
     ) as live:
+        # Signals are delivered to the main thread only; installing a handler
+        # off the main thread raises ValueError and could never fire there.
+        main_thread = threading.current_thread() is threading.main_thread()
         previous_handler = signal.getsignal(signal.SIGINT)
-        signal.signal(signal.SIGINT, _handle_sigint)
+        if main_thread:
+            signal.signal(signal.SIGINT, _handle_sigint)
         refresh_task = asyncio.create_task(refresher(live))
         try:
             normal = await run_parallel(checks, cfg.max_parallel, raw_limit, progress)
@@ -6185,7 +6190,8 @@ async def run_all(
             stop_refresh.set()
             await refresh_task
             live.update(progress.render(), refresh=True)
-            signal.signal(signal.SIGINT, previous_handler)
+            if main_thread:
+                signal.signal(signal.SIGINT, previous_handler)
 
     canonicalize_findings(cfg.root, results)
     mark_accepted(results, load_debt_ledger(cfg.root))
