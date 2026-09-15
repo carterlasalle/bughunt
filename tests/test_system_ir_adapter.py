@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 
 
+from conftest import serialized
+
+
 def _mini(tmp_path: Path) -> Path:
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
@@ -12,6 +15,7 @@ def _mini(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@serialized
 def test_main_needs_root(monkeypatch, capsys) -> None:
     import sys
 
@@ -22,6 +26,7 @@ def test_main_needs_root(monkeypatch, capsys) -> None:
     assert "root required" in capsys.readouterr().out
 
 
+@serialized
 def test_missing_cli_is_not_applicable(monkeypatch, tmp_path: Path, capsys) -> None:
     from bughunt import system_ir_adapter
 
@@ -57,6 +62,7 @@ def test_graph_findings_empty_on_clean_tree(tmp_path: Path) -> None:
     assert graph_findings(_mini(tmp_path)) == []
 
 
+@serialized
 def test_main_end_to_end(tmp_path: Path, capsys) -> None:
     from bughunt.system_ir_adapter import export, main
 
@@ -115,6 +121,7 @@ def test_unparseable_payloads(monkeypatch, tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-system-ir-adapter.test-cache-key-and-main-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
 def test_cache_key_and_main_shapes(monkeypatch, tmp_path: Path, capsys) -> None:
     import json
     import subprocess

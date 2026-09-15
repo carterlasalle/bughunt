@@ -4,6 +4,9 @@
 from pathlib import Path
 
 
+from conftest import serialized
+
+
 def _scan(tmp_path: Path, source: str):
     from bughunt.protocol_scan import scan
 
@@ -83,6 +86,7 @@ def test_bare_next_is_flagged(tmp_path: Path) -> None:
     assert [item.code for item in findings] == ["BHPRT004"]
 
 
+@serialized
 def test_main_gates(monkeypatch, tmp_path: Path, capsys) -> None:
     import json
     import sys
@@ -288,6 +292,7 @@ def test_framework_gating(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-protocol-scan.test-findings-survive-helper-parser work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
 def test_findings_survive_helper_parser(tmp_path: Path, capsys) -> None:
 
     from bughunt.parsers import parse_bughunt_helper

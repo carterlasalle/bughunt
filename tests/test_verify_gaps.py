@@ -4,6 +4,9 @@
 from pathlib import Path
 
 
+from conftest import serialized
+
+
 def _ir(*entities, calls=(), tested=()):
     rels = [{"predicate": "calls", "subject": s, "object": o} for s, o in calls] + [
         {"predicate": "tested_by", "subject": s} for s in tested
@@ -119,6 +122,7 @@ def test_mention_suppresses_heuristic_gap(monkeypatch, tmp_path: Path) -> None:
     assert verify_gaps.scan(tmp_path) == []
 
 
+@serialized
 def test_main_gates_and_contracts(monkeypatch, tmp_path: Path, capsys) -> None:
     import json
     import sys
@@ -313,6 +317,7 @@ def test_test_mentions_edge_shapes(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-verify-gaps.test-main-reports-findings work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
 def test_main_reports_findings(monkeypatch, tmp_path: Path, capsys) -> None:
     import json
 

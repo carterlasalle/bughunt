@@ -4,6 +4,10 @@
 from pathlib import Path
 
 
+from conftest import serialized
+
+
+@serialized
 def test_empty_dir_passes_with_no_checks(tmp_path: Path, capsys) -> None:
     import json
 
@@ -14,6 +18,7 @@ def test_empty_dir_passes_with_no_checks(tmp_path: Path, capsys) -> None:
     assert payload["findings"] == []
 
 
+@serialized
 def test_missing_tools_degrade_to_no_findings(
     monkeypatch,
     tmp_path: Path,
@@ -31,6 +36,7 @@ def test_missing_tools_degrade_to_no_findings(
     assert payload["findings"] == []
 
 
+@serialized
 def test_tool_failures_become_structured_findings(
     monkeypatch,
     tmp_path: Path,
@@ -79,6 +85,7 @@ def test_run_failure_is_structured_error(monkeypatch) -> None:
     assert result["returncode"] == 255
 
 
+@serialized
 def test_empty_dist_skips_twine(monkeypatch, tmp_path: Path, capsys) -> None:
     import json
 

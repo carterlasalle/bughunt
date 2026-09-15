@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 
 
+from conftest import serialized
+
+
+@serialized
 def test_main_needs_root(monkeypatch, capsys) -> None:
     import sys
 
@@ -15,6 +19,7 @@ def test_main_needs_root(monkeypatch, capsys) -> None:
     assert "root required" in capsys.readouterr().out
 
 
+@serialized
 def test_no_trace_dir_is_not_applicable(tmp_path: Path, capsys) -> None:
     from bughunt.tracelayer_adapter import main
 
@@ -23,6 +28,7 @@ def test_no_trace_dir_is_not_applicable(tmp_path: Path, capsys) -> None:
     assert payload["not_applicable"] is True
 
 
+@serialized
 def test_verify_clean_on_real_repo(capsys) -> None:
     from bughunt.tracelayer_adapter import main, verify
 

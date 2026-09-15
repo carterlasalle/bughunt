@@ -1,12 +1,10 @@
 # Copyright (c) 2026 Carter LaSalle
 from collections.abc import Callable
 from pathlib import Path
-from typing import ParamSpec, TypeVar
 
 import pytest
-import functools
-import threading
 
+from conftest import serialized
 from bughunt.cli import (
     Config,
     Finding,
@@ -16,23 +14,6 @@ from bughunt.cli import (
     parse_basedpyright,
     parse_ruff,
 )
-
-_GLOBAL_STATE_LOCK = threading.Lock()
-
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
-
-
-# trace:v1 id=test.tests-test-core.serialized work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _serialized(fn: Callable[_P, _T]) -> Callable[_P, _T]:
-    """Serialize tests that mutate process-global CLI state under threads."""
-
-    @functools.wraps(fn)
-    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
-        with _GLOBAL_STATE_LOCK:
-            return fn(*args, **kwargs)
-
-    return wrapper
 
 
 def test_parse_ruff() -> None:
@@ -975,7 +956,7 @@ def test_pysa_provider_error_degrades() -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-atheris-needs-native work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
     from bughunt import cli as cli_module
 
@@ -986,7 +967,7 @@ def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-stop-flag-short-circuits work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_stop_flag_short_circuits(tmp_path: Path) -> None:
     import asyncio
     import sys
@@ -1013,7 +994,7 @@ def test_stop_flag_short_circuits(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-double-sigint-aborts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_double_sigint_aborts() -> None:
     import signal
 
@@ -1048,7 +1029,7 @@ def test_double_sigint_aborts() -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-direct-stop-check work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_direct_stop_check(tmp_path: Path) -> None:
     import asyncio
     import sys
@@ -1074,7 +1055,7 @@ def test_direct_stop_check(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-cancelled-process-reaped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_cancelled_process_reaped(tmp_path: Path) -> None:
     import asyncio
     import sys
@@ -1107,7 +1088,7 @@ def test_cancelled_process_reaped(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-sigint-terminates-live-procs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_sigint_terminates_live_procs() -> None:
     import signal
 
@@ -1131,7 +1112,7 @@ def test_sigint_terminates_live_procs() -> None:
 
 
 # trace:v1 id=test.tests-test-core.test-cancel-without-stop-falls-through work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-@_serialized
+@serialized
 def test_cancel_without_stop_falls_through(tmp_path: Path) -> None:
     import asyncio
     import sys

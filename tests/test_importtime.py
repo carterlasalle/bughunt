@@ -4,12 +4,17 @@
 import json
 
 
+from conftest import serialized
+
+
+@serialized
 def test_no_modules_is_clean(capsys) -> None:
     from bughunt.importtime_runner import main
 
     assert main(["1000"]) == 0
 
 
+@serialized
 def test_stdlib_import_under_generous_budget(capsys) -> None:
     from bughunt.importtime_runner import main
 
@@ -19,6 +24,7 @@ def test_stdlib_import_under_generous_budget(capsys) -> None:
     assert payload["samples"][0]["module"] == "json"
 
 
+@serialized
 def test_zero_budget_flags_any_import(capsys) -> None:
     from bughunt.importtime_runner import main
 
@@ -27,6 +33,7 @@ def test_zero_budget_flags_any_import(capsys) -> None:
     assert payload["findings"][0]["code"] == "BHPERF001"
 
 
+@serialized
 def test_invalid_module_name_is_finding_not_exec(capsys) -> None:
     from bughunt.importtime_runner import main
 
@@ -35,6 +42,7 @@ def test_invalid_module_name_is_finding_not_exec(capsys) -> None:
     assert "not a valid Python module name" in payload["findings"][0]["message"]
 
 
+@serialized
 def test_missing_module_is_failure_finding(capsys) -> None:
     from bughunt.importtime_runner import main
 

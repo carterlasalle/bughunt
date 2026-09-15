@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 
 
+from conftest import serialized
+
+
 def _pact(tmp_path: Path, name: str) -> Path:
     path = tmp_path / "p.json"
     _ = path.write_text(json.dumps({"provider": {"name": name}, "interactions": []}))
@@ -51,6 +54,7 @@ def test_main_needs_three_args() -> None:
     assert main(["only-root"]) == 2
 
 
+@serialized
 def test_main_rejects_pact_without_provider(tmp_path: Path, capsys) -> None:
     from bughunt.pact_runner import main
 
@@ -60,6 +64,7 @@ def test_main_rejects_pact_without_provider(tmp_path: Path, capsys) -> None:
     assert "no valid local Pact files" in capsys.readouterr().out
 
 
+@serialized
 def test_main_without_pact_library(tmp_path: Path, monkeypatch, capsys) -> None:
     import sys
 
@@ -99,6 +104,7 @@ def test_wait_http_true_path_against_local_server() -> None:
         _ = proc.wait()
 
 
+@serialized
 def test_main_reports_provider_that_never_starts(tmp_path: Path, capsys) -> None:
 
     from bughunt.pact_runner import main

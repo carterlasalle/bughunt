@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 
 
+from conftest import serialized
+
+
+@serialized
 def test_main_needs_root(monkeypatch, capsys) -> None:
     import sys
 
@@ -15,6 +19,7 @@ def test_main_needs_root(monkeypatch, capsys) -> None:
     assert "root required" in capsys.readouterr().out
 
 
+@serialized
 def test_main_without_corpus_is_not_applicable(tmp_path: Path, capsys) -> None:
     from bughunt.bugcorpus_adapter import main
 
@@ -95,6 +100,7 @@ def test_corrupt_scan_output_is_error(monkeypatch, tmp_path: Path) -> None:
     assert findings[0]["code"] == "BHBUGC001"
 
 
+@serialized
 def test_main_end_to_end_on_real_corpus(capsys) -> None:
     from bughunt.bugcorpus_adapter import main
 

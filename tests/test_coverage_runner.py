@@ -4,6 +4,10 @@
 from pathlib import Path
 
 
+from conftest import serialized
+
+
+@serialized
 def test_runner_produces_json_report(tmp_path: Path, capsys) -> None:
     import json
 
@@ -34,6 +38,7 @@ def test_runner_produces_json_report(tmp_path: Path, capsys) -> None:
     assert "files" in payload
 
 
+@serialized
 def test_no_args_is_usage_error(monkeypatch, capsys) -> None:
     import sys
 

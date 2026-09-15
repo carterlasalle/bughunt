@@ -6,6 +6,9 @@ from pathlib import Path
 from bughunt.seam_scan import SeamFinding, scan_seams
 
 
+from conftest import serialized
+
+
 def _tree(tmp_path: Path, source: str) -> list[SeamFinding]:
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
@@ -391,6 +394,7 @@ def test_schema_doc_variants(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-seam-rules.test-main-contract work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
 def test_main_contract(tmp_path: Path, capsys, monkeypatch) -> None:
     import json
     import sys

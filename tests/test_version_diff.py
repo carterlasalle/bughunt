@@ -7,6 +7,9 @@ import subprocess
 from pathlib import Path
 
 
+from conftest import serialized
+
+
 def _parse(source: str) -> ast.FunctionDef:
     for node in ast.parse(source).body:
         if isinstance(node, ast.FunctionDef):
@@ -40,6 +43,7 @@ def test_functions_skips_unparseable() -> None:
     assert set(_functions("def f() -> None:\n    pass\n")) == {"f"}
 
 
+@serialized
 def test_main_needs_three_args(capsys) -> None:
     from bughunt.version_diff_runner import main
 
@@ -64,6 +68,7 @@ def _git(*args: str, cwd: Path) -> None:
     )
 
 
+@serialized
 def test_behavior_change_is_caught(tmp_path: Path, capsys) -> None:
     from bughunt.version_diff_runner import main
 
@@ -83,6 +88,7 @@ def test_behavior_change_is_caught(tmp_path: Path, capsys) -> None:
     assert payload["findings"][0]["code"] == "BHDIFF001"
 
 
+@serialized
 def test_identical_tree_is_clean(tmp_path: Path, capsys) -> None:
     from bughunt.version_diff_runner import main
 
@@ -102,6 +108,7 @@ def test_identical_tree_is_clean(tmp_path: Path, capsys) -> None:
 
 
 # trace:v1 id=test.tests-test-version-diff.test-signature-only-change-is-clean work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
 def test_signature_only_change_is_clean(tmp_path: Path, capsys) -> None:
     from bughunt.version_diff_runner import main
 
