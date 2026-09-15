@@ -170,6 +170,15 @@ def _rel(root: Path, path: Path) -> str:
         return path.as_posix()
 
 
+# trace:v1 id=impl.src-bughunt-technology.small-enough work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _small_enough(path: Path, limit: int = 1_000_000) -> bool:
+    """Same skip-instead-of-crash contract as _read_small for racy trees."""
+    try:
+        return path.stat().st_size < limit
+    except OSError:
+        return False
+
+
 def _read_small(path: Path, limit: int = 65536) -> str:
     try:
         return path.read_text(errors="replace")[:limit]
@@ -409,7 +418,7 @@ def discover_technologies(root: Path, *, persist: bool = True) -> TechnologyInve
             buckets["github-actions"].append(rel)
         if suffix in {".sh", ".bash", ".zsh", ".ksh"}:
             buckets["shell"].append(rel)
-        elif suffix == "" and path.stat().st_size < 1_000_000:
+        elif suffix == "" and _small_enough(path):
             first = _read_small(path, 256).splitlines()[:1]
             if first and re.search(r"^#!.*\b(?:ba|z|k)?sh\b", first[0]):
                 buckets["shell"].append(rel)

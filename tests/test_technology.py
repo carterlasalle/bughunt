@@ -334,3 +334,23 @@ def test_tsc_gated_on_tsconfig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     (tmp_path / "tsconfig.json").write_text("{}")
     checks, _ = build_checks(cfg, "pr")
     assert any(c.name == "tsc" for c in checks)
+
+
+# trace:v1 id=test.tests-test-technology.test-discovery-tolerates-vanishing-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_discovery_tolerates_vanishing_files(tmp_path: Path) -> None:
+    """Files deleted between the tree walk and probing must be skipped."""
+    from unittest.mock import patch
+
+    flaky = tmp_path / "flaky"
+    flaky.write_text("#!/bin/sh\necho hi\n")
+    real_stat = Path.stat
+
+    # trace:v1 id=test.tests-test-technology-test-discovery-tolerates-vanishing-files.vanishing-stat work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def vanishing_stat(self: Path, *args: object, **kwargs: object):
+        if self == flaky:
+            raise FileNotFoundError("deleted mid-scan")
+        return real_stat(self, *args, **kwargs)
+
+    with patch.object(Path, "stat", vanishing_stat):
+        inv = discover_technologies(tmp_path)
+    assert inv is not None
