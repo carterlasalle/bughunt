@@ -1,8 +1,31 @@
 # Copyright (c) 2026 Carter LaSalle
 """Installer primitives: run outcomes, guards, managers, and uv-missing."""
 
+import functools
 import sys
+import threading
+from collections.abc import Callable
 from pathlib import Path
+from typing import ParamSpec, TypeVar
+
+
+_GLOBAL_STATE_LOCK = threading.Lock()
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
+
+# trace:v1 id=test.tests-test-installer-units.serialized-fn work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _serialized(fn: Callable[_P, _T]) -> Callable[_P, _T]:
+    """Serialize tests that patch module-global state under threads."""
+
+    # trace:v1 id=test.tests-test-installer-units-serialized.wrapper work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    @functools.wraps(fn)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        with _GLOBAL_STATE_LOCK:
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def test_run_outcomes() -> None:
@@ -52,6 +75,8 @@ def test_inside_project_environment() -> None:
     assert _inside_project_environment("/nonexistent-tool-xyz") is False
 
 
+# trace:v1 id=test.tests-test-installer-units.test-install-all-without-uv work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@_serialized
 def test_install_all_without_uv(monkeypatch, tmp_path: Path) -> None:
     import shutil
 
@@ -63,6 +88,8 @@ def test_install_all_without_uv(monkeypatch, tmp_path: Path) -> None:
     assert results[0].status == "ERROR"
 
 
+# trace:v1 id=test.tests-test-installer-units.test-package-manager-without-tools work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@_serialized
 def test_package_manager_without_tools_is_none(monkeypatch, tmp_path: Path) -> None:
     import shutil
 
@@ -132,6 +159,7 @@ def test_pysa_provider_probe(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-installer-units.test-run-kills-hung-command work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@_serialized
 def test_run_kills_hung_command(monkeypatch, tmp_path: Path) -> None:
     import bughunt.installers as installers
 
@@ -159,6 +187,7 @@ def test_inside_target_venv(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-installer-units.test-ready-without-path work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@_serialized
 def test_ready_without_path(monkeypatch, tmp_path: Path) -> None:
     from bughunt import installers
 
