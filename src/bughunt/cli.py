@@ -6130,8 +6130,23 @@ async def run_all(
 
     # trace:v1 id=impl.src-bughunt-cli-run-all.refresher work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     async def refresher(live: Live) -> None:
+        last_heartbeat = time.perf_counter()
         while not stop_refresh.is_set():
             live.update(progress.render(), refresh=True)
+            now = time.perf_counter()
+            if now - last_heartbeat >= 60:
+                last_heartbeat = now
+                stuck = sorted(
+                    (name, now - float(e["started"]), now - float(e["last_activity"]))
+                    for name, e in progress.running.items()
+                )
+                print(
+                    f"[bughunt heartbeat] {now - progress.started_at:.0f}s elapsed, "
+                    f"{len(progress.completed)} done, {len(stuck)} running: "
+                    + ", ".join(f"{n}({int(a)}s)" for n, a, _ in stuck[:12]),
+                    file=sys.stderr,
+                    flush=True,
+                )
             try:
                 await asyncio.wait_for(stop_refresh.wait(), timeout=0.5)
             except TimeoutError:
