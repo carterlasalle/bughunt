@@ -2,7 +2,7 @@
 # trace:v1 id=ops.name work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
 name = "bughunt"
 # trace:v1 id=ops.version work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-version = "0.8.0"
+version = "0.9.0"
 description = "Defense-in-depth bug finding orchestrator for Python repositories"
 readme = "README.md"
 requires-python = ">=3.11"

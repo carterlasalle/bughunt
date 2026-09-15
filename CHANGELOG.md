@@ -6,6 +6,24 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-15
+
+Semantic-correctness release: interprocedural abstract-interpretation
+engine over the SCC graph skeleton with confidence-ranked evidence
+(BHUNIT004 time-unit contradictions, BHSEM001 nominal, BHSEM002
+instant/duration, BHSEM003 timezone, BHSEM004 dtype narrowing,
+BHSEM005 promotion, BHSEM006 shape, BHSEM007 scale, BHSEM008 frames,
+BHSEM009 encoding, BHSEM010 nullability, BHCONC001 shared writers);
+protocol batch BHPRT005-015 (resource state, def-use, framework
+semantics); CrossHair witness confirmation; twelve BugCorpus family
+cases. Field hardening from real-repo runs: installers get a 600s
+kill-timeout and target-env ready checks, all analyzer resolutions go
+through the target environment, atheris requires its native extension,
+alembic skips without runnable config, benchmarks run serially,
+bugcorpus findings use the real result schema, nested build output is
+excluded from JS tooling, and Ctrl-C writes a partial report (130)
+instead of tracebacking.
+
 ## [0.8.0] - 2026-09-14
 
 Graph-evidence release: SCC/System IR and TraceLayer wired as real rings
