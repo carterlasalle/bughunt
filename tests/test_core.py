@@ -968,3 +968,172 @@ def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
         ),
     )
     assert cli_module.atheris_available(tmp_path) is False
+
+
+# trace:v1 id=test.tests-test-core.test-stop-flag-short-circuits work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_stop_flag_short_circuits(tmp_path: Path) -> None:
+    import asyncio
+    import sys
+
+    from bughunt import cli as cli_module
+    from bughunt.cli import Check, Status, run_parallel
+
+    cli_module._STOP_REQUESTED = True
+    try:
+        check = Check(
+            name="never-runs",
+            category="regression",
+            command=[sys.executable, "-c", "raise SystemExit(99)"],
+            parser=lambda out, err, code: [],
+            timeout=10,
+            cwd=tmp_path,
+        )
+        results = asyncio.run(run_parallel([check], 2, 300000))
+    finally:
+        cli_module._STOP_REQUESTED = False
+    assert len(results) == 1
+    assert results[0].status == Status.ERROR
+    assert "interrupted" in (results[0].note or "")
+
+
+# trace:v1 id=test.tests-test-core.test-double-sigint-aborts work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_double_sigint_aborts() -> None:
+    import signal
+
+    from bughunt import cli as cli_module
+
+    actions: list[str] = []
+
+    class _Proc:
+        def terminate(self) -> None:
+            actions.append("term")
+
+        def kill(self) -> None:
+            actions.append("kill")
+
+    proc = _Proc()
+    cli_module._STOP_REQUESTED = False
+    try:
+        cli_module._LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+        cli_module._handle_sigint(signal.SIGINT, None)
+        assert cli_module._stop_requested() is True
+        assert actions == ["term"]
+        try:
+            cli_module._handle_sigint(signal.SIGINT, None)
+        except SystemExit as exc:
+            assert exc.code == 130
+        else:
+            raise AssertionError("second SIGINT must abort")
+        assert actions == ["term", "kill"]
+    finally:
+        cli_module._LIVE_PROCS.discard(proc)
+        cli_module._STOP_REQUESTED = False
+
+
+# trace:v1 id=test.tests-test-core.test-direct-stop-check work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_direct_stop_check(tmp_path: Path) -> None:
+    import asyncio
+    import sys
+
+    from bughunt import cli as cli_module
+    from bughunt.cli import Check, Status, run_process
+
+    check = Check(
+        name="never-runs",
+        category="regression",
+        command=[sys.executable, "-c", "pass"],
+        parser=lambda out, err, code: [],
+        timeout=10,
+        cwd=tmp_path,
+    )
+    cli_module._STOP_REQUESTED = True
+    try:
+        result = asyncio.run(run_process(check, 300000))
+    finally:
+        cli_module._STOP_REQUESTED = False
+    assert result.status == Status.ERROR
+    assert "interrupted" in (result.note or "")
+
+
+# trace:v1 id=test.tests-test-core.test-cancelled-process-reaped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_cancelled_process_reaped(tmp_path: Path) -> None:
+    import asyncio
+    import sys
+
+    from bughunt import cli as cli_module
+    from bughunt.cli import Check, Status, run_process
+
+    async def _run() -> object:
+        check = Check(
+            name="sleeper",
+            category="regression",
+            command=[sys.executable, "-c", "import time; time.sleep(30)"],
+            parser=lambda out, err, code: [],
+            timeout=60,
+            cwd=tmp_path,
+        )
+        task = asyncio.create_task(run_process(check, 300000))
+        await asyncio.sleep(0.5)
+        cli_module._STOP_REQUESTED = True
+        task.cancel()
+        try:
+            return await task
+        finally:
+            cli_module._STOP_REQUESTED = False
+
+    result = asyncio.run(_run())
+    assert result.status == Status.ERROR
+    assert "interrupted" in (result.note or "")
+    assert len(cli_module._LIVE_PROCS) == 0
+
+
+# trace:v1 id=test.tests-test-core.test-sigint-terminates-live-procs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_sigint_terminates_live_procs() -> None:
+    import signal
+
+    from bughunt import cli as cli_module
+
+    terminated: list[str] = []
+
+    class _Proc:
+        def terminate(self) -> None:
+            terminated.append("term")
+
+    proc = _Proc()
+    cli_module._LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+    cli_module._STOP_REQUESTED = False
+    try:
+        cli_module._handle_sigint(signal.SIGINT, None)
+    finally:
+        cli_module._LIVE_PROCS.discard(proc)
+        cli_module._STOP_REQUESTED = False
+    assert terminated == ["term"]
+
+
+# trace:v1 id=test.tests-test-core.test-cancel-without-stop-falls-through work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_cancel_without_stop_falls_through(tmp_path: Path) -> None:
+    import asyncio
+    import sys
+
+    from bughunt.cli import Check, run_process
+
+    async def _run() -> object:
+        check = Check(
+            name="sleeper",
+            category="regression",
+            command=[sys.executable, "-c", "import time; time.sleep(30)"],
+            parser=lambda out, err, code: [],
+            timeout=60,
+            cwd=tmp_path,
+            timeout_is_success=True,
+        )
+        task = asyncio.create_task(run_process(check, 300000))
+        await asyncio.sleep(0.5)
+        task.cancel()
+        try:
+            return await task
+        except asyncio.CancelledError:
+            raise AssertionError("cancellation must be absorbed")
+
+    result = asyncio.run(_run())
+    assert result.status is not None

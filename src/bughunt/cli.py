@@ -12,6 +12,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -363,9 +364,9 @@ def debt_snapshot(
     ledger = load_debt_ledger(root)
     wanted = set(signals)
     ledger = [e for e in ledger if e.signal not in wanted]
-    for (signal, path), count in sorted(counts.items()):
+    for (sig, path), count in sorted(counts.items()):
         ledger.append(
-            DebtEntry(signal=signal, paths=[path], count=count, reason=reason),
+            DebtEntry(signal=sig, paths=[path], count=count, reason=reason),
         )
     lines = [
         "# Accepted finding debt. Entries here stay visible in the report's",
@@ -3329,6 +3330,51 @@ class LiveRunState:
         return table
 
 
+_STOP_REQUESTED = False
+_LIVE_PROCS: set[asyncio.subprocess.Process] = set()
+
+
+# trace:v1 id=impl.src-bughunt-cli.stop-requested work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _stop_requested() -> bool:
+    """True after the first SIGINT; new work must not start."""
+    return _STOP_REQUESTED
+
+
+# trace:v1 id=impl.src-bughunt-cli.-handle-sigint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _handle_sigint(signum: int, frame: object) -> None:
+    """First Ctrl-C stops gracefully; a second one aborts immediately."""
+    global _STOP_REQUESTED
+    _ = (signum, frame)
+    if _STOP_REQUESTED:
+        for proc in list(_LIVE_PROCS):
+            try:
+                proc.kill()
+            except (OSError, ProcessLookupError):
+                continue
+        raise SystemExit(130)
+    _STOP_REQUESTED = True
+    for proc in list(_LIVE_PROCS):
+        try:
+            proc.terminate()
+        except (OSError, ProcessLookupError):
+            continue
+    console.print(
+        "[yellow]Interrupted — finishing current checks and writing the "
+        "partial report (press Ctrl-C again to abort immediately).[/]"
+    )
+
+
+# trace:v1 id=impl.src-bughunt-cli.-interrupted-result work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _interrupted_result(name: str, category: str) -> Result:
+    """Synthetic ERROR result so partial reports read INCOMPLETE."""
+    return Result(
+        name,
+        category,
+        Status.ERROR,
+        note="interrupted by user (SIGINT); partial output preserved",
+    )
+
+
 # trace:v1 id=impl.src-bughunt-cli.run-process work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_process(
     check: Check,
@@ -3336,8 +3382,6 @@ async def run_process(
     progress: LiveRunState | None = None,
 ) -> Result:
     started = time.perf_counter()
-    if progress:
-        progress.start(check)
 
     def finish(result: Result) -> Result:
         if progress:
@@ -3345,6 +3389,11 @@ async def run_process(
             if check.record_progress:
                 progress.finish(result)
         return result
+
+    if _stop_requested():
+        return finish(_interrupted_result(check.name, check.category))
+    if progress:
+        progress.start(check)
 
     stdout_chunks: list[bytes] = []
     stderr_chunks: list[bytes] = []
@@ -3391,15 +3440,20 @@ async def run_process(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        _LIVE_PROCS.add(proc)
         out_task = asyncio.create_task(drain(proc.stdout, stdout_chunks))
         err_task = asyncio.create_task(drain(proc.stderr, stderr_chunks))
         try:
             await asyncio.wait_for(proc.wait(), timeout=check.timeout)
             await asyncio.gather(out_task, err_task)
-        except TimeoutError:
+            _LIVE_PROCS.discard(proc)
+        except (TimeoutError, asyncio.CancelledError):
             proc.kill()
             await proc.wait()
             await asyncio.gather(out_task, err_task, return_exceptions=True)
+            _LIVE_PROCS.discard(proc)
+            if _stop_requested():
+                return finish(_interrupted_result(check.name, check.category))
             stdout = b"".join(stdout_chunks).decode(errors="replace")
             stderr = b"".join(stderr_chunks).decode(errors="replace")
             timeout_findings: list[Finding] = []
@@ -3501,8 +3555,11 @@ async def run_parallel(
 ) -> list[Result]:
     sem = asyncio.Semaphore(max_parallel)
 
+    # trace:v1 id=impl.src-bughunt-cli-run-parallel.one work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def one(check: Check) -> Result:
         async with sem:
+            if _stop_requested():
+                return _interrupted_result(check.name, check.category)
             return await run_process(check, raw_limit, progress)
 
     return await asyncio.gather(*(one(c) for c in checks))
@@ -5975,9 +6032,10 @@ async def run_all(
     auto_discover: bool = True,
     excluded: set[str] | None = None,
 ) -> tuple[list[Result], float]:
+    global _STOP_REQUESTED
+    _STOP_REQUESTED = False
     started = time.perf_counter()
     raw_limit = int(cfg.raw.get("execution", {}).get("raw_output_limit_kb", 512)) * 1024
-
     if auto_discover and cfg.raw.get("autodiscovery", {}).get("enabled", True):
         _ = auto_configure(cfg, quiet=True)
 
@@ -6013,6 +6071,8 @@ async def run_all(
         refresh_per_second=4,
         transient=False,
     ) as live:
+        previous_handler = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGINT, _handle_sigint)
         refresh_task = asyncio.create_task(refresher(live))
         try:
             normal = await run_parallel(checks, cfg.max_parallel, raw_limit, progress)
@@ -6023,6 +6083,18 @@ async def run_all(
                 (run_mutmut, "mutmut"),
             ):
                 if logical_name not in effective_tools:
+                    continue
+                if _stop_requested():
+                    categories = {
+                        "codeql": "whole-program",
+                        "pysa": "taint",
+                        "mutmut": "mutation",
+                    }
+                    result = _interrupted_result(
+                        logical_name, categories.get(logical_name, logical_name)
+                    )
+                    progress.finish(result)
+                    special.append(result)
                     continue
                 result = await runner(cfg, profile, raw_limit, progress)
                 # Internal subprocesses never count as finished defenses. Record
@@ -6040,6 +6112,7 @@ async def run_all(
             stop_refresh.set()
             await refresh_task
             live.update(progress.render(), refresh=True)
+            signal.signal(signal.SIGINT, previous_handler)
 
     canonicalize_findings(cfg.root, results)
     mark_accepted(results, load_debt_ledger(cfg.root))
@@ -6335,19 +6408,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"installing only applicable analysis engines{suffix}...[/]"
             ),
         )
-        if excluded:
-            install_results = install_all(
-                root,
-                dry_run=False,
-                emit=lambda line: console.print(f"[dim]{line}[/]"),
-                exclude=excluded,
+        try:
+            if excluded:
+                install_results = install_all(
+                    root,
+                    dry_run=False,
+                    emit=lambda line: console.print(f"[dim]{line}[/]"),
+                    exclude=excluded,
+                )
+            else:
+                install_results = install_all(
+                    root,
+                    dry_run=False,
+                    emit=lambda line: console.print(f"[dim]{line}[/]"),
+                )
+        except KeyboardInterrupt:
+            console.print(
+                "[yellow]Installation interrupted — aborting before "
+                "the scan starts. Re-run to continue.[/]"
             )
-        else:
-            install_results = install_all(
-                root,
-                dry_run=False,
-                emit=lambda line: console.print(f"[dim]{line}[/]"),
-            )
+            return 130
         if any(x.status == "ERROR" for x in install_results):
             console.print(
                 (
@@ -6383,6 +6463,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         scan_results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))
     md, js = write_reports(cfg, scan_results, profile, elapsed)
     render_terminal(scan_results, profile, elapsed, md, js)
+    if _stop_requested():
+        console.print("[yellow]Scan interrupted — partial report written above.[/]")
+        return 130
     return exit_code_for(cfg, scan_results)
 
 
