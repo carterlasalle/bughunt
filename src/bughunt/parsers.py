@@ -328,6 +328,22 @@ def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
 
 # trace:v1 id=impl.src-bughunt-cli.parse-semgrep work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+    combined = stdout + "\n" + stderr
+    if "No module named 'pkg_resources'" in combined or (
+        "No module named pkg_resources" in combined
+    ):
+        return [
+            Finding(
+                tool="semgrep",
+                message=(
+                    "semgrep cannot start: it imports pkg_resources, which "
+                    "setuptools>=81 removed. Pin setuptools<81 in dev "
+                    "dependencies or await an upstream semgrep fix; "
+                    "treating as unavailable, not as a clean scan"
+                ),
+                severity="error",
+            ),
+        ]
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:

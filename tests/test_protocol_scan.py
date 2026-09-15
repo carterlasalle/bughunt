@@ -95,7 +95,7 @@ def test_main_gates(monkeypatch, tmp_path: Path, capsys) -> None:
     _ = (tmp_path / "src").mkdir()
     assert main([str(tmp_path), "src"]) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload == []
+    assert payload == {"findings": []}
 
 
 # trace:v1 id=test.tests-test-protocol-scan.test-nested-and-attribute-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -285,3 +285,20 @@ def test_framework_gating(tmp_path: Path) -> None:
         + "tags = True\n",
     )
     assert findings == []
+
+
+# trace:v1 id=test.tests-test-protocol-scan.test-findings-survive-helper-parser work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_findings_survive_helper_parser(tmp_path: Path, capsys) -> None:
+
+    from bughunt.parsers import parse_bughunt_helper
+    from bughunt.protocol_scan import main
+
+    src = tmp_path / "src"
+    src.mkdir(exist_ok=True)
+    _ = (src / "proto.py").write_text(
+        "def f(p):\n    f = open(p)\n    f.close()\n    return f.read()\n"
+    )
+    assert main([str(tmp_path), "src"]) == 1
+    out = capsys.readouterr().out
+    findings = parse_bughunt_helper("protocol", out, "", 1)
+    assert [item.code for item in findings] == ["BHPRT005"]

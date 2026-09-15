@@ -156,3 +156,16 @@ def test_inside_target_venv(tmp_path: Path) -> None:
     tool.chmod(0o755)
     assert _inside_project_environment(str(tool), tmp_path) is True
     assert _inside_project_environment(str(tool)) is False
+
+
+# trace:v1 id=test.tests-test-installer-units.test-ready-without-path work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_ready_without_path(monkeypatch, tmp_path: Path) -> None:
+    from bughunt import installers
+
+    bindir = tmp_path / ".venv" / "bin"
+    bindir.mkdir(parents=True)
+    tool = bindir / "ruff"
+    tool.write_text("#!/bin/sh\n")
+    tool.chmod(0o755)
+    monkeypatch.setattr(installers.shutil, "which", lambda _: None)
+    assert installers._project_component_ready(tmp_path, "ruff") is True

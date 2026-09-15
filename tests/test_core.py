@@ -952,22 +952,12 @@ def test_pysa_provider_error_degrades() -> None:
 
 # trace:v1 id=test.tests-test-core.test-atheris-needs-native work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
-
     from bughunt import cli as cli_module
 
-    import importlib.util
-
-    real_find_spec = importlib.util.find_spec
-    monkeypatch.setattr(
-        importlib.util,
-        "find_spec",
-        lambda name: (
-            object()
-            if name == "atheris"
-            else (None if name == "atheris.native" else real_find_spec(name))
-        ),
-    )
+    monkeypatch.setattr(cli_module, "target_has_module", lambda *a: False)
     assert cli_module.atheris_available(tmp_path) is False
+    monkeypatch.setattr(cli_module, "target_has_module", lambda *a: True)
+    assert cli_module.atheris_available(tmp_path) is True
 
 
 # trace:v1 id=test.tests-test-core.test-stop-flag-short-circuits work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1137,3 +1127,14 @@ def test_cancel_without_stop_falls_through(tmp_path: Path) -> None:
 
     result = asyncio.run(_run())
     assert result.status is not None
+
+
+# trace:v1 id=test.tests-test-core.test-semgrep-pkg-resources-is-error work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_semgrep_pkg_resources_is_error() -> None:
+    from bughunt.parsers import parse_semgrep
+
+    out = "Traceback (most recent call last):\nModuleNotFoundError: No module named 'pkg_resources'\n"
+    findings = parse_semgrep("", out, 1)
+    assert len(findings) == 1
+    assert findings[0].severity == "error"
+    assert "pkg_resources" in (findings[0].message or "")

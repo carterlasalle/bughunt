@@ -726,17 +726,19 @@ def main(argv: list[str] | None = None) -> int:
     findings = scan(root, paths)
     print(
         json.dumps(
-            [
-                {
-                    "tool": "protocol",
-                    "code": item.code,
-                    "path": item.path,
-                    "line": item.line,
-                    "message": item.message,
-                    "severity": item.severity,
-                }
-                for item in findings
-            ]
+            {
+                "findings": [
+                    {
+                        "tool": "protocol",
+                        "code": item.code,
+                        "path": item.path,
+                        "line": item.line,
+                        "message": item.message,
+                        "severity": item.severity,
+                    }
+                    for item in findings
+                ]
+            }
         )
     )
     return 1 if findings else 0

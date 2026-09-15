@@ -594,9 +594,15 @@ def _project_component_ready(root: Path, name: str) -> bool:
     if module and _python_importable(root, module):
         return True
     for executable_name in PROJECT_EXECUTABLES.get(name, ()):
-        path = shutil.which(executable_name)
-        if path and _inside_project_environment(path, root):
-            return True
+        candidates = [str(root / ".venv" / "bin" / executable_name)]
+        found = shutil.which(executable_name)
+        if found:
+            candidates.append(found)
+        for candidate in candidates:
+            if os.access(candidate, os.X_OK) and _inside_project_environment(
+                str(candidate), root
+            ):
+                return True
     return False
 
 

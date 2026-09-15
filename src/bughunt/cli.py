@@ -753,15 +753,15 @@ def python_module_available(name: str) -> bool:
 def atheris_available(root: Path) -> bool:
     # The pure-Python shim imports without the instrumenting native
     # extension; harnesses then fail per-target with ModuleNotFoundError.
-    # Ready means the native module (or a built runtime tree) exists.
-    if python_module_available("atheris.native"):
+    # Ready means the native module resolves in the TARGET environment
+    # (or a built runtime tree with the compiled extension exists).
+    if target_has_module(target_python(root), "atheris.native"):
         return True
     runtime = root / ".bughunt" / "runtime" / "atheris"
-    return (
-        (runtime / "atheris").exists() or any(runtime.glob("atheris*.so"))
-        if runtime.exists()
-        else False
-    )
+    # A bare installed tree without the compiled extension is the exact
+    # failure in the field (per-target ModuleNotFoundError): presence of
+    # the .so anywhere under the runtime tree is the readiness signal.
+    return bool(runtime.exists() and any(runtime.rglob("atheris*.so")))
 
 
 # trace:v1 id=impl.src-bughunt-cli.ast-grep-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -786,6 +786,57 @@ def ast_grep_executable(root: Path | None = None) -> str | None:
         return None
     banner = (probe.stdout + "\n" + probe.stderr).lower()
     return sg if "ast-grep" in banner else None
+
+
+# trace:v1 id=impl.src-bughunt-cli.supports-flag work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _supports_flag(executable_path: str, flag: str, root: Path) -> bool:
+    """Probe `--help` once so version-drifted CLIs never get unknown flags."""
+    try:
+        probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [executable_path, "--help"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return flag in (probe.stdout + "\n" + probe.stderr)
+
+
+# trace:v1 id=impl.src-bughunt-cli.pylint-disables work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _pylint_disables(pylint_bin: str, cfg_file: Path, root: Path) -> list[str] | None:
+    """Disables from the rcfile that the installed pylint accepts.
+
+    Generated strict configs name messages the bundled pylint knows;
+    `uv add` may resolve an older pylint that rejects them, which would
+    otherwise poison every file with a config error. Returns None when
+    the rcfile or the message list is unreadable (caller keeps rcfile).
+    """
+    try:
+        text = cfg_file.read_text(errors="replace")
+    except OSError:
+        return None
+    match = re.search(r"(?m)^disable\s*=\s*(.+)$", text)
+    if not match:
+        return None
+    wanted = [part.strip() for part in match.group(1).split(",") if part.strip()]
+    try:
+        probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [pylint_bin, "--list-msgs"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    valid = set(re.findall(r"^:([a-z0-9\-]+) \(", probe.stdout, re.MULTILINE))
+    valid |= set(re.findall(r"\(([A-Z]\d{4})\)", probe.stdout))
+    kept = [name for name in wanted if name in valid]
+    return kept if kept else None
 
 
 def existing_paths(root: Path, values: Iterable[str]) -> list[str]:
@@ -1306,6 +1357,9 @@ def build_checks(
     )
     if pylint_cmd and pylint_cfg:
         pylint_cmd += ["--rcfile", str(pylint_cfg)]
+        validated = _pylint_disables(pylint_cmd[0], pylint_cfg, root)
+        if validated is not None:
+            pylint_cmd += ["--disable=" + ",".join(validated)]
     add(
         "pylint",
         "lint",
@@ -1335,6 +1389,11 @@ def build_checks(
         )
         if pylint_tests_cmd and pylint_tests_cfg:
             pylint_tests_cmd += ["--rcfile", str(pylint_tests_cfg)]
+            validated_tests = _pylint_disables(
+                pylint_tests_cmd[0], pylint_tests_cfg, root
+            )
+            if validated_tests is not None:
+                pylint_tests_cmd += ["--disable=" + ",".join(validated_tests)]
         add(
             "pylint-tests",
             "lint",
@@ -1480,6 +1539,11 @@ def build_checks(
     )
     import_linter = target_executable(root, "lint-imports", "import-linter")
     generated_import_cfg = generated_config(root, "importlinter.toml")
+    lint_flags = (
+        ["--no-logo", "--show-timings"]
+        if import_linter and _supports_flag(import_linter, "--no-logo", root)
+        else ["--show-timings"]
+    )
     if import_linter and generated_import_cfg:
         add(
             "import-linter",
@@ -1488,8 +1552,7 @@ def build_checks(
                 import_linter,
                 "--config",
                 str(generated_import_cfg),
-                "--no-logo",
-                "--show-timings",
+                *lint_flags,
             ],
             reason="import-linter not installed",
         )
@@ -1497,7 +1560,7 @@ def build_checks(
         add(
             "import-linter",
             "architecture",
-            [import_linter, "--no-logo", "--show-timings"],
+            [import_linter, *lint_flags],
             reason="import-linter not installed",
         )
     else:
@@ -1914,7 +1977,7 @@ def build_checks(
                     "--iterations=3",
                     *tests,
                 ]
-                if pytest and python_module_available("pytest_run_parallel")
+                if pytest and target_has_module(_target_py, "pytest_run_parallel")
                 else None
             )
             add(
@@ -2120,7 +2183,13 @@ def build_checks(
                         f"--benchmark-compare-fail=mean:{regression}%",
                     ]
                 cmd += tests
-                add("benchmark", "performance-regression", cmd, findings_exit_codes={1})
+                add(
+                    "benchmark",
+                    "performance-regression",
+                    cmd,
+                    findings_exit_codes={1},
+                    skip_exit_codes={5},
+                )
             else:
                 skipped.append(
                     Result(
@@ -2331,7 +2400,7 @@ def build_checks(
         ]
         added = 0
         st = target_executable(root, "st", "schemathesis")
-        schemathesis_ready = bool(st) or python_module_available("schemathesis")
+        schemathesis_ready = bool(st) or target_has_module(_target_py, "schemathesis")
         for target in explicit:
             if not st:
                 continue
@@ -3180,7 +3249,8 @@ def build_checks(
                 if t.kind == "schemathesis"
                 and (t.metadata or {}).get("transport") == "asgi"
             ]
-            pact_ready = python_module_available("pact") and python_module_available(
+            pact_ready = target_has_module(_target_py, "pact") and target_has_module(
+                _target_py,
                 "uvicorn",
             )
             if len(asgi) == 1 and pacts and pact_ready:
@@ -5206,6 +5276,7 @@ def doctor(cfg: Config) -> int:
             ),
         ),
     )
+    _target_py = target_python(cfg.root)
     for label, module in (
         ("coverage.py branch coverage", "coverage"),
         ("Typeguard runtime contracts", "typeguard"),
@@ -5218,18 +5289,17 @@ def doctor(cfg: Config) -> int:
         ("pytest-memray", "pytest_memray"),
         ("pytest-benchmark", "pytest_benchmark"),
     ):
+        ready = target_has_module(_target_py, module)
         engine_rows.append(
             (
                 label,
-                "N/A"
-                if not has_python
-                else ("READY" if python_module_available(module) else "MISSING"),
+                "N/A" if not has_python else ("READY" if ready else "MISSING"),
                 "no first-party Python capability detected"
                 if not has_python
                 else (
-                    "Python module importable"
-                    if python_module_available(module)
-                    else "Python module not importable"
+                    "Python module importable in target environment"
+                    if ready
+                    else "Python module not importable in target environment"
                 ),
             ),
         )
@@ -5240,14 +5310,16 @@ def doctor(cfg: Config) -> int:
             if not has_python
             else (
                 "READY"
-                if python_module_available("hypofuzz") and executable("hypothesis")
+                if target_has_module(_target_py, "hypofuzz")
+                and target_executable(cfg.root, "hypothesis")
                 else "MISSING"
             ),
             "no first-party Python capability detected"
             if not has_python
             else (
-                "hypofuzz module + Hypothesis CLI available"
-                if python_module_available("hypofuzz") and executable("hypothesis")
+                "hypofuzz module + Hypothesis CLI available in target environment"
+                if target_has_module(_target_py, "hypofuzz")
+                and target_executable(cfg.root, "hypothesis")
                 else "install hypofuzz; the base Hypothesis CLI alone is not sufficient"
             ),
         ),
