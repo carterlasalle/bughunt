@@ -35,6 +35,7 @@ from rich.text import Text
 
 from bughunt.default_rules import DEFAULT_RULES
 
+from . import __version__
 from .configurator import JS_TOOL_IGNORES, configure_all, configure_custom_checks
 from .models import Check, DebtEntry, Finding, Result, Status
 from .parsers import (
@@ -6167,6 +6168,7 @@ def exit_code_for(cfg: Config, results: list[Result]) -> int:
 
 # trace:v1 id=impl.src-bughunt-cli.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: Sequence[str] | None = None) -> int:
+    print(f"bughunt v{__version__}", file=sys.stderr)
     parser = argparse.ArgumentParser(
         prog="bughunt",
         description=(

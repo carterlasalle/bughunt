@@ -6,6 +6,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-15
+
+Every invocation prints `bughunt vX.Y.Z` to stderr, so the running
+version is always visible while stdout stays clean for machine output.
+
 ## [0.9.0] - 2026-09-15
 
 Semantic-correctness release: interprocedural abstract-interpretation
