@@ -781,8 +781,6 @@ def _load_schema_doc(path: Path) -> object:
     except OSError:
         return None
     if path.suffix == ".json":
-        import json
-
         try:
             return json.loads(raw)
         except ValueError:
@@ -900,7 +898,6 @@ def scan_seams(
 
 # trace:v1 id=impl.src-bughunt-seam_scan.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
-    import json
     import sys
 
     args = list(argv or sys.argv[1:])
