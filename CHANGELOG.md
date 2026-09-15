@@ -6,6 +6,18 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-09-15
+
+Isolated-install repair: every analyzer resolves through the target
+environment (no more phantom "not installed" SKIPs or reinstall
+churn), ready checks probe the target venv directly, module checks
+use the target interpreter, and the protocol helper emits the
+findings envelope so findings survive parsing. Version-drift armor:
+import-linter flags and pylint disables are validated against the
+installed binary. Atheris requires its native extension in the
+target env; alembic skips without runnable config; benchmarks map
+exit-5 to SKIP; nested build output is excluded from JS tooling.
+
 ## [0.9.1] - 2026-09-15
 
 Every invocation prints `bughunt vX.Y.Z` to stderr, so the running
