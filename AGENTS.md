@@ -3149,7 +3149,29 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   tree). TL015 flags `scaffolding`/`bootstrap` wording in exempt reasons;
   `.env.example` now uses a semantic reason. `.bugcorpus/generated/`
   is gitignored (regenerable scan output).
----
+- 2026-09-15 scan-fix loop: pytest-run-parallel wedged (idle asyncio loop, no
+  children) when tests mutated process-global state under threads. Fixed with
+  `tests/conftest.py` autouse fixture holding one lock for every `monkeypatch`
+  user, plus typed `_serialized` helpers for non-monkeypatch mutators; `run_all`
+  installs its SIGINT handler only on the main thread. Discovery crashed on
+  files vanishing mid-walk: `technology._small_enough` mirrors `_read_small`'s
+  skip-instead-of-crash contract. Post-kill/exit pipe drains are now capped
+  (cancel, keep chunks) so a leaked fd can never wedge a scan; a 60s stderr
+  heartbeat names long-running defenses. Repro discipline: parallel failures
+  must be reproduced via `uv run` (puts `.venv/bin` on PATH); bare
+  `.venv/bin/python` gives phantom resolution failures. Scan logs are
+  block-buffered: use `PYTHONUNBUFFERED=1`.
+- 2026-09-15 native rules: semgrep metavariables must be whole identifiers
+  (`test_$F` never matches; use `def $F` + `metavariable-regex: test_.*`), only
+  ONE `metavariable-regex` survives per rule in practice (a second one silently
+  kills the whole rule; use `pattern-not-regex` for the second constraint),
+  and semgrep namespaces shipped rule ids by config path (match on the short
+  id, not the `bughunt.` prefix). ast-grep `$$$A...$$$B` sandwiches around
+  mid-block statements silently match nothing (this killed
+  `bughunt-return-in-finally` unnoticed; fixed with first/last-position
+  branches); current ast-grep versions snapshot-test rule fixtures, which the
+  generated pack does not ship, so `ast-grep test` fails on every configured
+  repo until snapshots are addressed (open item, not absorbed).
 
 ## Last maintenance review
 
