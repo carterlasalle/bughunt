@@ -189,6 +189,8 @@ def test_inside_target_venv(tmp_path: Path) -> None:
 # trace:v1 id=test.tests-test-installer-units.test-ready-without-path work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @_serialized
 def test_ready_without_path(monkeypatch, tmp_path: Path) -> None:
+    import shutil
+
     from bughunt import installers
 
     bindir = tmp_path / ".venv" / "bin"
@@ -196,5 +198,5 @@ def test_ready_without_path(monkeypatch, tmp_path: Path) -> None:
     tool = bindir / "ruff"
     tool.write_text("#!/bin/sh\n")
     tool.chmod(0o755)
-    monkeypatch.setattr(installers.shutil, "which", lambda _: None)
+    monkeypatch.setattr(shutil, "which", lambda _: None)
     assert installers._project_component_ready(tmp_path, "ruff") is True

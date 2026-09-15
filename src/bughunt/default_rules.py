@@ -313,6 +313,12 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "BHCTRL001 + Ruff B012",
     ),
     DefaultRule(
+        "bughunt-swallowed-loop-error",
+        "error",
+        "ast-grep",
+        "except handler silently discards the error with continue",
+    ),
+    DefaultRule(
         "bughunt.cached-generator",
         "error",
         "semgrep",
@@ -358,5 +364,23 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "error",
         "semgrep",
         "temporary-file path consumed after writes but before flush/close",
+    ),
+    DefaultRule(
+        "bughunt.assertion-free-test",
+        "error",
+        "semgrep",
+        "test contains no assertion and passes silently",
+    ),
+    DefaultRule(
+        "bughunt.ignored-warnings-filter",
+        "warning",
+        "semgrep",
+        "warnings filter discards warnings instead of surfacing them",
+    ),
+    DefaultRule(
+        "bughunt.suppressed-exception",
+        "warning",
+        "semgrep",
+        "contextlib.suppress silently discards the listed exceptions",
     ),
 )

@@ -38,7 +38,8 @@ from bughunt.default_rules import DEFAULT_RULES
 
 from . import __version__
 from .configurator import JS_TOOL_IGNORES, configure_all, configure_custom_checks
-from .models import Check, DebtEntry, Finding, Result, Status
+from .models import Check as Check, DebtEntry as DebtEntry, Finding as Finding
+from .models import Result as Result, Status as Status
 from .parsers import (
     ESLINT_EMPTY_SCOPE,
     OXLINT_EMPTY_SCOPE,

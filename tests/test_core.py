@@ -517,11 +517,13 @@ def test_pysa_is_installed_into_private_compatibility_runtime(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    import shutil
+
     from bughunt import installers
 
     (tmp_path / "pyproject.toml").write_text('[project]\nname="x"\nversion="0"\n')
     monkeypatch.setattr(
-        installers.shutil,
+        shutil,
         "which",
         lambda name: "/usr/bin/uv" if name == "uv" else None,
     )

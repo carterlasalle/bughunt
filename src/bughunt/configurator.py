@@ -603,23 +603,56 @@ rule:
         try:
           $$$BODY
         finally:
-          $$$BEFORE
           return $RET
-          $$$AFTER
+          $$$REST
     - pattern: |
         try:
           $$$BODY
         finally:
-          $$$BEFORE
+          $$$REST
+          return $RET
+    - pattern: |
+        try:
+          $$$BODY
+        finally:
           break
-          $$$AFTER
+          $$$REST
     - pattern: |
         try:
           $$$BODY
         finally:
-          $$$BEFORE
+          $$$REST
+          break
+    - pattern: |
+        try:
+          $$$BODY
+        finally:
           continue
-          $$$AFTER
+          $$$REST
+    - pattern: |
+        try:
+          $$$BODY
+        finally:
+          $$$REST
+          continue
+""",
+        "swallowed-loop-error.yml": """id: bughunt-swallowed-loop-error
+language: Python
+severity: error
+message: Exception handler discards the error with continue; the failing
+  iteration is silently skipped and the loop reports success.
+rule:
+  any:
+    - pattern: |
+        try:
+          $$$BODY
+        except $EXC:
+          continue
+    - pattern: |
+        try:
+          $$$BODY
+        except:
+          continue
 """,
     }
     return config, rules
@@ -786,6 +819,64 @@ def _semgrep_correctness_rules() -> str:
           $F.close()
           ...
           $F.name
+
+  - id: bughunt.assertion-free-test
+    message: This test contains no assertion, so it passes silently no matter what the
+      code under test does. Add assert statements, or with pytest.raises / pytest.fail
+      / unittest assert methods. (Assertions living in shared helpers are the known
+      exception; hoist one assertion into the test itself.)
+    languages: [python]
+    severity: ERROR
+    metadata: {category: correctness, confidence: high}
+    patterns:
+      - pattern: |
+          def $F(...):
+            ...
+      - metavariable-regex:
+          metavariable: $F
+          regex: "test_.*"
+      - pattern-not-inside: |
+          def $F(...):
+            ...
+            assert ...
+            ...
+      - pattern-not-inside: |
+          def $F(...):
+            ...
+            with pytest.raises(...):
+              ...
+      - pattern-not-inside: |
+          def $F(...):
+            ...
+            pytest.fail(...)
+            ...
+      - pattern-not-regex: (?s)\.assert\w+\s*\(
+
+  - id: bughunt.ignored-warnings-filter
+    message: This warnings filter discards warnings process-wide instead of surfacing
+      them. Scope it to a specific module/category, or fix the underlying warning.
+    languages: [python]
+    severity: WARNING
+    metadata: {category: correctness, confidence: medium}
+    pattern-either:
+      - pattern: warnings.filterwarnings("ignore", ...)
+      - pattern: warnings.filterwarnings(..., action="ignore", ...)
+      - pattern: warnings.simplefilter("ignore", ...)
+      - pattern: warnings.simplefilter(..., action="ignore", ...)
+
+  - id: bughunt.suppressed-exception
+    message: contextlib.suppress silently discards the listed exceptions. Confirm each
+      one is truly safe to swallow here; prefer handling or logging otherwise.
+    languages: [python]
+    severity: WARNING
+    metadata: {category: correctness, confidence: high}
+    pattern-either:
+      - pattern: |
+          with contextlib.suppress(...):
+            ...
+      - pattern: |
+          with suppress(...):
+            ...
 """
 
 
@@ -1881,6 +1972,28 @@ invalid:
           work()
         finally:
           break
+""",
+        "bughunt-swallowed-loop-error-test.yml": """id: bughunt-swallowed-loop-error
+valid:
+  - |
+      for item in items:
+        try:
+          work(item)
+        except ValueError:
+          record(item)
+invalid:
+  - |
+      for item in items:
+        try:
+          work(item)
+        except ValueError:
+          continue
+  - |
+      while True:
+        try:
+          work()
+        except:
+          continue
 """,
     }
     for filename, text in astgrep_tests.items():
