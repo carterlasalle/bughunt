@@ -3517,11 +3517,26 @@ async def run_process(
         err_task = asyncio.create_task(drain(proc.stderr, stderr_chunks))
         try:
             await asyncio.wait_for(proc.wait(), timeout=check.timeout)
-            await asyncio.gather(out_task, err_task)
+            # Drains normally end at EOF once the child exits, but a leaked
+            # pipe writer (double-forked grandchild, inherited fd) holds EOF
+            # open forever. Cap the wait, cancel, and keep chunks collected
+            # so far: one stuck defense must never wedge the whole scan.
+            # Receipt: skipmutmut self-scan wedged with zero CPU, no children.
+            try:
+                await asyncio.wait_for(asyncio.gather(out_task, err_task), 30)
+            except TimeoutError:
+                for pending in (out_task, err_task):
+                    pending.cancel()
+                await asyncio.gather(out_task, err_task, return_exceptions=True)
             _LIVE_PROCS.discard(proc)
         except (TimeoutError, asyncio.CancelledError):
             proc.kill()
-            await proc.wait()
+            try:
+                await asyncio.wait_for(proc.wait(), 30)
+            except TimeoutError:
+                pass  # kernel did not reap after SIGKILL; proceed regardless
+            for pending in (out_task, err_task):
+                pending.cancel()
             await asyncio.gather(out_task, err_task, return_exceptions=True)
             _LIVE_PROCS.discard(proc)
             if _stop_requested():
