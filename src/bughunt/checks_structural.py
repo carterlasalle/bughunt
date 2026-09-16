@@ -105,8 +105,8 @@ def build_structural_checks(cx: CheckBuildCx) -> None:
         reason="ast-grep missing or no generated/project sgconfig.yml",
     )
     semgrep = target_executable(cx.root, "semgrep")
-    semgrep_settings = cx.cfg.raw.get("semgrep", {})
-    requested_semgrep = list(semgrep_settings.get("configs", []))
+    semgrep_settings = cx.cfg.raw_section("semgrep")
+    requested_semgrep = cx.cfg.raw_list("semgrep", "configs")
     semgrep_cfgs = [
         "p/default" if str(x) == "auto" else str(x) for x in requested_semgrep
     ]

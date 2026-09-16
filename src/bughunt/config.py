@@ -68,7 +68,7 @@ class Config:
     # trace:v1 id=impl.src-bughunt-cli.project work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
     def project(self) -> dict[str, Any]:
-        project = self.raw.get("project", {})
+        project: object = self.raw.get("project", {})
         return project if isinstance(project, dict) else {}
 
     # trace:v1 id=impl.src-bughunt-config.max-parallel work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -86,10 +86,10 @@ class Config:
     # trace:v1 id=impl.src-bughunt-config.complexity-limit work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     def complexity_limit(self, key: str, default: int) -> int:
         """One complexity budget as int; non-dict/non-int config degrades to default."""
-        section = self.raw.get("complexity", {})
+        section: object = self.raw.get("complexity", {})
         if not isinstance(section, dict):
             return default
-        value = section.get(key, default)
+        value: object = section.get(key, default)
         return value if isinstance(value, int) else default
 
     # trace:v1 id=impl.src-bughunt-config.raw-section work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -112,9 +112,12 @@ class Config:
 
     # trace:v1 id=impl.src-bughunt-config.timeout work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     def timeout(self, profile: str) -> int:
-        timeouts = self.raw.get("timeouts", {})
-        fallback = timeouts.get("deep", 900) if profile == "all" else 900
-        return int(timeouts.get(profile, fallback))
+        timeouts: object = self.raw.get("timeouts", {})
+        if not isinstance(timeouts, dict):
+            return 900
+        fallback: object = timeouts.get("deep", 900) if profile == "all" else 900
+        value: object = timeouts.get(profile, fallback)
+        return value if isinstance(value, int) else 900
 
     # trace:v1 id=impl.src-bughunt-cli-config.tools work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def tools(self, profile: str) -> list[str]:
