@@ -320,3 +320,10 @@ def test_actionlint_shellcheck_sqlfluff_shapes() -> None:
     found = parse_sqlfluff(sql, "", 1)
     assert len(found) == 1 and found[0].line == 4
     assert parse_sqlfluff("broken", "", 1) != []
+
+
+# trace:v1 id=test.tests-test-parsers.test-no-findings-parser work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_no_findings_parser() -> None:
+    from bughunt.parsers import no_findings
+
+    assert no_findings("out", "err", 0) == []

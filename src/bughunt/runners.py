@@ -20,7 +20,7 @@ from rich.table import Table
 
 from .config import CACHE_DIR, Config
 from .models import Check, Finding, Result, Status
-from .parsers import parse_json_list, parse_sarif
+from .parsers import no_findings, parse_json_list, parse_sarif
 from .probes import executable, pysa_executable
 from .technology import target_executable
 from .ui import console
@@ -461,7 +461,7 @@ async def run_codeql(
             str(codeql_source_root),
             "--overwrite",
         ],
-        lambda o, e, c: [],
+        no_findings,
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes=set(),
@@ -493,7 +493,7 @@ async def run_codeql(
             f"--output={sarif}",
             "--download",
         ],
-        lambda o, e, c: [],
+        no_findings,
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes=set(),
@@ -614,7 +614,7 @@ async def run_mutmut(
         "mutmut",
         "mutation",
         [mm, "run"],
-        lambda o, e, c: [],
+        no_findings,
         cfg.timeout(profile),
         cfg.root,
         findings_exit_codes=set(),
@@ -628,7 +628,7 @@ async def run_mutmut(
         "mutmut-results",
         "mutation",
         [mm, "results"],
-        lambda o, e, c: [],
+        no_findings,
         120,
         cfg.root,
         findings_exit_codes=set(),

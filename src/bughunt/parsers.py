@@ -1008,3 +1008,10 @@ def parse_bughunt_helper(
             ),
         )
     return out
+
+
+# trace:v1 id=impl.src-bughunt-parsers.no-findings work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def no_findings(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+    """Parser for defenses whose findings arrive via a second results step."""
+    _ = (stdout, stderr, exit_code)
+    return []
