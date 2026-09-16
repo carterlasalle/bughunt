@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -133,6 +134,7 @@ class LiveRunState:
         return table
 
 
+# trace:exempt reason=interrupt-flag-wiring-no-behavior
 STOP_REQUESTED = False
 LIVE_PROCS: set[asyncio.subprocess.Process] = set()
 
@@ -266,7 +268,8 @@ async def run_process(
             try:
                 await asyncio.wait_for(proc.wait(), 30)
             except TimeoutError:
-                pass  # kernel did not reap after SIGKILL; proceed regardless
+                progress_note = f"{check.name}: drain timed out after SIGKILL; continuing with partial output"
+                print(progress_note, file=sys.stderr)
             for pending in (out_task, err_task):
                 pending.cancel()
             await asyncio.gather(out_task, err_task, return_exceptions=True)
