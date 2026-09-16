@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 def _pact(tmp_path: Path, name: str) -> Path:

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 @serialized

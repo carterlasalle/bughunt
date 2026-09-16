@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import serialized
+from tests.conftest import serialized
 from bughunt.cli import (
     Config,
     Finding,
@@ -66,7 +66,7 @@ def test_install_only_cli_is_wired(
     """Regression: the source hotfix must expose --only all the way to install_all."""
     from bughunt import cli
 
-    seen = {}
+    seen: dict[str, object] = {}
 
     def fake_install_all(
         root: Path,
@@ -248,9 +248,9 @@ def test_deep_profile_is_not_downgraded_to_pr(
 ) -> None:
     from bughunt import cli
 
-    seen = {}
+    seen: dict[str, object] = {}
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
@@ -285,9 +285,9 @@ def test_quick_alias_routes_fast(
 ) -> None:
     from bughunt import cli
 
-    seen = {}
+    seen: dict[str, object] = {}
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
@@ -615,7 +615,7 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
         emit: Callable[[str], None] = print,
         only: set[str] | None = None,
     ):
-        seen["install"] += 1
+        seen["install"] = int(seen["install"]) + 1
         return []
 
     # trace:v1 id=test.tests-test-core-test-full-alias-routes-to-all-and-bootstraps-by-default.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -630,7 +630,7 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
@@ -676,17 +676,16 @@ def test_full_alias_accepts_no_install_missing(
 ) -> None:
     from bughunt import cli
 
-    seen = {"install": 0, "profile": None}
+    seen: dict[str, object] = {"install": 0, "profile": None}
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
-    monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
-    monkeypatch.setattr(
-        cli,
-        "install_all",
-        lambda *a, **k: seen.__setitem__("install", seen["install"] + 1) or [],
-    )
+    def fake_install_all(*args: object) -> list[object]:
+        seen["install"] = int(seen["install"]) + 1
+        return []
+
+    monkeypatch.setattr(cli, "install_all", fake_install_all)
 
     # trace:v1 id=test.tests-test-core-test-full-alias-accepts-no-install-missing.fake-run-all work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def fake_run_all(
@@ -780,9 +779,9 @@ def test_skipmutmut_alias_passes_exclusion_and_avoids_install(
 ) -> None:
     from bughunt import cli
 
-    seen = {}
+    seen: dict[str, object] = {}
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)
@@ -832,9 +831,9 @@ def test_run_accepts_positional_all_profile(
 ) -> None:
     from bughunt import cli
 
-    seen = {}
+    seen: dict[str, object] = {}
 
-    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list:
+    def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     monkeypatch.setattr(cli, "auto_configure", fake_auto_configure)

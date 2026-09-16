@@ -6,7 +6,7 @@ from pathlib import Path
 from bughunt.seam_scan import SeamFinding, scan_seams
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 def _tree(tmp_path: Path, source: str) -> list[SeamFinding]:

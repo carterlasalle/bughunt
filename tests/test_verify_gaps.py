@@ -4,7 +4,7 @@
 from pathlib import Path
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 def _ir(*entities, calls=(), tested=()):

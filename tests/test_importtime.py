@@ -4,7 +4,7 @@
 import json
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 @serialized

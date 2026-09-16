@@ -4,7 +4,7 @@
 from pathlib import Path
 
 
-from conftest import serialized
+from tests.conftest import serialized
 
 
 def _scan(tmp_path: Path, source: str):
