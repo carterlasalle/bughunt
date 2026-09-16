@@ -88,10 +88,10 @@ def build_python_checks(cx: CheckBuildCx) -> None:
         reason="pylint not installed",
         findings_exit_codes={code for code in range(1, 32)},
     )
-    _want_pylint_tests = (
+    pylint_tests_wanted = (
         "pylint-tests" in cx.wanted and "pylint-tests" not in cx.excluded
     )
-    if _want_pylint_tests and not cx.tests:
+    if pylint_tests_wanted and not cx.tests:
         cx.skipped.append(
             Result(
                 "pylint-tests",
