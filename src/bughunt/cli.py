@@ -75,6 +75,7 @@ from .runners import (
     run_parallel as run_parallel,
     run_process as run_process,
     run_pysa as run_pysa,
+    reset_tool_dir as reset_tool_dir,
 )
 from .checkctx import CheckBuildCx
 from .doctor_engines import doctor_engine_rows, doctor_guarded_rows
