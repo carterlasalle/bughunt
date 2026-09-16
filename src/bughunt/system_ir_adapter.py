@@ -149,8 +149,8 @@ def graph_findings(root: Path) -> list[dict[str, object]]:
             )
     code, stdout, stderr = _run(cli, root, "check-invariants")
     if code != 0:
-        for line in (stdout + "\n" + stderr).splitlines():
-            line = line.strip()
+        for raw_line in (stdout + "\n" + stderr).splitlines():
+            line = raw_line.strip()
             if line:
                 out.append(
                     {
