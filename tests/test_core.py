@@ -606,7 +606,8 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 ) -> None:
     from bughunt import cli
 
-    seen = {"install": 0}
+    seen: dict[str, int] = {"install": 0}
+    seen_profile: dict[str, str] = {"profile": ""}
 
     def fake_install_all(
         root: Path,
@@ -625,7 +626,7 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
         *,
         auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
-        seen["profile"] = profile
+        seen_profile["profile"] = profile
         return [], 0.01
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
@@ -644,7 +645,7 @@ def test_full_alias_routes_to_all_and_bootstraps_by_default(
 
     rc = cli.main(["--root", str(tmp_path), "full"])
     assert rc == 0
-    assert seen["profile"] == "all"
+    assert seen_profile["profile"] == "all"
     assert seen["install"] == 1
 
 
@@ -1026,7 +1027,7 @@ def test_double_sigint_aborts() -> None:
     proc = _Proc()
     runners_module._STOP["requested"] = False
     try:
-        runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+        runners_module.LIVE_PROCS.add(proc)
         cli_module.handle_sigint(signal.SIGINT, None)
         assert cli_module.stop_requested() is True
         assert actions == ["term"]
@@ -1077,7 +1078,7 @@ def test_cancelled_process_reaped(tmp_path: Path) -> None:
     from bughunt import runners as runners_module
     from bughunt.cli import Check, Status, run_process
 
-    async def _run() -> object:
+    async def _run() -> Result:
         check = Check(
             name="sleeper",
             category="regression",
@@ -1116,7 +1117,7 @@ def test_sigint_terminates_live_procs() -> None:
             terminated.append("term")
 
     proc = _Proc()
-    runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+    runners_module.LIVE_PROCS.add(proc)
     runners_module._STOP["requested"] = False
     try:
         cli_module.handle_sigint(signal.SIGINT, None)
@@ -1134,7 +1135,7 @@ def test_cancel_without_stop_falls_through(tmp_path: Path) -> None:
 
     from bughunt.cli import Check, run_process
 
-    async def _run() -> object:
+    async def _run() -> Result:
         check = Check(
             name="sleeper",
             category="regression",
