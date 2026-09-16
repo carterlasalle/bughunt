@@ -144,11 +144,11 @@ def _unguarded_next(tree: ast.AST, rel: str) -> list[ProtocolFinding]:
 
         # trace:exempt reason=internal-detail
         def _collect(current: ast.AST) -> None:
-            for child in ast.iter_child_nodes(current):
-                if isinstance(child, ast.Try):
-                    guarded.append(child)
-                elif not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    _collect(child)
+            for sub in ast.iter_child_nodes(current):
+                if isinstance(sub, ast.Try):
+                    guarded.append(sub)
+                elif not isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    _collect(sub)
 
         _collect(node)
         safe_lines: set[int] = set()
