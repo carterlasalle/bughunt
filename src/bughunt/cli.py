@@ -917,6 +917,42 @@ def build_checks(
         "bugcorpus": "historical/custom-static",
         **ENGINE_CATEGORY,
     }
+    _target_py = target_python(root)
+    pytest = target_executable(root, "pytest")
+    hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
+    repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
+    test_timeout = int(cfg.raw.get("tests", {}).get("timeout_seconds", 300))
+    pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
+    pytest_cmd = (
+        [
+            pytest,
+            "-q",
+            "--tb=short",
+            "--strict-config",
+            "--strict-markers",
+            "-o",
+            "xfail_strict=true",
+        ]
+        if pytest
+        else None
+    )
+    if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
+        pytest_cmd += ["--timeout", str(test_timeout)]
+    if pytest_cmd and profile in {"deep", "all"}:
+        # Resource/deprecation/runtime warnings are often latent bugs. Developer
+        # mode also enables faulthandler and extra CPython runtime checks.
+        pytest_cmd += ["-W", "error"]
+        pytest_env["PYTHONDEVMODE"] = "1"
+        pytest_env["PYTHONASYNCIODEBUG"] = "1"
+    if pytest_cmd and hypothesis_plugin and target_has_module(_target_py, "hypothesis"):
+        pytest_cmd += ["-p", "hypothesis_plugin"]
+        pytest_env["PYTHONPATH"] = (
+            str(hypothesis_plugin.parent)
+            + os.pathsep
+            + os.environ.get("PYTHONPATH", "")
+        )
+    if pytest_cmd:
+        pytest_cmd += tests
     cx = CheckBuildCx(
         cfg=cfg,
         profile=profile,
@@ -933,6 +969,13 @@ def build_checks(
         generated_targets=generated_targets,
         technology=technology,
         category_by_tool=category_by_tool,
+        _target_py=_target_py,
+        pytest=pytest,
+        hypothesis_plugin=hypothesis_plugin,
+        repro_seed=repro_seed,
+        test_timeout=test_timeout,
+        pytest_env=pytest_env,
+        pytest_cmd=pytest_cmd,
     )
     if not cx.technology.has("python"):
         for name, category in (
@@ -1337,42 +1380,6 @@ def build_checks(
         reason="crosshair not installed",
         findings_exit_codes={1},
     )
-    _target_py = target_python(cx.root)
-    pytest = target_executable(cx.root, "pytest")
-    hypothesis_plugin = generated_config(cx.root, "hypothesis_plugin.py")
-    repro_seed = int(cx.cfg.raw.get("tests", {}).get("repro_seed", 1))
-    test_timeout = int(cx.cfg.raw.get("tests", {}).get("timeout_seconds", 300))
-    pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
-    pytest_cmd = (
-        [
-            pytest,
-            "-q",
-            "--tb=short",
-            "--strict-config",
-            "--strict-markers",
-            "-o",
-            "xfail_strict=true",
-        ]
-        if pytest
-        else None
-    )
-    if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
-        pytest_cmd += ["--timeout", str(test_timeout)]
-    if pytest_cmd and cx.profile in {"deep", "all"}:
-        # Resource/deprecation/runtime warnings are often latent bugs. Developer
-        # mode also enables faulthandler and extra CPython runtime checks.
-        pytest_cmd += ["-W", "error"]
-        pytest_env["PYTHONDEVMODE"] = "1"
-        pytest_env["PYTHONASYNCIODEBUG"] = "1"
-    if pytest_cmd and hypothesis_plugin and target_has_module(_target_py, "hypothesis"):
-        pytest_cmd += ["-p", "hypothesis_plugin"]
-        pytest_env["PYTHONPATH"] = (
-            str(hypothesis_plugin.parent)
-            + os.pathsep
-            + os.environ.get("PYTHONPATH", "")
-        )
-    if pytest_cmd:
-        pytest_cmd += cx.tests
     if "pytest" in cx.wanted:
         if not cx.technology.has("python"):
             cx.skipped.append(

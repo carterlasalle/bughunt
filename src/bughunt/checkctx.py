@@ -90,6 +90,13 @@ class CheckBuildCx:
     tests: list[str]
     config_dir: Path
     technology: TechnologyInventory
+    _target_py: str
+    pytest: str | None
+    hypothesis_plugin: Path | None
+    repro_seed: int
+    test_timeout: int
+    pytest_env: dict[str, str]
+    pytest_cmd: list[str] | None
     checks: list[Check] = field(default_factory=list)
     skipped: list[Result] = field(default_factory=list)
     generated_targets: list[DiscoveredTarget] = field(default_factory=list)
