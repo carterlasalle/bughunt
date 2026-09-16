@@ -280,3 +280,43 @@ def test_pylint_severity_ranking() -> None:
     found = parse_pylint(sample, "", 1)
     assert len(found) == 2
     assert parse_pylint("broken", "", 1) != []
+
+
+# trace:v1 id=test.tests-test-parsers.test-actionlint-shellcheck-sqlfluff-shapes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_actionlint_shellcheck_sqlfluff_shapes() -> None:
+    import json
+
+    from bughunt.parsers import parse_actionlint, parse_shellcheck, parse_sqlfluff
+
+    action = json.dumps(
+        {
+            "filepath": "wf.yml",
+            "line": 3,
+            "kind": "shellcheck",
+            "message": "quote this",
+        }
+    )
+    found = parse_actionlint(action + "\nnot-json", "", 1)
+    assert len(found) == 1 and found[0].path == "wf.yml"
+    assert parse_actionlint("broken", "", 1) != []
+
+    shell = json.dumps(
+        {
+            "file": "job.sh",
+            "line": 7,
+            "column": 2,
+            "code": 2086,
+            "level": "warning",
+            "message": "quote it",
+        }
+    )
+    found = parse_shellcheck(f'{{"comments": [{shell}]}}', "", 1)
+    assert len(found) == 1 and found[0].code == "SC2086"
+    assert parse_shellcheck("broken", "", 1) != []
+
+    sql = json.dumps(
+        [{"filepath": "m.sql", "violations": [{"code": "CP01", "description": "avoid select *", "start_line_no": 4}]}]
+    )
+    found = parse_sqlfluff(sql, "", 1)
+    assert len(found) == 1 and found[0].line == 4
+    assert parse_sqlfluff("broken", "", 1) != []
