@@ -126,14 +126,11 @@ class Config:
                 else (ALL_CORRECTNESS_FLOOR if profile == "all" else [])
             )
         )
-        for tool in floor:
-            if tool not in configured:
-                configured.append(tool)
-        # Technology engines are a BugHunt correctness floor. Old project configs
-        # cannot silently opt out merely because they predate the capability layer.
-        for tool in technology:
-            if tool not in configured:
-                configured.append(tool)
+        for tool in [*floor, *technology]:
+            if tool in configured:
+                continue
+            # Preserve first-seen (configured-profile) order; floors append.
+            configured.append(tool)
         return configured
 
     # trace:v1 id=impl.src-bughunt-config.source-paths work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
