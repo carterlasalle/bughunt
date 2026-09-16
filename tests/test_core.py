@@ -959,10 +959,11 @@ def test_pysa_provider_error_degrades() -> None:
 @serialized
 def test_atheris_needs_native(monkeypatch, tmp_path: Path) -> None:
     from bughunt import cli as cli_module
+    from bughunt import probes as probes_module
 
-    monkeypatch.setattr(cli_module, "target_has_module", lambda *a: False)
+    monkeypatch.setattr(probes_module, "target_has_module", lambda *a: False)
     assert cli_module.atheris_available(tmp_path) is False
-    monkeypatch.setattr(cli_module, "target_has_module", lambda *a: True)
+    monkeypatch.setattr(probes_module, "target_has_module", lambda *a: True)
     assert cli_module.atheris_available(tmp_path) is True
 
 
