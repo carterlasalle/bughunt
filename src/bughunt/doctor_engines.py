@@ -17,7 +17,6 @@ from .probes import (
     executable,
     pysa_executable,
     python_module_available,
-    target_executable,
 )
 from .technology import (
     ENGINE_CAPABILITY,
@@ -26,6 +25,7 @@ from .technology import (
     engine_applicable,
     llvm_executable,
     project_executable,
+    target_executable,
     target_has_module,
     target_python,
 )
