@@ -373,8 +373,8 @@ def parse_semgrep(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
 def parse_deal(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse `python -m deal lint --json` JSON-lines output."""
     out: list[Finding] = []
-    for line in stdout.splitlines():
-        line = line.strip()
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
         if not line:
             continue
         try:
