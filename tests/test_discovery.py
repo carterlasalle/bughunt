@@ -31,8 +31,9 @@ def test_discovers_fastapi_and_parser(tmp_path: Path) -> None:
         t for t in targets if t.kind == "atheris" and t.name == "demo.api.parse_packet"
     )
     assert fuzz.runnable
-    assert "-atheris_runs=123" in fuzz.command
-    assert "--with" not in fuzz.command
+    assert fuzz.command is not None and "-atheris_runs=123" in fuzz.command
+    assert fuzz.command is not None and "--with" not in fuzz.command
+    assert fuzz.metadata is not None
     harness = tmp_path / fuzz.metadata["generated_harness"]
     text = harness.read_text()
     assert "ValueError" in text
@@ -40,6 +41,7 @@ def test_discovers_fastapi_and_parser(tmp_path: Path) -> None:
     api = next(
         t for t in targets if t.kind == "schemathesis" and t.name == "demo.api.app"
     )
+    assert api.metadata is not None
     api_harness = (tmp_path / api.metadata["generated_harness"]).read_text()
     assert "max_examples=321" in api_harness
     assert "as_state_machine" in api_harness
@@ -142,6 +144,7 @@ def test_discovers_flask_with_explicit_openapi_route(tmp_path: Path) -> None:
     targets = discover_schemathesis(tmp_path, ["src"])
     target = next(t for t in targets if t.name == "demo.api.app")
     assert target.runnable
+    assert target.metadata is not None
     assert target.metadata["transport"] == "wsgi"
 
 
@@ -157,6 +160,7 @@ def test_atheris_infers_expected_parser_rejections(tmp_path: Path) -> None:
     target = next(
         t for t in targets if t.kind == "atheris" and t.name == "demo.parser.decode"
     )
+    assert target.metadata is not None
     assert "ValueError" in target.metadata["explicit_raises"]
     harness = (tmp_path / target.metadata["generated_harness"]).read_text()
     assert "importlib.import_module(owner)" in harness
