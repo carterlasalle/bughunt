@@ -228,7 +228,7 @@ class _FunctionCollector(ast.NodeVisitor):
             for arg in node.args:
                 if isinstance(arg, ast.Name):
                     self.validated_names.add(arg.id)
-        if leaf in DB_CALLS and self._loop_depth:
+        if leaf in DB_CALLS and self._loop_depth and leaf != "get":
             self.db_in_loop.append((node.lineno, call))
         self.generic_visit(node)
 
