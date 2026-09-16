@@ -123,7 +123,9 @@ class Config:
     def tools(self, profile: str) -> list[str]:
         profiles = self.raw_section("profiles")
         profile_table = profiles.get(profile, {})
-        tools_raw = profile_table.get("tools", []) if isinstance(profile_table, dict) else []
+        tools_raw = (
+            profile_table.get("tools", []) if isinstance(profile_table, dict) else []
+        )
         configured: list[str] = [str(t) for t in tools_raw]
         if not configured and profile == "all":
             # Backward compatibility with pre-`all` configs: maximal mode is the

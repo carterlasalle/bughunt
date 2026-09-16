@@ -6,6 +6,21 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-09-16
+
+cli.py split: the 6.5k-line orchestrator is now focused modules
+(`checkctx`, `checks_*`, `probes`, `config`, `debt`, `reporting`,
+`argparse_cli`, `runners`, `doctor_*`, `ui`) with cli.py at 872 lines;
+mutmut generation completes per file (cli.py 9.5s, reporting 30s).
+Silent-failure rule search: assertion-free tests, swallowed loop
+errors, ignored warnings filters, and suppressed exceptions, each
+proven against the real binaries. Scan hardening: threaded-test
+serialization with capture drain, main-thread SIGINT guard, racy-tree
+discovery tolerance, capped post-exit drains, and a stall heartbeat.
+Strict-debt batch: typed raw-config accessors (call-overload cleared
+on touched paths), public cross-module names, import-cycle fix, and
+precision fixes (BHDB001 `dict.get` noise, redundant imports).
+
 ## [0.9.2] - 2026-09-15
 
 Isolated-install repair: every analyzer resolves through the target

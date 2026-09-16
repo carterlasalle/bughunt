@@ -315,7 +315,18 @@ def test_actionlint_shellcheck_sqlfluff_shapes() -> None:
     assert parse_shellcheck("broken", "", 1) != []
 
     sql = json.dumps(
-        [{"filepath": "m.sql", "violations": [{"code": "CP01", "description": "avoid select *", "start_line_no": 4}]}]
+        [
+            {
+                "filepath": "m.sql",
+                "violations": [
+                    {
+                        "code": "CP01",
+                        "description": "avoid select *",
+                        "start_line_no": 4,
+                    }
+                ],
+            }
+        ]
     )
     found = parse_sqlfluff(sql, "", 1)
     assert len(found) == 1 and found[0].line == 4
