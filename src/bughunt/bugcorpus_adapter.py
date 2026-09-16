@@ -165,7 +165,7 @@ def scan(root: Path, profile: str) -> list[dict[str, object]]:
             continue
         detector = str(item.get("detector_id", "?"))
         family = str(item.get("bug_family", "?"))
-        cases = item.get("bug_cases", [])
+        cases: object = item.get("bug_cases", [])
         case = str(cases[0]) if isinstance(cases, list) and cases else "?"
         provenance = f"{family}/{detector}"
         line = item.get("start_line")
