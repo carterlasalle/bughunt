@@ -57,7 +57,14 @@ from .debt import (
     load_debt_ledger as load_debt_ledger,
     mark_accepted as mark_accepted,
 )
-from .config import CACHE_DIR, Config as Config, _deep_merge as _deep_merge, _default_config_raw as _default_config_raw, load_config as load_config
+from .config import (
+    CACHE_DIR,
+    Config as Config,
+    _deep_merge as _deep_merge,
+    _default_config_raw as _default_config_raw,
+    load_config as load_config,
+)
+from .argparse_cli import add_all_options
 from .checkctx import CheckBuildCx
 from .doctor_engines import _doctor_engine_rows, _doctor_guarded_rows
 from .doctor_tables import _doctor_capability_rows, _doctor_coverage_rows
@@ -1394,28 +1401,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     ):
         alias_p = sub.add_parser(alias, help=help_text)
         _ = alias_p.add_argument("--no-auto-config", action="store_true")
-
-    # trace:v1 id=impl.src-bughunt-cli-main.add-all-options work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-    def add_all_options(target: argparse.ArgumentParser) -> None:
-        _ = target.add_argument(
-            "--install-missing",
-            action=argparse.BooleanOptionalAction,
-            default=True,
-            help="install missing analyzers before running (default: true)",
-        )
-        _ = target.add_argument(
-            "--skip",
-            action="append",
-            default=[],
-            metavar="DEFENSE",
-            help="skip a defense while keeping all other all-profile defenses",
-        )
-        _ = target.add_argument(
-            "--skip-mutmut",
-            action="store_true",
-            help="skip mutation testing (same as --skip mutmut)",
-        )
-        _ = target.add_argument("--no-auto-config", action="store_true")
 
     all_p = sub.add_parser(
         "all",
