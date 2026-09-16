@@ -86,7 +86,7 @@ def build_python_checks(cx: CheckBuildCx) -> None:
         pylint_cmd,
         parse_pylint,
         reason="pylint not installed",
-        findings_exit_codes={code for code in range(1, 32)},
+        findings_exit_codes=set(range(1, 32)),
     )
     pylint_tests_wanted = (
         "pylint-tests" in cx.wanted and "pylint-tests" not in cx.excluded
@@ -119,5 +119,5 @@ def build_python_checks(cx: CheckBuildCx) -> None:
             pylint_tests_cmd,
             lambda o, e, c: parse_pylint(o, e, c, tool="pylint-tests"),
             reason="pylint not installed",
-            findings_exit_codes={code for code in range(1, 32)},
+            findings_exit_codes=set(range(1, 32)),
         )
