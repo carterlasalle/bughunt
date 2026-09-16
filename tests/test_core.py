@@ -558,6 +558,19 @@ def test_flat_layout_source_path_inference(tmp_path: Path) -> None:
     assert "demo" in cfg.python_paths
 
 
+# trace:v1 id=test.tests-test-core.test-empty-source-paths-falls-back work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
+def test_empty_source_paths_falls_back(tmp_path: Path) -> None:
+    from bughunt.cli import load_config
+
+    package = tmp_path / "demo"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    (tmp_path / "bughunt.toml").write_text("[project]\nsource_paths = []\n")
+    cfg = load_config(tmp_path)
+    assert cfg.source_paths == ["demo"]
+
+
 # trace:v1 id=test.tests-test-core.test-flat-layout-python-paths-do-not-get-masked-by-tests-dir work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_flat_layout_python_paths_do_not_get_masked_by_tests_dir(
     tmp_path: Path,

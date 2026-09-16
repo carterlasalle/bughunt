@@ -140,7 +140,7 @@ class Config:
     @property
     def source_paths(self) -> list[str]:
         configured = list(self.project.get("source_paths", ["src"]))
-        if any((self.root / path).exists() for path in configured):
+        if configured and any((self.root / path).exists() for path in configured):
             return configured
         return infer_source_paths(self.root)
 
@@ -148,7 +148,7 @@ class Config:
     @property
     def test_paths(self) -> list[str]:
         configured = list(self.project.get("test_paths", ["tests"]))
-        if any((self.root / path).exists() for path in configured):
+        if configured and any((self.root / path).exists() for path in configured):
             return configured
         return infer_test_paths(self.root)
 
