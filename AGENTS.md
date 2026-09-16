@@ -3170,8 +3170,14 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   mid-block statements silently match nothing (this killed
   `bughunt-return-in-finally` unnoticed; fixed with first/last-position
   branches); current ast-grep versions snapshot-test rule fixtures, which the
-  generated pack does not ship, so `ast-grep test` fails on every configured
   repo until snapshots are addressed (open item, not absorbed).
+- 2026-09-16 mutmut wall: `mutmut run` never finishes GENERATING mutants on
+  this tree (25 min+ stuck, workers idle). Bisected: generation is steeply
+  superlinear (25KB technology.py 13s, 70KB configurator.py 15s, 230KB cli.py
+  never completes; parse itself is 1s). Root cause is the known cli.py
+  file-size debt (6.5k lines vs 1200 error budget), not the scan driver: the
+  mutmut defense correctly reports ERROR (loud, never silent). Revisit after
+  the cli.py split; do not "fix" by excluding cli.py from mutation scope.
 
 ## Last maintenance review
 
