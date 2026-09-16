@@ -772,3 +772,34 @@ def applicable_technology_engines(inventory: TechnologyInventory) -> set[str]:
     return {
         engine for engine in ENGINE_CAPABILITY if engine_applicable(inventory, engine)
     }
+
+
+# trace:exempt reason=tool-taxonomy-constants-no-behavior
+TECH_PR_TOOLS = [
+    "actionlint",
+    "shellcheck",
+    "dotenv-linter",
+    "oasdiff",
+    "buf",
+    "sqlfluff",
+    "squawk",
+    "hadolint",
+    "tflint",
+    "golangci-lint",
+    "clippy",
+    "cppcheck",
+    "phpstan",
+    "oxlint",
+    "eslint",
+    "react-doctor",
+    "tsc",
+    "knip",
+    "madge",
+    "publint",
+    "taplo",
+    "yamllint",
+    "check-jsonschema",
+    "alembic-check",
+    "django-migrations",
+]
+TECH_DEEP_TOOLS = [*TECH_PR_TOOLS, "clang-tidy", "infer", "pact-contracts"]

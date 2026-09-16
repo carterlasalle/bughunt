@@ -113,6 +113,8 @@ from .technology import (
     target_executable,
     target_has_module,
     target_python,
+    TECH_DEEP_TOOLS as TECH_DEEP_TOOLS,
+    TECH_PR_TOOLS as TECH_PR_TOOLS,
 )
 from .ui import console as console
 
@@ -120,34 +122,6 @@ CONFIG_NAME = "bughunt.toml"
 REPORT_DIR = ".bughunt/reports"
 CACHE_DIR = ".bughunt/cache"
 
-TECH_PR_TOOLS = [
-    "actionlint",
-    "shellcheck",
-    "dotenv-linter",
-    "oasdiff",
-    "buf",
-    "sqlfluff",
-    "squawk",
-    "hadolint",
-    "tflint",
-    "golangci-lint",
-    "clippy",
-    "cppcheck",
-    "phpstan",
-    "oxlint",
-    "eslint",
-    "react-doctor",
-    "tsc",
-    "knip",
-    "madge",
-    "publint",
-    "taplo",
-    "yamllint",
-    "check-jsonschema",
-    "alembic-check",
-    "django-migrations",
-]
-TECH_DEEP_TOOLS = [*TECH_PR_TOOLS, "clang-tidy", "infer", "pact-contracts"]
 
 # Correctness floors are augmented at runtime so an old bughunt.toml cannot
 # silently omit a defense introduced by a newer BugHunt release.
