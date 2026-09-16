@@ -65,7 +65,6 @@ from . import runners as runners
 from .runners import (
     LiveRunState as LiveRunState,
     LIVE_PROCS as LIVE_PROCS,
-    STOP_REQUESTED as STOP_REQUESTED,
     stop_requested as stop_requested,
     handle_sigint as handle_sigint,
     interrupted_result as interrupted_result,
@@ -579,7 +578,7 @@ async def run_all(
     auto_discover: bool = True,
     excluded: set[str] | None = None,
 ) -> tuple[list[Result], float]:
-    runners.STOP_REQUESTED = False
+    runners._STOP["requested"] = False
     started = time.perf_counter()
     raw_limit = cfg.raw_int("execution", "raw_output_limit_kb", 512) * 1024
     if auto_discover and cfg.raw_section("autodiscovery").get("enabled", True):

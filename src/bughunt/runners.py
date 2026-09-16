@@ -135,29 +135,28 @@ class LiveRunState:
 
 
 # trace:exempt reason=interrupt-flag-wiring-no-behavior
-STOP_REQUESTED = False
+_STOP = {"requested": False}
 LIVE_PROCS: set[asyncio.subprocess.Process] = set()
 
 
 # trace:v1 id=impl.src-bughunt-cli.stop-requested work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def stop_requested() -> bool:
     """True after the first SIGINT; new work must not start."""
-    return STOP_REQUESTED
+    return _STOP["requested"]
 
 
 # trace:v1 id=impl.src-bughunt-cli.-handle-sigint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def handle_sigint(signum: int, frame: object) -> None:
     """First Ctrl-C stops gracefully; a second one aborts immediately."""
-    global STOP_REQUESTED
     _ = (signum, frame)
-    if STOP_REQUESTED:
+    if _STOP["requested"]:
         for proc in list(LIVE_PROCS):
             try:
                 proc.kill()
             except OSError:
                 continue
         raise SystemExit(130)
-    STOP_REQUESTED = True
+    _STOP["requested"] = True
     for proc in list(LIVE_PROCS):
         try:
             proc.terminate()

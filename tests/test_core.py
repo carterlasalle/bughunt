@@ -989,7 +989,7 @@ def test_stop_flag_short_circuits(tmp_path: Path) -> None:
     from bughunt import runners as runners_module
     from bughunt.cli import Check, Status, run_parallel
 
-    runners_module.STOP_REQUESTED = True
+    runners_module._STOP["requested"] = True
     try:
         check = Check(
             name="never-runs",
@@ -1001,7 +1001,7 @@ def test_stop_flag_short_circuits(tmp_path: Path) -> None:
         )
         results = asyncio.run(run_parallel([check], 2, 300000))
     finally:
-        runners_module.STOP_REQUESTED = False
+        runners_module._STOP["requested"] = False
     assert len(results) == 1
     assert results[0].status == Status.ERROR
     assert "interrupted" in (results[0].note or "")
@@ -1025,7 +1025,7 @@ def test_double_sigint_aborts() -> None:
             actions.append("kill")
 
     proc = _Proc()
-    runners_module.STOP_REQUESTED = False
+    runners_module._STOP["requested"] = False
     try:
         runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
         cli_module.handle_sigint(signal.SIGINT, None)
@@ -1040,7 +1040,7 @@ def test_double_sigint_aborts() -> None:
         assert actions == ["term", "kill"]
     finally:
         runners_module.LIVE_PROCS.discard(proc)
-        runners_module.STOP_REQUESTED = False
+        runners_module._STOP["requested"] = False
 
 
 # trace:v1 id=test.tests-test-core.test-direct-stop-check work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1060,11 +1060,11 @@ def test_direct_stop_check(tmp_path: Path) -> None:
         timeout=10,
         cwd=tmp_path,
     )
-    runners_module.STOP_REQUESTED = True
+    runners_module._STOP["requested"] = True
     try:
         result = asyncio.run(run_process(check, 300000))
     finally:
-        runners_module.STOP_REQUESTED = False
+        runners_module._STOP["requested"] = False
     assert result.status == Status.ERROR
     assert "interrupted" in (result.note or "")
 
@@ -1089,12 +1089,12 @@ def test_cancelled_process_reaped(tmp_path: Path) -> None:
         )
         task = asyncio.create_task(run_process(check, 300000))
         await asyncio.sleep(0.5)
-        runners_module.STOP_REQUESTED = True
+        runners_module._STOP["requested"] = True
         task.cancel()
         try:
             return await task
         finally:
-            runners_module.STOP_REQUESTED = False
+            runners_module._STOP["requested"] = False
 
     result = asyncio.run(_run())
     assert result.status == Status.ERROR
@@ -1118,12 +1118,12 @@ def test_sigint_terminates_live_procs() -> None:
 
     proc = _Proc()
     runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
-    runners_module.STOP_REQUESTED = False
+    runners_module._STOP["requested"] = False
     try:
         cli_module.handle_sigint(signal.SIGINT, None)
     finally:
         runners_module.LIVE_PROCS.discard(proc)
-        runners_module.STOP_REQUESTED = False
+        runners_module._STOP["requested"] = False
     assert terminated == ["term"]
 
 
