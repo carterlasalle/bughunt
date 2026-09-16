@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from rich import box
 from rich.markup import escape
@@ -136,7 +136,19 @@ class LiveRunState:
 
 # trace:exempt reason=interrupt-flag-wiring-no-behavior
 _STOP = {"requested": False}
-LIVE_PROCS: set[asyncio.subprocess.Process] = set()
+
+
+# trace:v1 id=impl.src-bughunt-runners.live-proc work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+class LiveProc(Protocol):
+    """Anything the interrupt path can kill or terminate."""
+
+    # trace:v1 id=impl.src-bughunt-runners.live-proc.kill work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def kill(self) -> object: ...
+    # trace:v1 id=impl.src-bughunt-runners.live-proc.terminate work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def terminate(self) -> object: ...
+
+
+LIVE_PROCS: set[LiveProc] = set()
 
 
 # trace:v1 id=impl.src-bughunt-cli.stop-requested work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
