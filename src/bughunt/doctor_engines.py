@@ -31,7 +31,7 @@ from .technology import (
 )
 
 if TYPE_CHECKING:
-    from .cli import Config
+    from .config import Config
 
     # trace:v1 id=impl.src-bughunt-cli-doctor.cli-row work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 

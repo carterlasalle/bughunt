@@ -20,7 +20,7 @@ from .technology import (
 )
 
 if TYPE_CHECKING:
-    from .cli import Config
+    from .config import Config
 
 
 # trace:v1 id=impl.src-bughunt-doctor-tables.doctor-capability-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
