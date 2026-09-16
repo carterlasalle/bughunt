@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 from rich import box
-from rich.console import Console
 from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
@@ -115,12 +114,11 @@ from .technology import (
     target_has_module,
     target_python,
 )
+from .ui import console as console
 
 CONFIG_NAME = "bughunt.toml"
 REPORT_DIR = ".bughunt/reports"
 CACHE_DIR = ".bughunt/cache"
-
-console = Console()
 
 TECH_PR_TOOLS = [
     "actionlint",
