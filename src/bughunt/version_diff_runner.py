@@ -160,7 +160,7 @@ def _compile_function(node: ast.FunctionDef) -> Any:
         else {name: __builtins__.get(name) for name in SAFE_CALLS}
     )
     # Sandboxed differential harness: AST-gated to SAFE_CALLS with restricted builtins.
-    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102  # nosec B102; nosemgrep
+    exec(compile(module, "<bughunt-version-diff>", "exec"), ns, ns)  # noqa: S102  # nosec B102; nosemgrep  # pylint: disable=exec-used
     return ns[node.name]
 
 
