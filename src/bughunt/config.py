@@ -74,7 +74,7 @@ class Config:
     # trace:v1 id=impl.src-bughunt-config.max-parallel work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
     def max_parallel(self) -> int:
-        return int(self.raw.get("execution", {}).get("max_parallel", 6))
+        return int(self.raw_section("execution").get("max_parallel", 6))
 
     # trace:v1 id=impl.src-bughunt-cli.config-skip work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     @property
@@ -90,6 +90,24 @@ class Config:
         if not isinstance(section, dict):
             return default
         value = section.get(key, default)
+        return value if isinstance(value, int) else default
+
+    # trace:v1 id=impl.src-bughunt-config.raw-section work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def raw_section(self, key: str) -> dict[str, Any]:
+        """One raw TOML table as a dict; anything else degrades to {}."""
+        section = self.raw.get(key, {})
+        return dict(section) if isinstance(section, dict) else {}
+
+    # trace:v1 id=impl.src-bughunt-config.raw-list work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def raw_list(self, section: str, key: str) -> list[Any]:
+        """One raw TOML list; anything else degrades to []."""
+        items = self.raw_section(section).get(key, [])
+        return list(items) if isinstance(items, list) else []
+
+    # trace:v1 id=impl.src-bughunt-config.raw-int work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def raw_int(self, section: str, key: str, default: int) -> int:
+        """One raw TOML int; anything else degrades to default."""
+        value = self.raw_section(section).get(key, default)
         return value if isinstance(value, int) else default
 
     # trace:v1 id=impl.src-bughunt-config.timeout work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

@@ -270,7 +270,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
         if "hypofuzz" in cx.wanted:
             hypothesis_cli = target_executable(cx.root, "hypothesis")
             budget = int(
-                cx.cfg.raw.get("hypofuzz", {}).get(
+                cx.cfg.raw_section("hypofuzz").get(
                     f"{cx.profile}_seconds",
                     300 if cx.profile == "all" else 120,
                 ),

@@ -122,7 +122,7 @@ def build_matrix_checks(cx: CheckBuildCx) -> None:
                 findings_exit_codes={1},
             )
     if "schemathesis" in cx.wanted:
-        explicit = list(cx.cfg.raw.get("schemathesis", {}).get("targets", {}))
+        explicit = cx.cfg.raw_list("schemathesis", "targets")
         auto = [
             t
             for t in cx.generated_targets
@@ -201,7 +201,7 @@ def build_matrix_checks(cx: CheckBuildCx) -> None:
             ),
         )
     elif "atheris" in cx.wanted:
-        explicit = list(cx.cfg.raw.get("atheris", {}).get("targets", {}))
+        explicit = cx.cfg.raw_list("atheris", "targets")
         auto = [
             t
             for t in cx.generated_targets
@@ -253,7 +253,7 @@ def build_matrix_checks(cx: CheckBuildCx) -> None:
                 Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason),
             )
     if "custom" in cx.wanted:
-        explicit_custom = list(cx.cfg.raw.get("custom", {}).get("checks", {}))
+        explicit_custom = cx.cfg.raw_list("custom", "checks")
         generated_custom = [
             {
                 "name": target.name,

@@ -193,8 +193,8 @@ def build_checks(
     target_py = target_python(root)
     pytest = target_executable(root, "pytest")
     hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
-    repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
-    test_timeout = int(cfg.raw.get("tests", {}).get("timeout_seconds", 300))
+    repro_seed = cfg.raw_int("tests", "repro_seed", 1)
+    test_timeout = cfg.raw_int("tests", "timeout_seconds", 300)
     pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
     pytest_cmd = (
         [
