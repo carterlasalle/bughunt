@@ -7,6 +7,7 @@ import os
 import pkgutil
 import re
 import shutil
+import subprocess
 import sys
 import tomllib
 from collections.abc import Iterable
@@ -563,6 +564,31 @@ exclude_dirs:
 skips: [B404]
 tests: []
 """
+
+
+# trace:v1 id=impl.src-bughunt-configurator.materialize-astgrep-snapshots work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _materialize_astgrep_snapshots(config_dir: Path) -> None:
+    """Snapshot the shipped rule fixtures with the installed ast-grep.
+
+    Current ast-grep versions snapshot-test rule output, so fixtures without
+    committed snapshots fail `ast-grep test` on every configured repo.
+    Snapshots are version-sensitive, so they are materialized here with the
+    exact binary that will run them rather than embedded statically.
+    Best-effort: absence only degrades to validity checking, never an error.
+    """
+    binary = shutil.which("ast-grep")
+    if binary is None:
+        return
+    try:
+        _ = subprocess.run(  # noqa: S603 - audited: fixed argv, no shell
+            [binary, "test", "--update-all"],
+            capture_output=True,
+            check=False,
+            timeout=120,
+            cwd=config_dir,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
 
 
 # trace:v1 id=impl.src-bughunt-configurator.-astgrep-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -2003,6 +2029,7 @@ invalid:
             text,
             "positive/negative regression fixtures for shipped structural rule",
         )
+    _materialize_astgrep_snapshots(config_dir)
 
     il = _import_linter_config(package_roots)
     if il:

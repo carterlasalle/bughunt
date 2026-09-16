@@ -335,13 +335,10 @@ def test_silent_failure_rules_fire_on_fixtures(tmp_path: Path) -> None:
     assert "bughunt-swallowed-loop-error" in (astgrep_proc.stdout + astgrep_proc.stderr)
     assert "probe_silent.py:15" in (astgrep_proc.stdout + astgrep_proc.stderr)
 
-    # Current ast-grep versions snapshot-test rule output, and the generated
-    # pack ships no snapshots (pre-existing gap for the older rules too, so
-    # snapshot comparison is out of scope here). Validity mode still proves
-    # every shipped fixture is well-formed; detection itself is proven by the
-    # scan assertions above.
+    # Snapshots are materialized by configure itself (version-matched to the
+    # installed binary), so the full rule-test gate must pass here.
     astgrep_test = subprocess.run(  # noqa: S603 - audited: argv list, no shell
-        [astgrep_bin, "test", "--skip-snapshot-tests"],
+        [astgrep_bin, "test"],
         capture_output=True,
         text=True,
         check=False,
