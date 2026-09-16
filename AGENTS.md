@@ -3073,10 +3073,19 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
 ## Known pre-existing issues
 
 - Default-config debt cleared 2026-09-11: ruff 0, mypy 0, 103 tests pass,
-  coverage 60% branch-aware. Strict-overlay debt remains real (ruff 2768 ALL+
-  preview, mypy 1428 strict, basedpyright ~1700, pyrefly ~1600, pylint ~2600):
-  genuine findings on this tree, not breakage; clearing them is a separate
-  refactor PR.
+  coverage 60% branch-aware. Strict-overlay debt remeasured 2026-09-16
+  (ruff 1638 ALL+preview, mypy 1602 strict, basedpyright 0 errors /
+  ~1150 warnings, tests 0 basedpyright errors): genuine findings on this
+  tree, not breakage. Cleared since: basedpyright src errors (import cycle
+  via TYPE_CHECKING Config, UPPER_CASE rebinding), mypy call-overload at
+  raw-config reads (typed accessors), var-annotated at JSON/config reads,
+  unused re-exports/aliases (PLC0414), real conditional-import, signal,
+  and redundant-import issues, plus test-side narrowing (absolute conftest
+  import, typed spies, Optional narrowing, LoopProc protocol, payload
+  annotation). Remaining strict debt is dominated by style/recall rules
+  (E501, COM812, ANN, D, T201, S, PLR, ARG, ISC, B, RUF) plus Any/Unknown
+  flows, implicit concatenation, unused-call results, and complexity
+  budgets — a separate refactor PR.
 - Full `trace verify`: ~600 pre-existing TL012/TL013 on the imported tree.
 - Mechanical sweeps pull whole files into `verify --changed` scope (file-level
   accounting). 2026-09-11 decision (owner): per-boundary `trace:v1` markers
