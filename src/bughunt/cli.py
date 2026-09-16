@@ -19,7 +19,7 @@ import threading
 import time
 import tomllib
 from collections import Counter
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -40,6 +40,7 @@ from . import __version__
 from .configurator import JS_TOOL_IGNORES, configure_all, configure_custom_checks
 from .models import Check as Check, DebtEntry as DebtEntry, Finding as Finding
 from .models import Result as Result, Status as Status
+from .checkctx import CheckBuildCx
 from .parsers import (
     ESLINT_EMPTY_SCOPE,
     OXLINT_EMPTY_SCOPE,
@@ -176,57 +177,6 @@ ALL_CORRECTNESS_FLOOR = [
 # exists; N/A never lowers defense health. Lizard and Semgrep are intentionally
 # excluded because they can analyze multiple languages, while Schemathesis can
 # exercise an OpenAPI contract independently of the implementation language.
-PYTHON_ONLY_TOOLS = {
-    "compile",
-    "ruff",
-    "basedpyright",
-    "mypy",
-    "ty",
-    "pyrefly",
-    "pylint",
-    "pylint-tests",
-    "policy",
-    "complexipy",
-    "radon",
-    "vulture",
-    "bandit",
-    "deptry",
-    "import-linter",
-    "ast-grep",
-    "deal",
-    "crosshair",
-    "pytest",
-    "codeql",
-    "pysa",
-    "mutmut",
-    "atheris",
-    "coverage",
-    "seam",
-    "semantic",
-    "evidence",
-    "packaging",
-    "runtime-types",
-    "doctest",
-    "pydoclint",
-    "refurb",
-    "pytest-random",
-    "pytest-no-network",
-    "pytest-xdist",
-    "pytest-async-blocking",
-    "pytest-parallel",
-    "hypofuzz",
-    "griffe",
-    "importtime",
-    "type-disagreement",
-    "python-matrix",
-    "timezone-matrix",
-    "memray",
-    "benchmark",
-    "pyanalyze",
-    "version-diff",
-    "ghostwriter",
-    "pynguin",
-}
 
 
 # trace:v1 id=impl.src-bughunt-cli.load-debt-ledger work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1211,14 +1161,31 @@ def build_checks(
         "bugcorpus": "historical/custom-static",
         **ENGINE_CATEGORY,
     }
-    if not technology.has("python"):
+    cx = CheckBuildCx(
+        cfg=cfg,
+        profile=profile,
+        root=root,
+        timeout=timeout,
+        wanted=wanted,
+        excluded=excluded,
+        py=py,
+        src=src,
+        tests=tests,
+        config_dir=config_dir,
+        checks=checks,
+        skipped=skipped,
+        generated_targets=generated_targets,
+        technology=technology,
+        category_by_tool=category_by_tool,
+    )
+    if not cx.technology.has("python"):
         for name, category in (
             ("codeql", "whole-program"),
             ("pysa", "taint"),
             ("mutmut", "mutation"),
         ):
-            if name in wanted:
-                skipped.append(
+            if name in cx.wanted:
+                cx.skipped.append(
                     Result(
                         name,
                         category,
@@ -1228,96 +1195,36 @@ def build_checks(
                         ),
                     ),
                 )
-    skipped.extend(
+    cx.skipped.extend(
         Result(
             name=name,
             category=category_by_tool.get(name, "excluded"),
             status=Status.SKIPPED,
             note="explicitly skipped by user",
         )
-        for name in sorted(excluded & set(profile_tools))
+        for name in sorted(cx.excluded & set(profile_tools))
     )
-
-    # trace:v1 id=impl.src-bughunt-cli-build-checks.add work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-    def add(
-        name: str,
-        category: str,
-        command: Sequence[str] | None,
-        parser: Callable[[str, str, int], list[Finding]] | None = None,
-        *,
-        reason: str | None = None,
-        findings_exit_codes: set[int] | None = None,
-        skip_exit_codes: set[int] | None = None,
-        empty_scope_markers: tuple[str, ...] | None = None,
-        check_timeout: int | None = None,
-        env: dict[str, str] | None = None,
-        env_scrub: tuple[str, ...] | None = None,
-        timeout_is_success: bool = False,
-    ) -> None:
-        if name not in wanted:
-            return
-        if name in PYTHON_ONLY_TOOLS and not technology.has("python"):
-            skipped.append(
-                Result(
-                    name=name,
-                    category=category,
-                    status=Status.NA,
-                    note="not applicable: no first-party Python capability detected",
-                ),
-            )
-            return
-        if command is None:
-            skipped.append(
-                Result(
-                    name=name,
-                    category=category,
-                    status=Status.SKIPPED,
-                    note=reason or "not configured",
-                ),
-            )
-            return
-        checks.append(
-            Check(
-                name=name,
-                category=category,
-                command=list(command),
-                parser=(partial(text_findings, name) if parser is None else parser),
-                timeout=check_timeout or timeout,
-                cwd=root,
-                findings_exit_codes=findings_exit_codes
-                if findings_exit_codes is not None
-                else {1},
-                skip_exit_codes=skip_exit_codes
-                if skip_exit_codes is not None
-                else set(),
-                empty_scope_markers=empty_scope_markers or (),
-                env=env,
-                env_scrub=env_scrub or (),
-                timeout_is_success=timeout_is_success,
-            ),
-        )
-
-    add(
+    cx.add(
         "compile",
         "syntax",
-        [sys.executable, "-m", "compileall", "-q", *py],
+        [sys.executable, "-m", "compileall", "-q", *cx.py],
         findings_exit_codes={1},
     )
-    ruff_cfg = generated_config(root, "ruff.toml")
+    ruff_cfg = generated_config(cx.root, "ruff.toml")
     ruff_cmd = _optional_cmd(
-        target_executable(root, "ruff"), ["check", *py, "--output-format=json"]
+        target_executable(cx.root, "ruff"), ["check", *cx.py, "--output-format=json"]
     )
     if ruff_cmd and ruff_cfg:
         ruff_cmd += ["--config", str(ruff_cfg)]
-    add("ruff", "lint", ruff_cmd, parse_ruff, reason="ruff not installed")
-    bp_cfg = generated_config(root, "basedpyrightconfig.json")
+    cx.add("ruff", "lint", ruff_cmd, parse_ruff, reason="ruff not installed")
+    bp_cfg = generated_config(cx.root, "basedpyrightconfig.json")
     bp_cmd = _optional_cmd(
-        target_executable(root, "basedpyright"),
+        target_executable(cx.root, "basedpyright"),
         ["--outputjson", "--pythonpath", sys.executable],
     )
     if bp_cmd and bp_cfg:
         bp_cmd += ["--project", str(bp_cfg)]
-    add(
+    cx.add(
         "basedpyright",
         "types",
         bp_cmd,
@@ -1325,27 +1232,27 @@ def build_checks(
         reason="basedpyright not installed",
         findings_exit_codes={1},
     )
-    mypy_cfg = generated_config(root, "mypy.ini")
+    mypy_cfg = generated_config(cx.root, "mypy.ini")
     mypy_cmd = _optional_cmd(
-        target_executable(root, "mypy"),
-        [*py, "--show-error-codes", "--no-pretty", "--no-color-output"],
+        target_executable(cx.root, "mypy"),
+        [*cx.py, "--show-error-codes", "--no-pretty", "--no-color-output"],
     )
     if mypy_cmd and mypy_cfg:
         mypy_cmd += ["--config-file", str(mypy_cfg)]
-    add("mypy", "types", mypy_cmd, reason="mypy not installed")
-    ty_cfg = generated_config(root, "ty.toml")
-    ty_cmd = _optional_cmd(target_executable(root, "ty"), ["check", *py])
+    cx.add("mypy", "types", mypy_cmd, reason="mypy not installed")
+    ty_cfg = generated_config(cx.root, "ty.toml")
+    ty_cmd = _optional_cmd(target_executable(cx.root, "ty"), ["check", *cx.py])
     if ty_cmd and ty_cfg:
         ty_cmd += ["--config-file", str(ty_cfg)]
-    add("ty", "types", ty_cmd, reason="ty not installed", findings_exit_codes={1})
-    pyrefly_cfg = generated_config(root, "pyrefly.toml")
+    cx.add("ty", "types", ty_cmd, reason="ty not installed", findings_exit_codes={1})
+    pyrefly_cfg = generated_config(cx.root, "pyrefly.toml")
     pyrefly_cmd = _optional_cmd(
-        target_executable(root, "pyrefly"),
+        target_executable(cx.root, "pyrefly"),
         ["check", "--output-format=json"],
     )
     if pyrefly_cmd and pyrefly_cfg:
         pyrefly_cmd += ["--config", str(pyrefly_cfg)]
-    add(
+    cx.add(
         "pyrefly",
         "types",
         pyrefly_cmd,
@@ -1353,16 +1260,16 @@ def build_checks(
         reason="pyrefly not installed",
         findings_exit_codes={1},
     )
-    pylint_cfg = generated_config(root, "pylintrc")
+    pylint_cfg = generated_config(cx.root, "pylintrc")
     pylint_cmd = _optional_cmd(
-        target_executable(root, "pylint"), [*py, "--output-format=json2"]
+        target_executable(cx.root, "pylint"), [*cx.py, "--output-format=json2"]
     )
     if pylint_cmd and pylint_cfg:
         pylint_cmd += ["--rcfile", str(pylint_cfg)]
-        validated = _pylint_disables(pylint_cmd[0], pylint_cfg, root)
+        validated = _pylint_disables(pylint_cmd[0], pylint_cfg, cx.root)
         if validated is not None:
             pylint_cmd += ["--disable=" + ",".join(validated)]
-    add(
+    cx.add(
         "pylint",
         "lint",
         pylint_cmd,
@@ -1370,12 +1277,11 @@ def build_checks(
         reason="pylint not installed",
         findings_exit_codes={code for code in range(1, 32)},
     )
-    # Tests get their own pylint contract: docstring/magic/import-outside
-    # demands misread test idiom, so pylintrc-tests relaxes them (the strict
-    # rcfile keeps every checker on for first-party sources).
-    _want_pylint_tests = "pylint-tests" in wanted and "pylint-tests" not in excluded
-    if _want_pylint_tests and not tests:
-        skipped.append(
+    _want_pylint_tests = (
+        "pylint-tests" in cx.wanted and "pylint-tests" not in cx.excluded
+    )
+    if _want_pylint_tests and not cx.tests:
+        cx.skipped.append(
             Result(
                 "pylint-tests",
                 "lint",
@@ -1384,19 +1290,19 @@ def build_checks(
             ),
         )
     else:
-        pylint_tests_cfg = generated_config(root, "pylintrc-tests")
+        pylint_tests_cfg = generated_config(cx.root, "pylintrc-tests")
         pylint_tests_cmd = _optional_cmd(
-            target_executable(root, "pylint"),
-            [*tests, "--output-format=json2"],
+            target_executable(cx.root, "pylint"),
+            [*cx.tests, "--output-format=json2"],
         )
         if pylint_tests_cmd and pylint_tests_cfg:
             pylint_tests_cmd += ["--rcfile", str(pylint_tests_cfg)]
             validated_tests = _pylint_disables(
-                pylint_tests_cmd[0], pylint_tests_cfg, root
+                pylint_tests_cmd[0], pylint_tests_cfg, cx.root
             )
             if validated_tests is not None:
                 pylint_tests_cmd += ["--disable=" + ",".join(validated_tests)]
-        add(
+        cx.add(
             "pylint-tests",
             "lint",
             pylint_tests_cmd,
@@ -1404,49 +1310,45 @@ def build_checks(
             reason="pylint not installed",
             findings_exit_codes={code for code in range(1, 32)},
         )
-
-    # Built-in policy + complexity scanners are always available with BugHunt.
-    policy_cmd = [sys.executable, "-m", "bughunt.policy_scan", "--root", str(root)]
-    for path in src:
+    policy_cmd = [sys.executable, "-m", "bughunt.policy_scan", "--root", str(cx.root)]
+    for path in cx.src:
         policy_cmd += ["--source", path]
-    for path in tests:
+    for path in cx.tests:
         policy_cmd += ["--test", path]
-    add(
+    cx.add(
         "policy",
         "repository-policy",
         policy_cmd,
         lambda o, e, c: parse_json_list("policy", o, e, c),
         findings_exit_codes={1},
     )
-
-    metrics_cmd = [sys.executable, "-m", "bughunt.metrics_scan", "--root", str(root)]
-    for path in src:
+    metrics_cmd = [sys.executable, "-m", "bughunt.metrics_scan", "--root", str(cx.root)]
+    for path in cx.src:
         metrics_cmd += ["--source", path]
-    add(
+    cx.add(
         "complexity",
         "complexity-budgets",
         metrics_cmd,
         lambda o, e, c: parse_json_list("complexity", o, e, c),
         findings_exit_codes={1},
     )
-
-    complexipy = target_executable(root, "complexipy")
+    complexipy = target_executable(cx.root, "complexipy")
     complexipy_cmd = (
         [
             complexipy,
-            *src,
+            *cx.src,
             "--plain",
             "--failed",
             "--check-script",
             "--no-ignore",
             "--report-ignored",
             "--max-complexity-allowed",
-            str(int(cfg.raw.get("complexity", {}).get("cognitive_max", 10))),
+            str(int(cx.cfg.raw.get("complexity", {}).get("cognitive_max", 10))),
         ]
         if complexipy
         else None
     )
-    add(
+    cx.add(
         "complexipy",
         "cognitive-complexity",
         complexipy_cmd,
@@ -1454,10 +1356,9 @@ def build_checks(
         reason="complexipy not installed",
         findings_exit_codes={1},
     )
-
-    radon = target_executable(root, "radon")
-    radon_cmd = [radon, "mi", "-j", "-s", *src] if radon else None
-    add(
+    radon = target_executable(cx.root, "radon")
+    radon_cmd = [radon, "mi", "-j", "-s", *cx.src] if radon else None
+    cx.add(
         "radon",
         "maintainability",
         radon_cmd,
@@ -1465,26 +1366,25 @@ def build_checks(
         reason="radon not installed",
         findings_exit_codes=set(),
     )
-
-    lizard = target_executable(root, "lizard")
+    lizard = target_executable(cx.root, "lizard")
     lizard_cmd = (
         [
             lizard,
             "-w",
             "-C",
-            str(int(cfg.raw.get("complexity", {}).get("cyclomatic_warn", 10))),
+            str(int(cx.cfg.raw.get("complexity", {}).get("cyclomatic_warn", 10))),
             "-L",
-            str(int(cfg.raw.get("complexity", {}).get("function_loc_warn", 80))),
+            str(int(cx.cfg.raw.get("complexity", {}).get("function_loc_warn", 80))),
             "-a",
             "8",
             "-t",
-            str(max(1, cfg.max_parallel)),
-            *src,
+            str(max(1, cx.cfg.max_parallel)),
+            *cx.src,
         ]
         if lizard
         else None
     )
-    add(
+    cx.add(
         "lizard",
         "cross-language-complexity",
         lizard_cmd,
@@ -1492,21 +1392,17 @@ def build_checks(
         reason="lizard not installed",
         findings_exit_codes={1},
     )
-
     vulture_confidence = (
-        "0" if profile in {"deep", "all"} else ("60" if profile == "pr" else "80")
+        "0" if cx.profile in {"deep", "all"} else ("60" if cx.profile == "pr" else "80")
     )
-    # Vulture cannot see framework dispatch: ast.NodeVisitor invokes
-    # visit_<Node> methods by reflection, so every AST visitor reads as dead.
-    # All ast node classes are CamelCase, keeping this pattern tight.
     vulture_ignored = "visit_[A-Z]*"
-    add(
+    cx.add(
         "vulture",
         "dead-code",
         _optional_cmd(
-            target_executable(root, "vulture"),
+            target_executable(cx.root, "vulture"),
             [
-                *py,
+                *cx.py,
                 "--min-confidence",
                 vulture_confidence,
                 "--ignore-names",
@@ -1515,39 +1411,41 @@ def build_checks(
         ),
         findings_exit_codes={3},
     )
-    bandit_cfg = generated_config(root, "bandit.yaml")
+    bandit_cfg = generated_config(cx.root, "bandit.yaml")
     bandit_cmd = _optional_cmd(
-        target_executable(root, "bandit"), ["-r", *src, "-f", "json", "-q"]
+        target_executable(cx.root, "bandit"), ["-r", *cx.src, "-f", "json", "-q"]
     )
     if bandit_cmd and bandit_cfg:
         bandit_cmd += ["-c", str(bandit_cfg)]
-    add("bandit", "security", bandit_cmd, parse_bandit, reason="bandit not installed")
+    cx.add(
+        "bandit", "security", bandit_cmd, parse_bandit, reason="bandit not installed"
+    )
     deptry_cmd = _optional_cmd(
-        target_executable(root, "deptry"),
+        target_executable(cx.root, "deptry"),
         [
-            *src,
+            *cx.src,
             "--extend-exclude",
             r"(^|/)(.bughunt|build|dist|mutants|node_modules)(/|$)",
             "--experimental-namespace-package",
             "--no-ansi",
         ],
     )
-    add(
+    cx.add(
         "deptry",
         "dependencies",
         deptry_cmd,
         parse_deptry,
         reason="deptry not installed",
     )
-    import_linter = target_executable(root, "lint-imports", "import-linter")
-    generated_import_cfg = generated_config(root, "importlinter.toml")
+    import_linter = target_executable(cx.root, "lint-imports", "import-linter")
+    generated_import_cfg = generated_config(cx.root, "importlinter.toml")
     lint_flags = (
         ["--no-logo", "--show-timings"]
-        if import_linter and _supports_flag(import_linter, "--no-logo", root)
+        if import_linter and _supports_flag(import_linter, "--no-logo", cx.root)
         else ["--show-timings"]
     )
     if import_linter and generated_import_cfg:
-        add(
+        cx.add(
             "import-linter",
             "architecture",
             [
@@ -1558,15 +1456,15 @@ def build_checks(
             ],
             reason="import-linter not installed",
         )
-    elif import_linter and import_linter_configured(root):
-        add(
+    elif import_linter and import_linter_configured(cx.root):
+        cx.add(
             "import-linter",
             "architecture",
             [import_linter, *lint_flags],
             reason="import-linter not installed",
         )
     else:
-        add(
+        cx.add(
             "import-linter",
             "architecture",
             None,
@@ -1576,37 +1474,32 @@ def build_checks(
                 else "no safe import contract could be inferred; run configure --auto"
             ),
         )
-
-    sg = ast_grep_executable(root)
-    sgconfig = generated_config(root, "sgconfig.yml")
+    sg = ast_grep_executable(cx.root)
+    sgconfig = generated_config(cx.root, "sgconfig.yml")
     if not sgconfig:
         sgconfig = next(
             (
-                root / p
+                cx.root / p
                 for p in ("sgconfig.yml", "sgconfig.yaml")
-                if (root / p).exists()
+                if (cx.root / p).exists()
             ),
             None,
         )
     sg_cmd = (
-        [sg, "scan", "--json=compact", "--config", str(sgconfig), *py]
+        [sg, "scan", "--json=compact", "--config", str(sgconfig), *cx.py]
         if sg and sgconfig
         else None
     )
-    add(
+    cx.add(
         "ast-grep",
         "structural",
         sg_cmd,
         parse_ast_grep,
         reason="ast-grep missing or no generated/project sgconfig.yml",
     )
-
-    semgrep = target_executable(root, "semgrep")
-    semgrep_settings = cfg.raw.get("semgrep", {})
+    semgrep = target_executable(cx.root, "semgrep")
+    semgrep_settings = cx.cfg.raw.get("semgrep", {})
     requested_semgrep = list(semgrep_settings.get("configs", []))
-    # `auto` requires Semgrep's metrics/inventory exchange. BugHunt keeps metrics
-    # off, so map it to a deterministic baseline instead. Correctness is the
-    # default goal; security-only packs are opt-in rather than forcibly injected.
     semgrep_cfgs = [
         "p/default" if str(x) == "auto" else str(x) for x in requested_semgrep
     ]
@@ -1620,7 +1513,7 @@ def build_checks(
                 ["p/security-audit", "p/secrets"],
             )
         )
-    local_semgrep = config_dir / "semgrep" / "rules"
+    local_semgrep = cx.config_dir / "semgrep" / "rules"
     if local_semgrep.exists() and any(
         path.suffix in {".yml", ".yaml"} for path in local_semgrep.rglob("*")
     ):
@@ -1630,42 +1523,44 @@ def build_checks(
         if semgrep
         else []
     )
-    # If the user has authenticated Semgrep Code, spend the extra analysis;
-    # otherwise explicitly select CE so behavior is stable and non-interactive.
     if semgrep_cmd:
         semgrep_cmd.append(
             "--pro" if os.environ.get("SEMGREP_APP_TOKEN") else "--oss-only",
         )
     for c in dict.fromkeys(semgrep_cfgs):
         semgrep_cmd.extend(["--config", c])
-    semgrep_cmd.extend(py)
-    add(
+    semgrep_cmd.extend(cx.py)
+    cx.add(
         "semgrep",
         "semantic-static",
         semgrep_cmd if semgrep else None,
         parse_semgrep,
         reason="semgrep not installed",
     )
-
     deal_ready = python_module_available("deal")
-    add(
+    cx.add(
         "deal",
         "contracts",
-        [sys.executable, "-m", "deal", "lint", *src, "--json"] if deal_ready else None,
+        [sys.executable, "-m", "deal", "lint", *cx.src, "--json"]
+        if deal_ready
+        else None,
         parse_deal,
         reason="deal Python module not installed",
         findings_exit_codes=set(range(1, 256)),
     )
-
-    crosshair = target_executable(root, "crosshair")
+    crosshair = target_executable(cx.root, "crosshair")
     crosshair_cmd = None
     if crosshair:
-        per_path = "8" if profile == "all" else ("5" if profile == "deep" else "3")
+        per_path = (
+            "8" if cx.profile == "all" else ("5" if cx.profile == "deep" else "3")
+        )
         per_condition = (
-            "180" if profile == "all" else ("90" if profile == "deep" else "45")
+            "180" if cx.profile == "all" else ("90" if cx.profile == "deep" else "45")
         )
         iterations = (
-            "1000" if profile == "all" else ("300" if profile == "deep" else "100")
+            "1000"
+            if cx.profile == "all"
+            else ("300" if cx.profile == "deep" else "100")
         )
         crosshair_cmd = [
             crosshair,
@@ -1677,21 +1572,20 @@ def build_checks(
             per_path,
             "--per_condition_timeout",
             per_condition,
-            *src,
+            *cx.src,
         ]
-    add(
+    cx.add(
         "crosshair",
         "symbolic",
         crosshair_cmd,
         reason="crosshair not installed",
         findings_exit_codes={1},
     )
-
-    _target_py = target_python(root)
-    pytest = target_executable(root, "pytest")
-    hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
-    repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
-    test_timeout = int(cfg.raw.get("tests", {}).get("timeout_seconds", 300))
+    _target_py = target_python(cx.root)
+    pytest = target_executable(cx.root, "pytest")
+    hypothesis_plugin = generated_config(cx.root, "hypothesis_plugin.py")
+    repro_seed = int(cx.cfg.raw.get("tests", {}).get("repro_seed", 1))
+    test_timeout = int(cx.cfg.raw.get("tests", {}).get("timeout_seconds", 300))
     pytest_env = {"HYPOTHESIS_PROFILE": "bughunt", "PYTHONHASHSEED": str(repro_seed)}
     pytest_cmd = (
         [
@@ -1708,7 +1602,7 @@ def build_checks(
     )
     if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
         pytest_cmd += ["--timeout", str(test_timeout)]
-    if pytest_cmd and profile in {"deep", "all"}:
+    if pytest_cmd and cx.profile in {"deep", "all"}:
         # Resource/deprecation/runtime warnings are often latent bugs. Developer
         # mode also enables faulthandler and extra CPython runtime checks.
         pytest_cmd += ["-W", "error"]
@@ -1722,10 +1616,10 @@ def build_checks(
             + os.environ.get("PYTHONPATH", "")
         )
     if pytest_cmd:
-        pytest_cmd += tests
-    if "pytest" in wanted:
-        if not technology.has("python"):
-            skipped.append(
+        pytest_cmd += cx.tests
+    if "pytest" in cx.wanted:
+        if not cx.technology.has("python"):
+            cx.skipped.append(
                 Result(
                     "pytest",
                     "tests/property/state",
@@ -1734,20 +1628,20 @@ def build_checks(
                 ),
             )
         elif pytest_cmd:
-            checks.append(
+            cx.checks.append(
                 Check(
                     "pytest",
                     "tests/property/state",
                     pytest_cmd,
                     lambda o, e, c: text_findings("pytest", o, e, c),
-                    timeout,
-                    root,
+                    cx.timeout,
+                    cx.root,
                     env=pytest_env,
                     findings_exit_codes={1},
                 ),
             )
         else:
-            skipped.append(
+            cx.skipped.append(
                 Result(
                     "pytest",
                     "tests/property/state",
@@ -1755,89 +1649,92 @@ def build_checks(
                     note="pytest not installed",
                 ),
             )
-
-    # Structural-hole defenses: execution coverage, runtime annotation truth,
-    # environment/order variation, API drift, packaging, docs, and async behavior.
-    if technology.has("python"):
-        if "coverage" in wanted:
+    if cx.technology.has("python"):
+        if "coverage" in cx.wanted:
             cov_python = (
                 _target_py
                 if target_has_module(_target_py, "bughunt")
                 else sys.executable
             )
             if target_has_module(cov_python, "coverage") and pytest:
-                add(
+                cx.add(
                     "coverage",
                     "coverage/branches",
-                    [cov_python, "-m", "bughunt.coverage_runner", str(root), *tests],
+                    [
+                        cov_python,
+                        "-m",
+                        "bughunt.coverage_runner",
+                        str(cx.root),
+                        *cx.tests,
+                    ],
                     lambda o, e, c: parse_bughunt_helper("coverage", o, e, c),
                     findings_exit_codes={1},
                 )
             else:
-                add(
+                cx.add(
                     "coverage",
                     "coverage/branches",
                     None,
                     reason="coverage.py/pytest not installed",
                 )
 
-        if "seam" in wanted:
-            add(
+        if "seam" in cx.wanted:
+            cx.add(
                 "seam",
                 "contract-drift",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.seam_scan",
-                    str(root),
-                    ",".join(cfg.source_paths),
-                    ",".join(cfg.test_paths),
+                    str(cx.root),
+                    ",".join(cx.cfg.source_paths),
+                    ",".join(cx.cfg.test_paths),
                 ],
                 lambda o, e, c: parse_bughunt_helper("seam", o, e, c),
                 findings_exit_codes={1},
             )
 
-        if "evidence" in wanted:
-            add(
+        if "evidence" in cx.wanted:
+            cx.add(
                 "evidence",
                 "evidence-preservation",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.evidence_scan",
-                    str(root),
-                    *cfg.source_paths,
+                    str(cx.root),
+                    *cx.cfg.source_paths,
                 ],
                 lambda o, e, c: parse_bughunt_helper("evidence", o, e, c),
                 findings_exit_codes={1},
             )
 
-        if "semantic" in wanted:
-            add(
+        if "semantic" in cx.wanted:
+            cx.add(
                 "semantic",
                 "semantic-contracts",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.semantic_scan",
-                    str(root),
-                    ",".join(cfg.source_paths),
+                    str(cx.root),
+                    ",".join(cx.cfg.source_paths),
                 ],
                 lambda o, e, c: parse_bughunt_helper("semantic", o, e, c),
                 findings_exit_codes={1},
             )
 
-        if "packaging" in wanted:
-            add(
+        if "packaging" in cx.wanted:
+            cx.add(
                 "packaging",
                 "package-correctness",
-                [sys.executable, "-m", "bughunt.package_checks", str(root)],
+                [sys.executable, "-m", "bughunt.package_checks", str(cx.root)],
                 lambda o, e, c: parse_bughunt_helper("packaging", o, e, c),
                 findings_exit_codes={1},
             )
 
-        if "runtime-types" in wanted:
-            packages = python_package_names(root, cfg.source_paths)
+        if "runtime-types" in cx.wanted:
+            packages = python_package_names(cx.root, cx.cfg.source_paths)
             tg_cmd = None
             if pytest and target_has_module(_target_py, "typeguard") and packages:
                 tg_cmd = [
@@ -1845,11 +1742,11 @@ def build_checks(
                     "-q",
                     "--tb=short",
                     f"--typeguard-packages={','.join(packages)}",
-                    *tests,
+                    *cx.tests,
                 ]
                 if target_has_module(_target_py, "pytest_timeout"):
                     tg_cmd += ["--timeout", str(test_timeout)]
-            add(
+            cx.add(
                 "runtime-types",
                 "runtime-type-contracts",
                 tg_cmd,
@@ -1861,13 +1758,13 @@ def build_checks(
                 env={"PYTHONHASHSEED": str(repro_seed)},
             )
 
-        if "doctest" in wanted:
+        if "doctest" in cx.wanted:
             doctest_cmd = (
-                [pytest, "-q", "--tb=short", "--doctest-modules", *src]
+                [pytest, "-q", "--tb=short", "--doctest-modules", *cx.src]
                 if pytest
                 else None
             )
-            add(
+            cx.add(
                 "doctest",
                 "executable-docs",
                 doctest_cmd,
@@ -1875,34 +1772,34 @@ def build_checks(
                 skip_exit_codes={5},
             )
 
-        if "pydoclint" in wanted:
-            pd = target_executable(root, "pydoclint")
-            add(
+        if "pydoclint" in cx.wanted:
+            pd = target_executable(cx.root, "pydoclint")
+            cx.add(
                 "pydoclint",
                 "doc-contracts",
-                [pd, *src] if pd else None,
+                [pd, *cx.src] if pd else None,
                 reason="pydoclint not installed",
                 findings_exit_codes={1},
             )
 
-        if "refurb" in wanted:
-            rb = target_executable(root, "refurb")
-            add(
+        if "refurb" in cx.wanted:
+            rb = target_executable(cx.root, "refurb")
+            cx.add(
                 "refurb",
                 "correctness-modernization",
-                [rb, *src] if rb else None,
+                [rb, *cx.src] if rb else None,
                 reason="refurb not installed",
                 findings_exit_codes={1},
             )
 
-        if "pytest-random" in wanted:
+        if "pytest-random" in cx.wanted:
             seed = secrets.randbelow(2**31 - 2) + 1
             cmd = (
-                [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *tests]
+                [pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *cx.tests]
                 if pytest and target_has_module(_target_py, "pytest_randomly")
                 else None
             )
-            add(
+            cx.add(
                 "pytest-random",
                 "determinism/order",
                 cmd,
@@ -1911,7 +1808,7 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "pytest-no-network" in wanted:
+        if "pytest-no-network" in cx.wanted:
             cmd = (
                 [
                     pytest,
@@ -1919,12 +1816,12 @@ def build_checks(
                     "--tb=short",
                     "--disable-socket",
                     "--allow-unix-socket",
-                    *tests,
+                    *cx.tests,
                 ]
                 if pytest and target_has_module(_target_py, "pytest_socket")
                 else None
             )
-            add(
+            cx.add(
                 "pytest-no-network",
                 "hidden-io",
                 cmd,
@@ -1933,13 +1830,22 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "pytest-xdist" in wanted:
+        if "pytest-xdist" in cx.wanted:
             cmd = (
-                [pytest, "-q", "--tb=short", "-n", "auto", "--dist", "loadfile", *tests]
+                [
+                    pytest,
+                    "-q",
+                    "--tb=short",
+                    "-n",
+                    "auto",
+                    "--dist",
+                    "loadfile",
+                    *cx.tests,
+                ]
                 if pytest and target_has_module(_target_py, "xdist")
                 else None
             )
-            add(
+            cx.add(
                 "pytest-xdist",
                 "cross-test-state",
                 cmd,
@@ -1948,10 +1854,10 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "pytest-async-blocking" in wanted:
-            blocker = generated_config(root, "blockbuster_plugin.py")
+        if "pytest-async-blocking" in cx.wanted:
+            blocker = generated_config(cx.root, "blockbuster_plugin.py")
             cmd = (
-                [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *tests]
+                [pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *cx.tests]
                 if pytest and blocker and target_has_module(_target_py, "blockbuster")
                 else None
             )
@@ -1960,7 +1866,7 @@ def build_checks(
                 env["PYTHONPATH"] = (
                     str(blocker.parent) + os.pathsep + os.environ.get("PYTHONPATH", "")
                 )
-            add(
+            cx.add(
                 "pytest-async-blocking",
                 "async-runtime",
                 cmd,
@@ -1969,7 +1875,7 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "pytest-parallel" in wanted:
+        if "pytest-parallel" in cx.wanted:
             cmd = (
                 [
                     pytest,
@@ -1977,12 +1883,12 @@ def build_checks(
                     "--tb=short",
                     "--parallel-threads=auto",
                     "--iterations=3",
-                    *tests,
+                    *cx.tests,
                 ]
                 if pytest and target_has_module(_target_py, "pytest_run_parallel")
                 else None
             )
-            add(
+            cx.add(
                 "pytest-parallel",
                 "thread-safety",
                 cmd,
@@ -1991,15 +1897,15 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "hypofuzz" in wanted:
-            hypothesis_cli = target_executable(root, "hypothesis")
+        if "hypofuzz" in cx.wanted:
+            hypothesis_cli = target_executable(cx.root, "hypothesis")
             budget = int(
-                cfg.raw.get("hypofuzz", {}).get(
-                    f"{profile}_seconds",
-                    300 if profile == "all" else 120,
+                cx.cfg.raw.get("hypofuzz", {}).get(
+                    f"{cx.profile}_seconds",
+                    300 if cx.profile == "all" else 120,
                 ),
             )
-            workers = int(cfg.raw.get("hypofuzz", {}).get("workers", 2))
+            workers = int(cx.cfg.raw.get("hypofuzz", {}).get("workers", 2))
             cmd = (
                 [
                     hypothesis_cli,
@@ -2008,12 +1914,12 @@ def build_checks(
                     "-n",
                     str(workers),
                     "--",
-                    *tests,
+                    *cx.tests,
                 ]
                 if hypothesis_cli
                 else None
             )
-            add(
+            cx.add(
                 "hypofuzz",
                 "coverage-guided-property-fuzz",
                 cmd,
@@ -2029,17 +1935,17 @@ def build_checks(
                 skip_exit_codes={5},
             )
 
-        if "griffe" in wanted:
-            griffe = target_executable(root, "griffe")
-            baseline = technology.git_baseline
-            packages = python_package_names(root, cfg.source_paths)
+        if "griffe" in cx.wanted:
+            griffe = target_executable(cx.root, "griffe")
+            baseline = cx.technology.git_baseline
+            packages = python_package_names(cx.root, cx.cfg.source_paths)
             if griffe and baseline and packages:
                 # One aggregate command keeps the defense readable; Griffe accepts
                 # repeated packages.
                 cmd = [griffe, "check", *packages, "--against", baseline]
-                for sp in cfg.source_paths:
+                for sp in cx.cfg.source_paths:
                     cmd += ["--search", sp]
-                add(
+                cx.add(
                     "griffe",
                     "python-api-compatibility",
                     cmd,
@@ -2052,12 +1958,14 @@ def build_checks(
                     if griffe
                     else "griffe not installed"
                 )
-                add("griffe", "python-api-compatibility", None, reason=reason)
+                cx.add("griffe", "python-api-compatibility", None, reason=reason)
 
-        if "importtime" in wanted:
-            packages = python_package_names(root, cfg.source_paths)
-            threshold = int(cfg.raw.get("performance", {}).get("import_ms_warn", 1000))
-            add(
+        if "importtime" in cx.wanted:
+            packages = python_package_names(cx.root, cx.cfg.source_paths)
+            threshold = int(
+                cx.cfg.raw.get("performance", {}).get("import_ms_warn", 1000)
+            )
+            cx.add(
                 "importtime",
                 "startup-performance",
                 [
@@ -2074,33 +1982,33 @@ def build_checks(
                 findings_exit_codes={1},
             )
 
-        if "python-matrix" in wanted:
-            nox = target_executable(root, "nox")
-            noxfile = root / ".bughunt" / "generated" / "noxfile.py"
-            add(
+        if "python-matrix" in cx.wanted:
+            nox = target_executable(cx.root, "nox")
+            noxfile = cx.root / ".bughunt" / "generated" / "noxfile.py"
+            cx.add(
                 "python-matrix",
                 "interpreter-compatibility",
                 [nox, "-f", str(noxfile), "--download-python", "auto"]
                 if nox and noxfile.exists()
                 else None,
                 reason="Nox matrix not configured/installed",
-                check_timeout=cfg.timeout("all"),
+                check_timeout=cx.cfg.timeout("all"),
                 findings_exit_codes={1},
             )
 
-        if "timezone-matrix" in wanted:
+        if "timezone-matrix" in cx.wanted:
             # Two hostile timezone passes; locale variation is only added when a
             # matching locale exists.
             for tz in ("UTC", "Pacific/Kiritimati"):
                 name = f"timezone-matrix:{tz}"
-                checks.append(
+                cx.checks.append(
                     Check(
                         name,
                         "environment-variation",
-                        [pytest, "-q", "--tb=short", *tests],
+                        [pytest, "-q", "--tb=short", *cx.tests],
                         partial(text_findings, name),
-                        timeout,
-                        root,
+                        cx.timeout,
+                        cx.root,
                         env={
                             "TZ": tz,
                             "PYTHONHASHSEED": str(repro_seed),
@@ -2131,14 +2039,14 @@ def build_checks(
             )
             if turkish and pytest:
                 name = "locale-matrix:tr_TR"
-                checks.append(
+                cx.checks.append(
                     Check(
                         name,
                         "environment-variation",
-                        [pytest, "-q", "--tb=short", *tests],
+                        [pytest, "-q", "--tb=short", *cx.tests],
                         partial(text_findings, name),
-                        timeout,
-                        root,
+                        cx.timeout,
+                        cx.root,
                         env={
                             "LC_ALL": turkish,
                             "LANG": turkish,
@@ -2148,24 +2056,31 @@ def build_checks(
                     ),
                 )
 
-        if "memray" in wanted:
+        if "memray" in cx.wanted:
             cmd = (
-                [pytest, "-q", "--tb=short", "--memray", "--fail-on-increase", *tests]
+                [
+                    pytest,
+                    "-q",
+                    "--tb=short",
+                    "--memray",
+                    "--fail-on-increase",
+                    *cx.tests,
+                ]
                 if pytest and target_has_module(_target_py, "pytest_memray")
                 else None
             )
-            add(
+            cx.add(
                 "memray",
                 "memory-runtime",
                 cmd,
                 reason="pytest-memray not installed",
-                check_timeout=cfg.timeout(profile),
+                check_timeout=cx.cfg.timeout(cx.profile),
                 findings_exit_codes={1},
             )
 
-        if "benchmark" in wanted:
+        if "benchmark" in cx.wanted:
             if (
-                technology.has("benchmark-tests")
+                cx.technology.has("benchmark-tests")
                 and pytest
                 and target_has_module(_target_py, "pytest_benchmark")
             ):
@@ -2173,9 +2088,9 @@ def build_checks(
                 # xdist auto-activates --benchmark-disable, which conflicts
                 # with --benchmark-only; benchmarks also need serial timing.
                 cmd += ["-p", "no:xdist"]
-                if (root / ".benchmarks").exists():
+                if (cx.root / ".benchmarks").exists():
                     regression = int(
-                        cfg.raw.get("performance", {}).get(
+                        cx.cfg.raw.get("performance", {}).get(
                             "benchmark_regression_percent",
                             10,
                         ),
@@ -2184,8 +2099,8 @@ def build_checks(
                         "--benchmark-compare",
                         f"--benchmark-compare-fail=mean:{regression}%",
                     ]
-                cmd += tests
-                add(
+                cmd += cx.tests
+                cx.add(
                     "benchmark",
                     "performance-regression",
                     cmd,
@@ -2193,31 +2108,31 @@ def build_checks(
                     skip_exit_codes={5},
                 )
             else:
-                skipped.append(
+                cx.skipped.append(
                     Result(
                         "benchmark",
                         "performance-regression",
                         Status.NA
-                        if not technology.has("benchmark-tests")
+                        if not cx.technology.has("benchmark-tests")
                         else Status.SKIPPED,
                         note="no pytest-benchmark tests detected"
-                        if not technology.has("benchmark-tests")
+                        if not cx.technology.has("benchmark-tests")
                         else "pytest-benchmark not installed",
                     ),
                 )
 
-        if "pyanalyze" in wanted:
-            pa = target_executable(root, "pyanalyze")
+        if "pyanalyze" in cx.wanted:
+            pa = target_executable(cx.root, "pyanalyze")
             allowed = bool(
-                cfg.raw.get("execution_imports", {}).get(
+                cx.cfg.raw.get("execution_imports", {}).get(
                     "allow_importing_analyzers",
                     False,
                 ),
             )
-            add(
+            cx.add(
                 "pyanalyze",
                 "runtime-informed-static",
-                [pa, *src] if pa and allowed else None,
+                [pa, *cx.src] if pa and allowed else None,
                 reason=(
                     (
                         "installed but disabled: pyanalyze imports "
@@ -2231,18 +2146,18 @@ def build_checks(
             )
 
         # These are intentionally represented even when auto-execution would be unsafe.
-        if "version-diff" in wanted:
-            baseline = technology.git_baseline
-            add(
+        if "version-diff" in cx.wanted:
+            baseline = cx.technology.git_baseline
+            cx.add(
                 "version-diff",
                 "behavior-compatibility",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.version_diff_runner",
-                    str(root),
+                    str(cx.root),
                     baseline,
-                    *cfg.source_paths,
+                    *cx.cfg.source_paths,
                 ]
                 if baseline
                 else None,
@@ -2250,8 +2165,8 @@ def build_checks(
                 reason="no local Git baseline for behavioral differential",
                 findings_exit_codes={1},
             )
-        if "ghostwriter" in wanted:
-            skipped.append(
+        if "ghostwriter" in cx.wanted:
+            cx.skipped.append(
                 Result(
                     "ghostwriter",
                     "test-generation",
@@ -2266,8 +2181,8 @@ def build_checks(
                     ),
                 ),
             )
-        if "pynguin" in wanted:
-            skipped.append(
+        if "pynguin" in cx.wanted:
+            cx.skipped.append(
                 Result(
                     "pynguin",
                     "search-based-test-generation",
@@ -2280,13 +2195,9 @@ def build_checks(
                     ),
                 ),
             )
-
-    # BugCorpus is consumed as a real ring through bugcorpus_adapter: the
-    # installed CLI's verify/scan/coverage contracts, normalized with BugCase,
-    # family, detector, engine, and state preserved. No corpus means N/A.
-    if "bugcorpus" in wanted:
-        if not (root / ".bugcorpus").is_dir():
-            skipped.append(
+    if "bugcorpus" in cx.wanted:
+        if not (cx.root / ".bugcorpus").is_dir():
+            cx.skipped.append(
                 Result(
                     "bugcorpus",
                     "historical-bugs",
@@ -2295,15 +2206,15 @@ def build_checks(
                 ),
             )
         else:
-            add(
+            cx.add(
                 "bugcorpus",
                 "historical-bugs",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.bugcorpus_adapter",
-                    str(root),
-                    profile,
+                    str(cx.root),
+                    cx.profile,
                 ],
                 lambda o, e, c: parse_bughunt_helper("bugcorpus", o, e, c),
                 findings_exit_codes={1},
@@ -2312,9 +2223,9 @@ def build_checks(
         # System IR is consumed as a real ring through system_ir_adapter: the
         # installed CLI's index/export/drift/invariant contracts, normalized
         # without reinterpretation. No SCC workspace means N/A.
-        if "system-ir" in wanted:
-            if not (root / ".scc").is_dir():
-                skipped.append(
+        if "system-ir" in cx.wanted:
+            if not (cx.root / ".scc").is_dir():
+                cx.skipped.append(
                     Result(
                         "system-ir",
                         "structural-graph",
@@ -2323,10 +2234,10 @@ def build_checks(
                     ),
                 )
             else:
-                add(
+                cx.add(
                     "system-ir",
                     "structural-graph",
-                    [sys.executable, "-m", "bughunt.system_ir_adapter", str(root)],
+                    [sys.executable, "-m", "bughunt.system_ir_adapter", str(cx.root)],
                     lambda o, e, c: parse_bughunt_helper("system-ir", o, e, c),
                     findings_exit_codes={1},
                 )
@@ -2334,9 +2245,9 @@ def build_checks(
         # TraceLayer is consumed as a real ring through tracelayer_adapter:
         # changed-scope verification diagnostics plus repository health
         # (broken refs, blocking stale traces). No .trace workspace means N/A.
-        if "tracelayer" in wanted:
-            if not (root / ".trace").is_dir():
-                skipped.append(
+        if "tracelayer" in cx.wanted:
+            if not (cx.root / ".trace").is_dir():
+                cx.skipped.append(
                     Result(
                         "tracelayer",
                         "direct-verification",
@@ -2345,19 +2256,19 @@ def build_checks(
                     ),
                 )
             else:
-                add(
+                cx.add(
                     "tracelayer",
                     "direct-verification",
-                    [sys.executable, "-m", "bughunt.tracelayer_adapter", str(root)],
+                    [sys.executable, "-m", "bughunt.tracelayer_adapter", str(cx.root)],
                     findings_exit_codes={1},
                 )
 
         # Verification gaps are computed from the cached System IR through
         # verify_gaps: transitive-only coverage and hollow public stubs.
         # No SCC workspace means N/A.
-        if "verify-gaps" in wanted:
-            if not (root / ".scc").is_dir():
-                skipped.append(
+        if "verify-gaps" in cx.wanted:
+            if not (cx.root / ".scc").is_dir():
+                cx.skipped.append(
                     Result(
                         "verify-gaps",
                         "direct-verification",
@@ -2366,49 +2277,46 @@ def build_checks(
                     ),
                 )
             else:
-                add(
+                cx.add(
                     "verify-gaps",
                     "direct-verification",
-                    [sys.executable, "-m", "bughunt.verify_gaps", str(root)],
+                    [sys.executable, "-m", "bughunt.verify_gaps", str(cx.root)],
                     lambda o, e, c: parse_bughunt_helper("verify-gaps", o, e, c),
                     findings_exit_codes={1},
                 )
 
         # Protocol correctness (magic methods, generators, assert misuse)
         # runs as a pure-AST native check over first-party sources.
-        if "protocol" in wanted:
-            add(
+        if "protocol" in cx.wanted:
+            cx.add(
                 "protocol",
                 "protocol-correctness",
                 [
                     sys.executable,
                     "-m",
                     "bughunt.protocol_scan",
-                    str(root),
-                    *cfg.source_paths,
+                    str(cx.root),
+                    *cx.cfg.source_paths,
                 ],
                 lambda o, e, c: parse_bughunt_helper("protocol", o, e, c),
                 findings_exit_codes={1},
             )
-    # Target-specific fuzz / API / custom checks. Explicit config and safe
-    # auto-discovered targets are merged. Auto-discovery never points at a
-    # non-local HTTP server.
-    if "schemathesis" in wanted:
-        explicit = list(cfg.raw.get("schemathesis", {}).get("targets", []))
+    if "schemathesis" in cx.wanted:
+        explicit = list(cx.cfg.raw.get("schemathesis", {}).get("targets", []))
         auto = [
             t
-            for t in generated_targets
+            for t in cx.generated_targets
             if t.kind == "schemathesis" and t.runnable and t.command
         ]
         added = 0
-        st = target_executable(root, "st", "schemathesis")
+        st = target_executable(cx.root, "st", "schemathesis")
         schemathesis_ready = bool(st) or target_has_module(_target_py, "schemathesis")
         for target in explicit:
             if not st:
                 continue
             name = f"schemathesis:{target.get('name', 'api')}"
             schema = str(target["schema"])
-            st_cfg = generated_config(root, "schemathesis.toml")
+            st_cfg = generated_config(cx.root, "schemathesis.toml")
             cmd = [st]
             if st_cfg:
                 cmd += ["--config-file", str(st_cfg)]
@@ -2424,14 +2332,14 @@ def build_checks(
                 "--output-truncate",
                 "false",
             ]
-            checks.append(
+            cx.checks.append(
                 Check(
                     name,
                     "api-fuzz",
                     cmd,
                     partial(text_findings, name),
-                    int(target.get("timeout", timeout)),
-                    root,
+                    int(target.get("timeout", cx.timeout)),
+                    cx.root,
                 ),
             )
             added += 1
@@ -2439,20 +2347,20 @@ def build_checks(
             if not schemathesis_ready:
                 continue
             name = f"schemathesis:auto:{target.name}"
-            checks.append(
+            cx.checks.append(
                 Check(
                     name,
                     "api-fuzz",
                     list(target.command or []),
                     partial(text_findings, name),
-                    timeout,
-                    root,
+                    cx.timeout,
+                    cx.root,
                 ),
             )
             added += 1
         if not added:
             candidates = sum(
-                t.kind == "schemathesis-candidate" for t in generated_targets
+                t.kind == "schemathesis-candidate" for t in cx.generated_targets
             )
             if (explicit or auto) and not schemathesis_ready:
                 reason = "Schemathesis target exists but the engine is not installed"
@@ -2460,12 +2368,11 @@ def build_checks(
                 reason = "no safe runnable API target discovered/configured"
                 if candidates:
                     reason += f" ({candidates} schema candidate(s) need a local URL)"
-            skipped.append(
+            cx.skipped.append(
                 Result("schemathesis", "api-fuzz", Status.SKIPPED, note=reason),
             )
-
-    if "atheris" in wanted and not technology.has("python"):
-        skipped.append(
+    if "atheris" in cx.wanted and not cx.technology.has("python"):
+        cx.skipped.append(
             Result(
                 "atheris",
                 "coverage-fuzz",
@@ -2473,26 +2380,26 @@ def build_checks(
                 note="not applicable: no first-party Python capability detected",
             ),
         )
-    elif "atheris" in wanted:
-        explicit = list(cfg.raw.get("atheris", {}).get("targets", []))
+    elif "atheris" in cx.wanted:
+        explicit = list(cx.cfg.raw.get("atheris", {}).get("targets", []))
         auto = [
             t
-            for t in generated_targets
+            for t in cx.generated_targets
             if t.kind == "atheris" and t.runnable and t.command
         ]
         added = 0
-        atheris_ready = atheris_available(root)
+        atheris_ready = atheris_available(cx.root)
         for target in explicit:
             name = f"atheris:{target.get('name', 'fuzzer')}"
             cmd = [str(x) for x in target["command"]]
-            checks.append(
+            cx.checks.append(
                 Check(
                     name,
                     "coverage-fuzz",
                     cmd,
                     partial(text_findings, name),
-                    int(target.get("timeout", timeout)),
-                    root,
+                    int(target.get("timeout", cx.timeout)),
+                    cx.root,
                 ),
             )
             added += 1
@@ -2500,14 +2407,14 @@ def build_checks(
             if not atheris_ready:
                 continue
             name = f"atheris:auto:{target.name}"
-            checks.append(
+            cx.checks.append(
                 Check(
                     name,
                     "coverage-fuzz",
                     list(target.command or []),
                     partial(text_findings, name),
-                    timeout,
-                    root,
+                    cx.timeout,
+                    cx.root,
                 ),
             )
             added += 1
@@ -2522,23 +2429,22 @@ def build_checks(
                     "no safe one-argument parser/decoder fuzz target "
                     "discovered/configured"
                 )
-            skipped.append(
+            cx.skipped.append(
                 Result("atheris", "coverage-fuzz", Status.SKIPPED, note=reason),
             )
-
-    if "custom" in wanted:
-        explicit_custom = list(cfg.raw.get("custom", {}).get("checks", []))
+    if "custom" in cx.wanted:
+        explicit_custom = list(cx.cfg.raw.get("custom", {}).get("checks", []))
         generated_custom = [
             {
                 "name": target.name,
                 "category": target.kind.removeprefix("custom-"),
                 "profile": "deep",
                 "command": list(target.command or []),
-                "timeout": int((target.metadata or {}).get("timeout", timeout)),
+                "timeout": int((target.metadata or {}).get("timeout", cx.timeout)),
                 "generated": True,
                 "confidence": target.confidence,
             }
-            for target in generated_targets
+            for target in cx.generated_targets
             if target.kind.startswith("custom-")
             and target.runnable
             and target.command
@@ -2557,7 +2463,7 @@ def build_checks(
             seen_custom.add(key)
             merged_custom.append(item)
         if not merged_custom:
-            skipped.append(
+            cx.skipped.append(
                 Result(
                     "custom",
                     "custom",
@@ -2572,146 +2478,79 @@ def build_checks(
             rank = {"fast": 0, "pr": 1, "deep": 2, "all": 3}
             for item in merged_custom:
                 required = str(item.get("profile", "deep"))
-                if rank[profile] < rank.get(required, 2):
+                if rank[cx.profile] < rank.get(required, 2):
                     continue
                 name = f"custom:{item['name']}"
-                checks.append(
+                cx.checks.append(
                     Check(
                         name,
                         str(item.get("category", "custom")),
                         [str(x) for x in item["command"]],
                         partial(text_findings, name),
-                        int(item.get("timeout", timeout)),
-                        root,
+                        int(item.get("timeout", cx.timeout)),
+                        cx.root,
                     ),
                 )
-
-    # Technology-aware correctness engines. Absence of the technology itself is
-    # N/A, not a blind spot. An applicable technology with a missing engine is
-    # a real skipped defense and lowers coverage health.
-    # trace:v1 id=impl.src-bughunt-cli-build-checks.add-technology work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-    def add_technology(
-        engine: str,
-        command: Sequence[str] | None,
-        parser_fn: Callable[[str, str, int], list[Finding]] | None = None,
-        *,
-        reason: str | None = None,
-        findings_exit_codes: set[int] | None = None,
-        empty_scope_markers: tuple[str, ...] | None = None,
-        name: str | None = None,
-        check_timeout: int | None = None,
-    ) -> None:
-        if engine not in wanted:
-            return
-        category = ENGINE_CATEGORY[engine]
-        logical = name or engine
-        if not engine_applicable(technology, engine):
-            # Only emit the base logical result once for engines which may have
-            # multiple per-file checks (oasdiff etc.).
-            if not any(x.name == engine and x.status == Status.NA for x in skipped):
-                cap = ENGINE_CAPABILITY[engine]
-                skipped.append(
-                    Result(
-                        engine,
-                        category,
-                        Status.NA,
-                        note=f"not applicable: no {cap} capability detected",
-                    ),
-                )
-            return
-        if command is None:
-            skipped.append(
-                Result(
-                    logical,
-                    category,
-                    Status.SKIPPED,
-                    note=reason or f"{engine} not installed/configured",
-                ),
-            )
-            return
-        checks.append(
-            Check(
-                logical,
-                category,
-                list(command),
-                partial(text_findings, logical) if parser_fn is None else parser_fn,
-                check_timeout or timeout,
-                root,
-                findings_exit_codes=findings_exit_codes
-                if findings_exit_codes is not None
-                else {1},
-                empty_scope_markers=empty_scope_markers or (),
-            ),
-        )
-
-    # GitHub Actions: semantic workflow checking plus embedded shell/Python
-    # checks when actionlint can find those helpers.
-    actionlint = project_executable(root, "actionlint")
-    action_files = technology.files.get("github-actions", [])
+    actionlint = project_executable(cx.root, "actionlint")
+    action_files = cx.technology.files.get("github-actions", [])
     action_cmd = (
         [actionlint, "-format", "{{json .}}", *action_files] if actionlint else None
     )
-    add_technology(
+    cx.add_technology(
         "actionlint",
         action_cmd,
         parse_actionlint,
         reason="GitHub Actions detected but actionlint is not installed",
         findings_exit_codes={1},
     )
-
-    shellcheck = project_executable(root, "shellcheck")
-    shell_files = technology.files.get("shell", [])
+    shellcheck = project_executable(cx.root, "shellcheck")
+    shell_files = cx.technology.files.get("shell", [])
     shell_cmd = (
         [shellcheck, "-f", "json1", *shell_files]
         if shellcheck and shell_files
         else None
     )
-    add_technology(
+    cx.add_technology(
         "shellcheck",
         shell_cmd,
         parse_shellcheck,
         reason="shell scripts detected but ShellCheck is not installed",
         findings_exit_codes={1},
     )
-
-    dotenv = project_executable(root, "dotenv-linter")
-    env_files = technology.files.get("dotenv", [])
+    dotenv = project_executable(cx.root, "dotenv-linter")
+    env_files = cx.technology.files.get("dotenv", [])
     dotenv_cmd = [dotenv, "check", *env_files] if dotenv and env_files else None
-    add_technology(
+    cx.add_technology(
         "dotenv-linter",
         dotenv_cmd,
         reason="environment files detected but dotenv-linter is not installed",
         findings_exit_codes={1},
     )
     if (
-        "dotenv-linter" in wanted
-        and technology.has("dotenv")
+        "dotenv-linter" in cx.wanted
+        and cx.technology.has("dotenv")
         and dotenv
         and ".env" in env_files
         and ".env.example" in env_files
     ):
-        checks.append(
+        cx.checks.append(
             Check(
                 "dotenv-linter:contract",
                 ENGINE_CATEGORY["dotenv-linter"],
                 [dotenv, "diff", ".env", ".env.example"],
                 lambda o, e, c: text_findings("dotenv-linter", o, e, c),
-                timeout,
-                root,
+                cx.timeout,
+                cx.root,
                 findings_exit_codes={1},
             ),
         )
-
-    # OpenAPI: validate HEAD and, when the file existed at the selected local
-    # Git baseline, test backwards compatibility. This catches temporal bugs
-    # which no single-revision linter can see.
-    oasdiff = project_executable(root, "oasdiff")
-    openapi_files = technology.files.get("openapi", [])
-    if "oasdiff" in wanted:
-        if not technology.has("openapi"):
-            add_technology("oasdiff", None)
+    oasdiff = project_executable(cx.root, "oasdiff")
+    openapi_files = cx.technology.files.get("openapi", [])
+    if "oasdiff" in cx.wanted:
+        if not cx.technology.has("openapi"):
+            cx.add_technology("oasdiff", None)
         elif not oasdiff:
-            add_technology(
+            cx.add_technology(
                 "oasdiff",
                 None,
                 reason="OpenAPI detected but oasdiff is not installed",
@@ -2719,23 +2558,23 @@ def build_checks(
         else:
             for spec in openapi_files:
                 safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", spec)
-                checks.append(
+                cx.checks.append(
                     Check(
                         f"oasdiff:validate:{safe_name}",
                         ENGINE_CATEGORY["oasdiff"],
                         [oasdiff, "validate", spec],
                         partial(text_findings, f"oasdiff:validate:{safe_name}"),
-                        timeout,
-                        root,
+                        cx.timeout,
+                        cx.root,
                         findings_exit_codes={1},
                     ),
                 )
-                if technology.git_baseline and git_path_exists(
-                    root,
-                    technology.git_baseline,
+                if cx.technology.git_baseline and git_path_exists(
+                    cx.root,
+                    cx.technology.git_baseline,
                     spec,
                 ):
-                    checks.append(
+                    cx.checks.append(
                         Check(
                             f"oasdiff:breaking:{safe_name}",
                             ENGINE_CATEGORY["oasdiff"],
@@ -2744,68 +2583,66 @@ def build_checks(
                                 "breaking",
                                 "--format",
                                 "json",
-                                f"{technology.git_baseline}:{spec}",
+                                f"{cx.technology.git_baseline}:{spec}",
                                 spec,
                             ],
                             partial(parse_json_list, f"oasdiff:breaking:{safe_name}"),
-                            timeout,
-                            root,
+                            cx.timeout,
+                            cx.root,
                             findings_exit_codes={1},
                         ),
                     )
-
-    buf = project_executable(root, "buf")
-    if "buf" in wanted:
-        if not technology.has("protobuf"):
-            add_technology("buf", None)
+    buf = project_executable(cx.root, "buf")
+    if "buf" in cx.wanted:
+        if not cx.technology.has("protobuf"):
+            cx.add_technology("buf", None)
         elif not buf:
-            add_technology(
+            cx.add_technology(
                 "buf",
                 None,
                 reason="Protocol Buffers detected but buf is not installed",
             )
         else:
-            buf_cfg = generated_config(root, "buf.yaml")
+            buf_cfg = generated_config(cx.root, "buf.yaml")
             lint_cmd = [buf, "lint", ".", "--error-format=json"]
             if buf_cfg:
                 lint_cmd += ["--config", str(buf_cfg)]
-            checks.append(
+            cx.checks.append(
                 Check(
                     "buf:lint",
                     ENGINE_CATEGORY["buf"],
                     lint_cmd,
                     parse_buf_json_lines,
-                    timeout,
-                    root,
+                    cx.timeout,
+                    cx.root,
                     findings_exit_codes={1, 100},
                 ),
             )
-            if technology.git_baseline:
+            if cx.technology.git_baseline:
                 breaking_cmd = [
                     buf,
                     "breaking",
                     ".",
                     "--against",
-                    f".git#ref={technology.git_baseline}",
+                    f".git#ref={cx.technology.git_baseline}",
                     "--error-format=json",
                 ]
                 if buf_cfg:
                     breaking_cmd += ["--config", str(buf_cfg)]
-                checks.append(
+                cx.checks.append(
                     Check(
                         "buf:breaking",
                         ENGINE_CATEGORY["buf"],
                         breaking_cmd,
                         parse_buf_json_lines,
-                        timeout,
-                        root,
+                        cx.timeout,
+                        cx.root,
                         findings_exit_codes={1, 100},
                     ),
                 )
-
-    sqlfluff = project_executable(root, "sqlfluff")
-    sql_files = technology.files.get("sql", [])
-    sql_cfg = generated_config(root, "sqlfluff.ini")
+    sqlfluff = project_executable(cx.root, "sqlfluff")
+    sql_files = cx.technology.files.get("sql", [])
+    sql_cfg = generated_config(cx.root, "sqlfluff.ini")
     sql_cmd = (
         [sqlfluff, "lint", *sql_files, "--format", "json"]
         if sqlfluff and sql_files
@@ -2813,59 +2650,55 @@ def build_checks(
     )
     if sql_cmd and sql_cfg:
         sql_cmd += ["--config", str(sql_cfg)]
-    add_technology(
+    cx.add_technology(
         "sqlfluff",
         sql_cmd,
         parse_sqlfluff,
         reason="SQL detected but SQLFluff is not installed",
         findings_exit_codes={1},
     )
-
-    squawk = project_executable(root, "squawk")
-    migration_files = technology.files.get("postgres-migrations", [])
+    squawk = project_executable(cx.root, "squawk")
+    migration_files = cx.technology.files.get("postgres-migrations", [])
     squawk_cmd = (
         [squawk, "--reporter", "json", *migration_files]
         if squawk and migration_files
         else None
     )
-    add_technology(
+    cx.add_technology(
         "squawk",
         squawk_cmd,
         parse_squawk,
         reason="PostgreSQL migrations detected but Squawk is not installed",
         findings_exit_codes={1},
     )
-
-    hadolint = project_executable(root, "hadolint")
-    docker_files = technology.files.get("docker", [])
-    hadolint_cfg = generated_config(root, "hadolint.yaml")
+    hadolint = project_executable(cx.root, "hadolint")
+    docker_files = cx.technology.files.get("docker", [])
+    hadolint_cfg = generated_config(cx.root, "hadolint.yaml")
     hadolint_cmd = [hadolint, "-f", "json"] if hadolint and docker_files else None
     if hadolint_cmd and hadolint_cfg:
         hadolint_cmd += ["--config", str(hadolint_cfg)]
     if hadolint_cmd:
         hadolint_cmd += docker_files
-    add_technology(
+    cx.add_technology(
         "hadolint",
         hadolint_cmd,
         parse_hadolint,
         reason="Dockerfiles detected but Hadolint is not installed",
         findings_exit_codes={1},
     )
-
-    tflint = project_executable(root, "tflint")
-    tflint_cfg = generated_config(root, "tflint.hcl")
+    tflint = project_executable(cx.root, "tflint")
+    tflint_cfg = generated_config(cx.root, "tflint.hcl")
     tflint_cmd = [tflint, "--recursive", "--format=json"] if tflint else None
     if tflint_cmd and tflint_cfg:
         tflint_cmd += [f"--config={tflint_cfg}"]
-    add_technology(
+    cx.add_technology(
         "tflint",
         tflint_cmd,
         parse_tflint,
         reason="Terraform detected but TFLint is not installed",
         findings_exit_codes={1},
     )
-
-    golangci = project_executable(root, "golangci-lint")
+    golangci = project_executable(cx.root, "golangci-lint")
     go_linters = [
         "errcheck",
         "govet",
@@ -2890,15 +2723,14 @@ def build_checks(
             "--show-stats=false",
             "--issues-exit-code=1",
         ]
-    add_technology(
+    cx.add_technology(
         "golangci-lint",
         go_cmd,
         parse_golangci,
         reason="Go detected but golangci-lint is not installed",
         findings_exit_codes={1},
     )
-
-    cargo = project_executable(root, "cargo")
+    cargo = project_executable(cx.root, "cargo")
     clippy_cmd = (
         [
             cargo,
@@ -2920,17 +2752,16 @@ def build_checks(
         if cargo
         else None
     )
-    add_technology(
+    cx.add_technology(
         "clippy",
         clippy_cmd,
         parse_clippy,
         reason="Rust detected but cargo/clippy is not installed",
         findings_exit_codes={1, 101},
     )
-
-    compile_db = technology.files.get("cpp-compile-db", [])
-    cpp_files = technology.files.get("cpp", [])
-    cppcheck = project_executable(root, "cppcheck")
+    compile_db = cx.technology.files.get("cpp-compile-db", [])
+    cpp_files = cx.technology.files.get("cpp", [])
+    cppcheck = project_executable(cx.root, "cppcheck")
     cppcheck_cmd: list[str] | None = None
     if cppcheck:
         cppcheck_cmd = [
@@ -2945,16 +2776,15 @@ def build_checks(
             cppcheck_cmd += [f"--project={compile_db[0]}"]
         else:
             cppcheck_cmd += cpp_files
-    add_technology(
+    cx.add_technology(
         "cppcheck",
         cppcheck_cmd,
         parse_cppcheck,
         reason="C/C++ detected but Cppcheck is not installed",
         findings_exit_codes={1},
     )
-
-    run_clang_tidy = llvm_executable(root, "run-clang-tidy") or llvm_executable(
-        root,
+    run_clang_tidy = llvm_executable(cx.root, "run-clang-tidy") or llvm_executable(
+        cx.root,
         "run-clang-tidy.py",
     )
     clang_cmd = None
@@ -2965,7 +2795,7 @@ def build_checks(
             "-checks=-*,clang-analyzer-*,bugprone-*,concurrency-*",
             "-warnings-as-errors=*",
         ]
-    add_technology(
+    cx.add_technology(
         "clang-tidy",
         clang_cmd,
         reason=(
@@ -2975,8 +2805,7 @@ def build_checks(
         ),
         findings_exit_codes={1},
     )
-
-    infer = project_executable(root, "infer")
+    infer = project_executable(cx.root, "infer")
     infer_cmd = (
         [
             infer,
@@ -2985,20 +2814,19 @@ def build_checks(
             compile_db[0],
             "--fail-on-issue",
             "--results-dir",
-            str(root / ".bughunt" / "cache" / "infer"),
+            str(cx.root / ".bughunt" / "cache" / "infer"),
         ]
         if infer and compile_db
         else None
     )
-    add_technology(
+    cx.add_technology(
         "infer",
         infer_cmd,
         reason="C/C++ compilation database detected but Infer is not installed",
         findings_exit_codes={2},
     )
-
-    phpstan = project_executable(root, "phpstan")
-    php_cfg = generated_config(root, "phpstan.neon")
+    phpstan = project_executable(cx.root, "phpstan")
+    php_cfg = generated_config(cx.root, "phpstan.neon")
     php_cmd = (
         [phpstan, "analyse", "--no-progress", "--error-format=json"]
         if phpstan
@@ -3006,16 +2834,15 @@ def build_checks(
     )
     if php_cmd and php_cfg:
         php_cmd += ["--configuration", str(php_cfg)]
-    add_technology(
+    cx.add_technology(
         "phpstan",
         php_cmd,
         parse_phpstan,
         reason="PHP detected but PHPStan is not installed",
         findings_exit_codes={1},
     )
-
-    oxlint = project_executable(root, "oxlint")
-    oxlint_cfg = generated_config(root, "oxlintrc.json")
+    oxlint = project_executable(cx.root, "oxlint")
+    oxlint_cfg = generated_config(cx.root, "oxlintrc.json")
     oxlint_cmd = [oxlint, "--format=json", "--deny-warnings"] if oxlint else None
     if oxlint_cmd:
         # oxlint config-file ignorePatterns cannot address files outside the
@@ -3027,7 +2854,7 @@ def build_checks(
         ]
     if oxlint_cmd and oxlint_cfg:
         oxlint_cmd += ["--config", str(oxlint_cfg)]
-    add_technology(
+    cx.add_technology(
         "oxlint",
         oxlint_cmd,
         parse_oxlint,
@@ -3035,9 +2862,8 @@ def build_checks(
         findings_exit_codes={1},
         empty_scope_markers=(OXLINT_EMPTY_SCOPE,),
     )
-
-    eslint = project_executable(root, "eslint")
-    eslint_cfg = generated_config(root, "eslint.config.mjs")
+    eslint = project_executable(cx.root, "eslint")
+    eslint_cfg = generated_config(cx.root, "eslint.config.mjs")
     existing_eslint = next(
         (
             p
@@ -3049,17 +2875,17 @@ def build_checks(
                 ".eslintrc.json",
                 ".eslintrc.js",
             )
-            if (root / p).exists()
+            if (cx.root / p).exists()
         ),
         None,
     )
     chosen_eslint = eslint_cfg or (
-        (root / existing_eslint) if existing_eslint else None
+        (cx.root / existing_eslint) if existing_eslint else None
     )
     eslint_cmd = [eslint, ".", "--format", "json"] if eslint and chosen_eslint else None
     if eslint_cmd and eslint_cfg:
         eslint_cmd += ["--config", str(eslint_cfg)]
-    add_technology(
+    cx.add_technology(
         "eslint",
         eslint_cmd,
         parse_eslint,
@@ -3071,29 +2897,23 @@ def build_checks(
         findings_exit_codes={1},
         empty_scope_markers=(ESLINT_EMPTY_SCOPE,),
     )
-
-    react_doctor = project_executable(root, "react-doctor")
+    react_doctor = project_executable(cx.root, "react-doctor")
     react_cmd = (
         [react_doctor, ".", "--json", "--no-supply-chain"] if react_doctor else None
     )
-    add_technology(
+    cx.add_technology(
         "react-doctor",
         react_cmd,
         lambda o, e, c: parse_eslint(o, e, c, tool="react-doctor"),
         reason="React detected but React Doctor is not installed",
         findings_exit_codes={1},
     )
-
-    # Additional configuration/contract/language surfaces. These are selected only
-    # when technology.py proves the corresponding capability exists.
-    tsc = project_executable(root, "tsc")
-    tsconfig = root / "tsconfig.json"
-    # Without a project file tsc prints help text that is not a finding;
-    # bare `tsc --noEmit` already consumes ./tsconfig.json when present.
+    tsc = project_executable(cx.root, "tsc")
+    tsconfig = cx.root / "tsconfig.json"
     tsc_cmd = (
         [tsc, "--noEmit", "--pretty", "false"] if tsc and tsconfig.exists() else None
     )
-    add_technology(
+    cx.add_technology(
         "tsc",
         tsc_cmd,
         reason=(
@@ -3103,30 +2923,27 @@ def build_checks(
         ),
         findings_exit_codes={1, 2},
     )
-
-    knip = project_executable(root, "knip")
-    knip_cfg = generated_config(root, "knip.json")
+    knip = project_executable(cx.root, "knip")
+    knip_cfg = generated_config(cx.root, "knip.json")
     knip_cmd = [knip, "--strict"] if knip else None
     if knip_cmd and knip_cfg:
         knip_cmd += ["--config", str(knip_cfg)]
-    add_technology(
+    cx.add_technology(
         "knip",
         knip_cmd,
         reason="JavaScript/TypeScript detected but Knip is not installed",
         findings_exit_codes={1},
     )
-
-    madge = project_executable(root, "madge")
-    add_technology(
+    madge = project_executable(cx.root, "madge")
+    cx.add_technology(
         "madge",
         [madge, "--circular", "."] if madge else None,
         reason="JavaScript/TypeScript detected but Madge is not installed",
         findings_exit_codes={1},
     )
-
-    publint = project_executable(root, "publint")
-    package_json = _publishable_package_json(root)
-    add_technology(
+    publint = project_executable(cx.root, "publint")
+    package_json = _publishable_package_json(cx.root)
+    cx.add_technology(
         "publint",
         [publint, str(package_json)] if publint and package_json else None,
         reason=(
@@ -3135,19 +2952,17 @@ def build_checks(
         ),
         findings_exit_codes={1},
     )
-
-    taplo = project_executable(root, "taplo")
-    toml_files = technology.files.get("toml", [])
-    add_technology(
+    taplo = project_executable(cx.root, "taplo")
+    toml_files = cx.technology.files.get("toml", [])
+    cx.add_technology(
         "taplo",
         [taplo, "lint", *toml_files] if taplo and toml_files else None,
         reason="TOML detected but Taplo is not installed",
         findings_exit_codes={1},
     )
-
-    yamllint = project_executable(root, "yamllint")
-    yaml_files = technology.files.get("yaml", [])
-    add_technology(
+    yamllint = project_executable(cx.root, "yamllint")
+    yaml_files = cx.technology.files.get("yaml", [])
+    cx.add_technology(
         "yamllint",
         [
             yamllint,
@@ -3163,17 +2978,18 @@ def build_checks(
         reason="YAML detected but yamllint is not installed",
         findings_exit_codes={1},
     )
-
-    if "check-jsonschema" in wanted:
-        if not technology.has("schema-ref"):
-            add_technology("check-jsonschema", None)
+    if "check-jsonschema" in cx.wanted:
+        if not cx.technology.has("schema-ref"):
+            cx.add_technology("check-jsonschema", None)
         else:
-            checker = project_executable(root, "check-jsonschema")
-            pairs = local_schema_pairs(root, technology.files.get("schema-ref", []))
+            checker = project_executable(cx.root, "check-jsonschema")
+            pairs = local_schema_pairs(
+                cx.root, cx.technology.files.get("schema-ref", [])
+            )
             if checker and pairs:
                 for instance, schema in pairs:
                     safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", instance)
-                    checks.append(
+                    cx.checks.append(
                         Check(
                             f"check-jsonschema:{safe}",
                             ENGINE_CATEGORY["check-jsonschema"],
@@ -3186,13 +3002,13 @@ def build_checks(
                                 instance,
                             ],
                             partial(text_findings, f"check-jsonschema:{safe}"),
-                            timeout,
-                            root,
+                            cx.timeout,
+                            cx.root,
                             findings_exit_codes={1},
                         ),
                     )
             elif not checker:
-                add_technology(
+                cx.add_technology(
                     "check-jsonschema",
                     None,
                     reason=(
@@ -3201,7 +3017,7 @@ def build_checks(
                     ),
                 )
             else:
-                skipped.append(
+                cx.skipped.append(
                     Result(
                         "check-jsonschema",
                         ENGINE_CATEGORY["check-jsonschema"],
@@ -3214,12 +3030,11 @@ def build_checks(
                         ),
                     ),
                 )
-
-    alembic = project_executable(root, "alembic")
-    alembic_configured = (root / "alembic.ini").exists() or (
-        root / "alembic" / "env.py"
+    alembic = project_executable(cx.root, "alembic")
+    alembic_configured = (cx.root / "alembic.ini").exists() or (
+        cx.root / "alembic" / "env.py"
     ).exists()
-    add_technology(
+    cx.add_technology(
         "alembic-check",
         [alembic, "check"] if alembic and alembic_configured else None,
         reason="Alembic project detected but alembic is not installed"
@@ -3229,9 +3044,8 @@ def build_checks(
         "check that cannot execute",
         findings_exit_codes={1},
     )
-
-    manage = root / "manage.py"
-    add_technology(
+    manage = cx.root / "manage.py"
+    cx.add_technology(
         "django-migrations",
         [sys.executable, str(manage), "makemigrations", "--check", "--dry-run"]
         if manage.exists()
@@ -3239,15 +3053,14 @@ def build_checks(
         reason="Django detected but manage.py is unavailable",
         findings_exit_codes={1},
     )
-
-    if "pact-contracts" in wanted:
-        if not technology.has("pact"):
-            add_technology("pact-contracts", None)
+    if "pact-contracts" in cx.wanted:
+        if not cx.technology.has("pact"):
+            cx.add_technology("pact-contracts", None)
         else:
-            pacts = pact_json_files(root, technology.files.get("pact", []))
+            pacts = pact_json_files(cx.root, cx.technology.files.get("pact", []))
             asgi = [
                 t
-                for t in generated_targets
+                for t in cx.generated_targets
                 if t.kind == "schemathesis"
                 and (t.metadata or {}).get("transport") == "asgi"
             ]
@@ -3257,20 +3070,20 @@ def build_checks(
             )
             if len(asgi) == 1 and pacts and pact_ready:
                 app = asgi[0].name
-                add_technology(
+                cx.add_technology(
                     "pact-contracts",
                     [
                         sys.executable,
                         "-m",
                         "bughunt.pact_runner",
-                        str(root),
+                        str(cx.root),
                         app,
                         *pacts,
                     ],
                     lambda o, e, c: parse_bughunt_helper("pact-contracts", o, e, c),
                     reason="Pact contract/provider target unavailable",
                     findings_exit_codes={1},
-                    check_timeout=cfg.timeout(profile),
+                    check_timeout=cx.cfg.timeout(cx.profile),
                 )
             else:
                 reasons = []
@@ -3283,7 +3096,7 @@ def build_checks(
                     )
                 if not pact_ready:
                     reasons.append("pact-python/uvicorn not installed")
-                skipped.append(
+                cx.skipped.append(
                     Result(
                         "pact-contracts",
                         ENGINE_CATEGORY["pact-contracts"],
@@ -3295,8 +3108,7 @@ def build_checks(
                         + "; ".join(reasons),
                     ),
                 )
-
-    return checks, skipped
+    return cx.checks, cx.skipped
 
 
 # trace:v1 id=impl.src-bughunt-cli.liverunstate work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
