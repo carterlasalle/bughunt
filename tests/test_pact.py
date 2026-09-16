@@ -88,7 +88,9 @@ def test_wait_http_true_path_against_local_server() -> None:
             self.send_response(200)
             self.end_headers()
 
-        def log_message(self, format: str, *args: object) -> None:
+        def log_message(  # noqa: A002 - http.server protocol name shadows builtin
+            self, format: str, *args: object
+        ) -> None:
             _ = (format, args)
 
     server = HTTPServer(("127.0.0.1", 0), _Quiet)
