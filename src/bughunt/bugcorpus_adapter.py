@@ -84,22 +84,22 @@ def verify(root: Path) -> tuple[bool, list[dict[str, object]]]:
         ]
     errors: list[dict[str, object]] = []
     if returncode != 0 or not data.get("ok", False):
-        for item in data.get("schema_errors", []):
-            errors.append(
-                {
-                    "tool": "bugcorpus",
-                    "code": "BHBUGC001",
-                    "message": f"bugcorpus detector schema error: {item}",
-                    "severity": "error",
-                },
-            )
+        errors.extend(
+            {
+                "tool": "bugcorpus",
+                "code": "BHBUGC001",
+                "message": f"bugcorpus detector schema error: {item}",
+                "severity": "error",
+            }
+            for item in data.get("schema_errors", [])
+        )
         for detector in data.get("detectors", []):
-            if isinstance(detector, dict) and detector.get("status") not in (
+            if isinstance(detector, dict) and detector.get("status") not in {
                 "pass",
                 "passing",
                 "ok",
                 None,
-            ):
+            }:
                 errors.append(
                     {
                         "tool": "bugcorpus",
