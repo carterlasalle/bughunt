@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 # trace:v1 id=impl.src-bughunt-doctor-tables.doctor-capability-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def doctor_capability_rows(
-    cfg: Config, technology: TechnologyInventory, capability_table: Table
+    _cfg: Config, technology: TechnologyInventory, capability_table: Table
 ) -> None:
     """Capability rows appended to the capability table."""
     for cap in technology.capabilities.values():
