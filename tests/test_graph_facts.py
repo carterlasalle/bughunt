@@ -7,7 +7,8 @@ from pathlib import Path
 from bughunt.graph.facts import load
 
 
-def _payload() -> dict:
+# trace:v1 id=test.tests-test-graph-facts.payload work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _payload() -> dict[str, object]:
     return {
         "system_ir": {
             "relationships": [
