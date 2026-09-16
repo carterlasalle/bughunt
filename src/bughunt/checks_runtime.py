@@ -275,7 +275,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     300 if cx.profile == "all" else 120,
                 ),
             )
-            workers = int(cx.cfg.raw.get("hypofuzz", {}).get("workers", 2))
+            workers = cx.cfg.raw_int("hypofuzz", "workers", 2)
             cmd = (
                 [
                     hypothesis_cli,
@@ -332,9 +332,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
 
         if "importtime" in cx.wanted:
             packages = python_package_names(cx.root, cx.cfg.source_paths)
-            threshold = int(
-                cx.cfg.raw.get("performance", {}).get("import_ms_warn", 1000)
-            )
+            threshold = cx.cfg.raw_int("performance", "import_ms_warn", 1000)
             cx.add(
                 "importtime",
                 "startup-performance",
@@ -459,11 +457,8 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 # with --benchmark-only; benchmarks also need serial timing.
                 cmd += ["-p", "no:xdist"]
                 if (cx.root / ".benchmarks").exists():
-                    regression = int(
-                        cx.cfg.raw.get("performance", {}).get(
-                            "benchmark_regression_percent",
-                            10,
-                        ),
+                    regression = cx.cfg.raw_int(
+                        "performance", "benchmark_regression_percent", 10
                     )
                     cmd += [
                         "--benchmark-compare",
@@ -493,16 +488,14 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
 
         if "pyanalyze" in cx.wanted:
             pa = target_executable(cx.root, "pyanalyze")
-            allowed = bool(
-                cx.cfg.raw.get("execution_imports", {}).get(
-                    "allow_importing_analyzers",
-                    False,
-                ),
+            allowed = cx.cfg.raw_section("execution_imports").get(
+                "allow_importing_analyzers", False
             )
+            allowed_flag = allowed is True
             cx.add(
                 "pyanalyze",
                 "runtime-informed-static",
-                [pa, *cx.src] if pa and allowed else None,
+                [pa, *cx.src] if pa and allowed_flag else None,
                 reason=(
                     (
                         "installed but disabled: pyanalyze imports "

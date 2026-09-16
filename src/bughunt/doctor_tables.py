@@ -58,9 +58,9 @@ def doctor_coverage_rows(
 
     schema_candidates = [t for t in generated if t.kind == "schemathesis-candidate"]
 
-    explicit_atheris = list(cfg.raw.get("atheris", {}).get("targets", []))
+    explicit_atheris = cfg.raw_list("atheris", "targets")
 
-    explicit_schema = list(cfg.raw.get("schemathesis", {}).get("targets", []))
+    explicit_schema = cfg.raw_list("schemathesis", "targets")
 
     a_count = len(atheris_targets) + len(explicit_atheris)
 
@@ -171,7 +171,7 @@ def doctor_coverage_rows(
             ),
         )
 
-    configured_custom = list(cfg.raw.get("custom", {}).get("checks", []))
+    configured_custom = cfg.raw_list("custom", "checks")
 
     coverage.add_row(
         "custom.checks managed entries",

@@ -478,7 +478,7 @@ def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
         and target.confidence == "high"
     ]
     existing_checks = [
-        x for x in cfg.raw.get("custom", {}).get("checks", []) if not x.get("generated")
+        x for x in cfg.raw_list("custom", "checks") if not x.get("generated")
     ]
     cfg.raw.setdefault("custom", {})["checks"] = [*existing_checks, *generated_checks]
     manifest_path = cfg.root / ".bughunt" / "configs" / "manifest.json"
@@ -581,8 +581,8 @@ async def run_all(
 ) -> tuple[list[Result], float]:
     runners.STOP_REQUESTED = False
     started = time.perf_counter()
-    raw_limit = int(cfg.raw.get("execution", {}).get("raw_output_limit_kb", 512)) * 1024
-    if auto_discover and cfg.raw.get("autodiscovery", {}).get("enabled", True):
+    raw_limit = cfg.raw_int("execution", "raw_output_limit_kb", 512) * 1024
+    if auto_discover and cfg.raw_section("autodiscovery").get("enabled", True):
         _ = auto_configure(cfg, quiet=True)
 
     excluded = set(excluded or ())
@@ -693,8 +693,9 @@ async def run_all(
     return results, time.perf_counter() - started
 
 
+# trace:v1 id=impl.src-bughunt-cli.exit-code-for work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def exit_code_for(cfg: Config, results: list[Result]) -> int:
-    policy = str(cfg.raw.get("execution", {}).get("fail_on", "findings"))
+    policy = str(cfg.raw_section("execution").get("fail_on", "findings"))
     if policy == "never":
         return 0
     if any(r.status == Status.ERROR for r in results):

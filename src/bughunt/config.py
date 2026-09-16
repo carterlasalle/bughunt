@@ -80,7 +80,7 @@ class Config:
     @property
     def skip(self) -> list[str]:
         """Defenses the repo opts out of, merged with `--skip`."""
-        skipped = self.raw.get("execution", {}).get("skip", [])
+        skipped = self.raw_section("execution").get("skip", [])
         return [str(x) for x in skipped] if isinstance(skipped, list) else []
 
     # trace:v1 id=impl.src-bughunt-config.complexity-limit work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -118,10 +118,10 @@ class Config:
 
     # trace:v1 id=impl.src-bughunt-cli-config.tools work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def tools(self, profile: str) -> list[str]:
-        profiles = self.raw.get("profiles", {})
-        configured: list[str] = [
-            str(t) for t in profiles.get(profile, {}).get("tools", [])
-        ]
+        profiles = self.raw_section("profiles")
+        profile_table = profiles.get(profile, {})
+        tools_raw = profile_table.get("tools", []) if isinstance(profile_table, dict) else []
+        configured: list[str] = [str(t) for t in tools_raw]
         if not configured and profile == "all":
             # Backward compatibility with pre-`all` configs: maximal mode is the
             # union of every configured profile, preserving first-seen order.

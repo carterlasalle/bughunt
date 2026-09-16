@@ -435,7 +435,7 @@ async def run_codeql(
     db.parent.mkdir(parents=True, exist_ok=True)
     reset_tool_dir(db)
 
-    suite = cfg.raw.get("codeql", {}).get(
+    suite = cfg.raw_section("codeql").get(
         "python_suite",
         "codeql/python-queries:codeql-suites/python-security-and-quality.qls",
     )
@@ -602,7 +602,7 @@ async def run_mutmut(
     mm = target_executable(cfg.root, "mutmut")
     if not mm:
         return Result("mutmut", "mutation", Status.SKIPPED, note="mutmut not installed")
-    if not cfg.raw.get("mutmut", {}).get("enabled", True):
+    if not cfg.raw_section("mutmut").get("enabled", True):
         return Result(
             "mutmut",
             "mutation",
