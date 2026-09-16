@@ -28,6 +28,7 @@ def test_env_example_is_generated_from_static_environment_contract(
         "TIMEOUT_SECONDS = int(os.getenv('TIMEOUT_SECONDS', '30'))\n",
     )
     path, uses = ensure_env_example(tmp_path, ["src"])
+    assert path is not None
     assert path == tmp_path / ".env.example"
     text = path.read_text()
     assert "PORT=8000" in text
