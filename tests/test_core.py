@@ -1150,8 +1150,8 @@ def test_cancel_without_stop_falls_through(tmp_path: Path) -> None:
         task.cancel()
         try:
             return await task
-        except asyncio.CancelledError:
-            raise AssertionError("cancellation must be absorbed")
+        except asyncio.CancelledError as exc:
+            raise AssertionError("cancellation must be absorbed") from exc
 
     result = asyncio.run(_run())
     assert result.status is not None
