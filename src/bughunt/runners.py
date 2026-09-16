@@ -154,14 +154,14 @@ def handle_sigint(signum: int, frame: object) -> None:
         for proc in list(LIVE_PROCS):
             try:
                 proc.kill()
-            except (OSError, ProcessLookupError):
+            except OSError:
                 continue
         raise SystemExit(130)
     STOP_REQUESTED = True
     for proc in list(LIVE_PROCS):
         try:
             proc.terminate()
-        except (OSError, ProcessLookupError):
+        except OSError:
             continue
     console.print(
         "[yellow]Interrupted — finishing current checks and writing the "
@@ -306,7 +306,7 @@ async def run_process(
                     note=note,
                 ),
             )
-    except (FileNotFoundError, PermissionError, OSError) as exc:
+    except OSError as exc:
         return finish(
             Result(
                 name=check.name,

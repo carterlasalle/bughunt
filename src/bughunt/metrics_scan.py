@@ -212,7 +212,7 @@ def _budget(root: Path) -> dict[str, float]:
             for key in DEFAULTS:
                 if key in raw:
                     values[key] = float(raw[key])
-        except (OSError, tomllib.TOMLDecodeError, TypeError, ValueError):
+        except (OSError, TypeError, ValueError):
             # Malformed project config falls back to defaults
             pass
     return values
