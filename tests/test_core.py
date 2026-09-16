@@ -677,13 +677,14 @@ def test_full_alias_accepts_no_install_missing(
 ) -> None:
     from bughunt import cli
 
-    seen: dict[str, object] = {"install": 0, "profile": None}
+    seen: dict[str, int] = {"install": 0}
+    seen_profile: dict[str, str] = {"profile": ""}
 
     def fake_auto_configure(cfg: Config, *, quiet: bool = False) -> list[object]:
         return []
 
     def fake_install_all(*args: object) -> list[object]:
-        seen["install"] = int(seen["install"]) + 1
+        seen["install"] += 1
         return []
 
     monkeypatch.setattr(cli, "install_all", fake_install_all)
@@ -695,7 +696,7 @@ def test_full_alias_accepts_no_install_missing(
         *,
         auto_discover: bool = True,
     ) -> tuple[list[Result], float]:
-        seen["profile"] = profile
+        seen_profile["profile"] = profile
         return [], 0.01
 
     monkeypatch.setattr(cli, "run_all", fake_run_all)
@@ -709,7 +710,7 @@ def test_full_alias_accepts_no_install_missing(
     rc = cli.main(["--root", str(tmp_path), "full", "--no-install-missing"])
     assert rc == 0
     assert not seen["install"]
-    assert seen["profile"] == "all"
+    assert seen_profile["profile"] == "all"
 
 
 # trace:v1 id=test.tests-test-core.test-rules-command-lists-native-pack work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1115,6 +1116,10 @@ def test_sigint_terminates_live_procs() -> None:
     class _Proc:
         def terminate(self) -> None:
             terminated.append("term")
+
+        # trace:v1 id=test.tests-test-core-test-double-sigint-aborts-proc.kill work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+        def kill(self) -> None:
+            terminated.append("kill")
 
     proc = _Proc()
     runners_module.LIVE_PROCS.add(proc)
