@@ -208,7 +208,7 @@ def test_pact_main_survives_port_exhaustion(
 
     (tmp_path / "pact.json").write_text('{"provider": {"name": "svc"}}')
     fake_pact = types.ModuleType("pact")
-    fake_pact.Verifier = object
+    fake_pact.__dict__["Verifier"] = object
     monkeypatch.setitem(sys.modules, "pact", fake_pact)
 
     def _blow_up(*args, **kwargs):
