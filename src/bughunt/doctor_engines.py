@@ -56,7 +56,7 @@ def cli_row(
 
 
 # trace:v1 id=impl.src-bughunt-doctor-engines.doctor-engine-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _doctor_engine_rows(
+def doctor_engine_rows(
     cfg: Config, technology: TechnologyInventory
 ) -> list[tuple[str, str, str]]:
     """Engine readiness rows."""
@@ -420,7 +420,7 @@ def helper_module(
 
 
 # trace:v1 id=impl.src-bughunt-doctor-engines.doctor-guarded-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _doctor_guarded_rows(
+def doctor_guarded_rows(
     cfg: Config, technology: TechnologyInventory, guarded: Table
 ) -> None:
     """Guarded-helper rows appended to the guarded table."""

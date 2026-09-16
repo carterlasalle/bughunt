@@ -933,25 +933,25 @@ def test_mutmut_signal_groups_by_function() -> None:
 
 
 def test_pysa_provider_findings_note_without_degrade() -> None:
-    from bughunt.cli import Result, Status, _reconcile_pysa_provider
+    from bughunt.cli import Result, Status, reconcile_pysa_provider
 
     by_name = {
         "pysa": Result("pysa", "taint", Status.PASS),
         "pyrefly": Result("pyrefly", "types", Status.FINDINGS, note="x"),
     }
-    _reconcile_pysa_provider(by_name)
+    reconcile_pysa_provider(by_name)
     assert by_name["pysa"].status == Status.PASS
     assert "Pyrefly is findings" in (by_name["pysa"].note or "")
 
 
 def test_pysa_provider_error_degrades() -> None:
-    from bughunt.cli import Result, Status, _reconcile_pysa_provider
+    from bughunt.cli import Result, Status, reconcile_pysa_provider
 
     by_name = {
         "pysa": Result("pysa", "taint", Status.PASS),
         "pyrefly": Result("pyrefly", "types", Status.ERROR, note="boom"),
     }
-    _reconcile_pysa_provider(by_name)
+    reconcile_pysa_provider(by_name)
     assert by_name["pysa"].status == Status.ERROR
 
 
@@ -976,7 +976,7 @@ def test_stop_flag_short_circuits(tmp_path: Path) -> None:
     from bughunt import runners as runners_module
     from bughunt.cli import Check, Status, run_parallel
 
-    runners_module._STOP_REQUESTED = True
+    runners_module.STOP_REQUESTED = True
     try:
         check = Check(
             name="never-runs",
@@ -988,7 +988,7 @@ def test_stop_flag_short_circuits(tmp_path: Path) -> None:
         )
         results = asyncio.run(run_parallel([check], 2, 300000))
     finally:
-        runners_module._STOP_REQUESTED = False
+        runners_module.STOP_REQUESTED = False
     assert len(results) == 1
     assert results[0].status == Status.ERROR
     assert "interrupted" in (results[0].note or "")
@@ -1012,22 +1012,22 @@ def test_double_sigint_aborts() -> None:
             actions.append("kill")
 
     proc = _Proc()
-    runners_module._STOP_REQUESTED = False
+    runners_module.STOP_REQUESTED = False
     try:
-        runners_module._LIVE_PROCS.add(proc)  # type: ignore[arg-type]
-        cli_module._handle_sigint(signal.SIGINT, None)
-        assert cli_module._stop_requested() is True
+        runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+        cli_module.handle_sigint(signal.SIGINT, None)
+        assert cli_module.stop_requested() is True
         assert actions == ["term"]
         try:
-            cli_module._handle_sigint(signal.SIGINT, None)
+            cli_module.handle_sigint(signal.SIGINT, None)
         except SystemExit as exc:
             assert exc.code == 130
         else:
             raise AssertionError("second SIGINT must abort")
         assert actions == ["term", "kill"]
     finally:
-        runners_module._LIVE_PROCS.discard(proc)
-        runners_module._STOP_REQUESTED = False
+        runners_module.LIVE_PROCS.discard(proc)
+        runners_module.STOP_REQUESTED = False
 
 
 # trace:v1 id=test.tests-test-core.test-direct-stop-check work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1047,11 +1047,11 @@ def test_direct_stop_check(tmp_path: Path) -> None:
         timeout=10,
         cwd=tmp_path,
     )
-    runners_module._STOP_REQUESTED = True
+    runners_module.STOP_REQUESTED = True
     try:
         result = asyncio.run(run_process(check, 300000))
     finally:
-        runners_module._STOP_REQUESTED = False
+        runners_module.STOP_REQUESTED = False
     assert result.status == Status.ERROR
     assert "interrupted" in (result.note or "")
 
@@ -1076,17 +1076,17 @@ def test_cancelled_process_reaped(tmp_path: Path) -> None:
         )
         task = asyncio.create_task(run_process(check, 300000))
         await asyncio.sleep(0.5)
-        runners_module._STOP_REQUESTED = True
+        runners_module.STOP_REQUESTED = True
         task.cancel()
         try:
             return await task
         finally:
-            runners_module._STOP_REQUESTED = False
+            runners_module.STOP_REQUESTED = False
 
     result = asyncio.run(_run())
     assert result.status == Status.ERROR
     assert "interrupted" in (result.note or "")
-    assert len(runners_module._LIVE_PROCS) == 0
+    assert len(runners_module.LIVE_PROCS) == 0
 
 
 # trace:v1 id=test.tests-test-core.test-sigint-terminates-live-procs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1104,13 +1104,13 @@ def test_sigint_terminates_live_procs() -> None:
             terminated.append("term")
 
     proc = _Proc()
-    runners_module._LIVE_PROCS.add(proc)  # type: ignore[arg-type]
-    runners_module._STOP_REQUESTED = False
+    runners_module.LIVE_PROCS.add(proc)  # type: ignore[arg-type]
+    runners_module.STOP_REQUESTED = False
     try:
-        cli_module._handle_sigint(signal.SIGINT, None)
+        cli_module.handle_sigint(signal.SIGINT, None)
     finally:
-        runners_module._LIVE_PROCS.discard(proc)
-        runners_module._STOP_REQUESTED = False
+        runners_module.LIVE_PROCS.discard(proc)
+        runners_module.STOP_REQUESTED = False
     assert terminated == ["term"]
 
 

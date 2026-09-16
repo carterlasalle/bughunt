@@ -56,20 +56,20 @@ from .debt import (
 from .config import (
     CACHE_DIR as CACHE_DIR,
     Config as Config,
-    _deep_merge as _deep_merge,
-    _default_config_raw as _default_config_raw,
+    deep_merge as deep_merge,
+    default_config_raw as default_config_raw,
     load_config as load_config,
 )
 from .argparse_cli import build_parser
 from . import runners as runners
 from .runners import (
     LiveRunState as LiveRunState,
-    _LIVE_PROCS as _LIVE_PROCS,
-    _STOP_REQUESTED as _STOP_REQUESTED,
-    _stop_requested as _stop_requested,
-    _handle_sigint as _handle_sigint,
-    _interrupted_result as _interrupted_result,
-    _reconcile_pysa_provider as _reconcile_pysa_provider,
+    LIVE_PROCS as LIVE_PROCS,
+    STOP_REQUESTED as STOP_REQUESTED,
+    stop_requested as stop_requested,
+    handle_sigint as handle_sigint,
+    interrupted_result as interrupted_result,
+    reconcile_pysa_provider as reconcile_pysa_provider,
     run_codeql as run_codeql,
     run_mutmut as run_mutmut,
     run_parallel as run_parallel,
@@ -77,18 +77,18 @@ from .runners import (
     run_pysa as run_pysa,
 )
 from .checkctx import CheckBuildCx
-from .doctor_engines import _doctor_engine_rows, _doctor_guarded_rows
-from .doctor_tables import _doctor_capability_rows, _doctor_coverage_rows
-from .checks_python import _build_python_checks
-from .checks_quality import _build_quality_checks
-from .checks_structural import _build_structural_checks
-from .checks_runtime import _build_runtime_checks
-from .checks_matrices import _build_matrix_checks
-from .checks_native_a import _build_native_a_checks
-from .checks_native_b import _build_native_b_checks
-from .probes import _optional_cmd as _optional_cmd
-from .probes import _publishable_package_json as _publishable_package_json
-from .probes import _pylint_disables as _pylint_disables
+from .doctor_engines import doctor_engine_rows, doctor_guarded_rows
+from .doctor_tables import doctor_capability_rows, doctor_coverage_rows
+from .checks_python import build_python_checks
+from .checks_quality import build_quality_checks
+from .checks_structural import build_structural_checks
+from .checks_runtime import build_runtime_checks
+from .checks_matrices import build_matrix_checks
+from .checks_native_a import build_native_a_checks
+from .checks_native_b import build_native_b_checks
+from .probes import optional_cmd as optional_cmd
+from .probes import publishable_package_json as publishable_package_json
+from .probes import pylint_disables as pylint_disables
 from .probes import _supports_flag as _supports_flag
 from .probes import analysis_scope as analysis_scope
 from .probes import ast_grep_executable as ast_grep_executable
@@ -275,13 +275,13 @@ def build_checks(
         )
         for name in sorted(cx.excluded & set(profile_tools))
     )
-    _build_python_checks(cx)
-    _build_quality_checks(cx)
-    _build_structural_checks(cx)
-    _build_runtime_checks(cx)
-    _build_matrix_checks(cx)
-    _build_native_a_checks(cx)
-    _build_native_b_checks(cx)
+    build_python_checks(cx)
+    build_quality_checks(cx)
+    build_structural_checks(cx)
+    build_runtime_checks(cx)
+    build_matrix_checks(cx)
+    build_native_a_checks(cx)
+    build_native_b_checks(cx)
     return cx.checks, cx.skipped
 
 
@@ -333,7 +333,7 @@ def show_default_rules() -> int:
 def doctor(cfg: Config) -> int:
     technology = discover_technologies(cfg.root, persist=True)
 
-    rows = _doctor_engine_rows(cfg, technology)
+    rows = doctor_engine_rows(cfg, technology)
     engines = Table(title="BugHunt Engines", box=box.ROUNDED, expand=True)
     engines.add_column("ENGINE", min_width=24)
     engines.add_column("STATUS", width=13)
@@ -362,7 +362,7 @@ def doctor(cfg: Config) -> int:
     guarded.add_column("STATE", width=13)
     guarded.add_column("ROLE / WHY GUARDED", ratio=3)
 
-    _doctor_guarded_rows(cfg, technology, guarded)
+    doctor_guarded_rows(cfg, technology, guarded)
     console.print(guarded)
 
     capability_table = Table(
@@ -373,7 +373,7 @@ def doctor(cfg: Config) -> int:
     capability_table.add_column("CAPABILITY", min_width=24)
     capability_table.add_column("STATE", width=12)
     capability_table.add_column("EVIDENCE", ratio=3)
-    _doctor_capability_rows(cfg, technology, capability_table)
+    doctor_capability_rows(cfg, technology, capability_table)
     console.print(capability_table)
 
     manifest_path = cfg.root / ".bughunt" / "configs" / "manifest.json"
@@ -418,7 +418,7 @@ def doctor(cfg: Config) -> int:
     coverage.add_column("DEFENSE", min_width=34)
     coverage.add_column("CONFIG", width=18)
     coverage.add_column("DETAIL", ratio=2)
-    _doctor_coverage_rows(cfg, technology, coverage)
+    doctor_coverage_rows(cfg, technology, coverage)
     console.print(coverage)
     return 0
 
@@ -578,7 +578,7 @@ async def run_all(
     auto_discover: bool = True,
     excluded: set[str] | None = None,
 ) -> tuple[list[Result], float]:
-    runners._STOP_REQUESTED = False
+    runners.STOP_REQUESTED = False
     started = time.perf_counter()
     raw_limit = int(cfg.raw.get("execution", {}).get("raw_output_limit_kb", 512)) * 1024
     if auto_discover and cfg.raw.get("autodiscovery", {}).get("enabled", True):
@@ -636,7 +636,7 @@ async def run_all(
         main_thread = threading.current_thread() is threading.main_thread()
         previous_handler = signal.getsignal(signal.SIGINT)
         if main_thread:
-            signal.signal(signal.SIGINT, _handle_sigint)
+            signal.signal(signal.SIGINT, handle_sigint)
         refresh_task = asyncio.create_task(refresher(live))
         try:
             normal = await run_parallel(checks, cfg.max_parallel, raw_limit, progress)
@@ -648,13 +648,13 @@ async def run_all(
             ):
                 if logical_name not in effective_tools:
                     continue
-                if runners._stop_requested():
+                if runners.stop_requested():
                     categories = {
                         "codeql": "whole-program",
                         "pysa": "taint",
                         "mutmut": "mutation",
                     }
-                    result = _interrupted_result(
+                    result = interrupted_result(
                         logical_name, categories.get(logical_name, logical_name)
                     )
                     progress.finish(result)
@@ -688,7 +688,7 @@ async def run_all(
                 disagreement,
             ]
     by_name = {result.name: result for result in results}
-    _reconcile_pysa_provider(by_name)
+    reconcile_pysa_provider(by_name)
     return results, time.perf_counter() - started
 
 
@@ -861,7 +861,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         scan_results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))
     md, js = write_reports(cfg, scan_results, profile, elapsed)
     render_terminal(scan_results, profile, elapsed, md, js)
-    if runners._stop_requested():
+    if runners.stop_requested():
         console.print("[yellow]Scan interrupted — partial report written above.[/]")
         return 130
     return exit_code_for(cfg, scan_results)

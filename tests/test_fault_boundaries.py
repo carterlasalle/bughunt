@@ -110,15 +110,15 @@ def test_ast_grep_executable_missing_is_none(monkeypatch) -> None:
 
 
 def test_reset_tool_dir_tolerates_missing(tmp_path: Path) -> None:
-    from bughunt.cli import _reset_tool_dir
+    from bughunt.cli import reset_tool_dir
 
-    _reset_tool_dir(tmp_path / "does-not-exist")
+    reset_tool_dir(tmp_path / "does-not-exist")
 
 
 def test_reset_tool_dir_tolerates_chmod_failure(monkeypatch, tmp_path: Path) -> None:
     import subprocess
 
-    from bughunt.cli import _reset_tool_dir
+    from bughunt.cli import reset_tool_dir
 
     target = tmp_path / "tree"
     target.mkdir()
@@ -127,7 +127,7 @@ def test_reset_tool_dir_tolerates_chmod_failure(monkeypatch, tmp_path: Path) -> 
         raise OSError("chmod denied")
 
     monkeypatch.setattr(subprocess, "run", _raise)
-    _reset_tool_dir(target)
+    reset_tool_dir(target)
 
 
 def test_project_component_ready_without_tool_is_false(

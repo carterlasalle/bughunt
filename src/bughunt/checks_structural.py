@@ -7,7 +7,7 @@ import os
 import sys
 from .checkctx import CheckBuildCx
 from .probes import (
-    _optional_cmd,
+    optional_cmd,
     _supports_flag,
     ast_grep_executable,
     generated_config,
@@ -26,8 +26,8 @@ from .models import Check, Result, Status
 
 
 # trace:v1 id=impl.src-bughunt-checks-structural.-build-structural-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_structural_checks(cx: CheckBuildCx) -> None:
-    deptry_cmd = _optional_cmd(
+def build_structural_checks(cx: CheckBuildCx) -> None:
+    deptry_cmd = optional_cmd(
         target_executable(cx.root, "deptry"),
         [
             *cx.src,

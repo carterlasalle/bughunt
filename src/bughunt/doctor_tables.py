@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 # trace:v1 id=impl.src-bughunt-doctor-tables.doctor-capability-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _doctor_capability_rows(
+def doctor_capability_rows(
     cfg: Config, technology: TechnologyInventory, capability_table: Table
 ) -> None:
     """Capability rows appended to the capability table."""
@@ -45,7 +45,7 @@ def _doctor_capability_rows(
 
 
 # trace:v1 id=impl.src-bughunt-doctor-tables.doctor-coverage-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _doctor_coverage_rows(
+def doctor_coverage_rows(
     cfg: Config, technology: TechnologyInventory, coverage: Table
 ) -> None:
     """Coverage rows appended to the coverage table."""

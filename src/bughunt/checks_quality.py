@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sys
 from .checkctx import CheckBuildCx
-from .probes import _optional_cmd, generated_config
+from .probes import optional_cmd, generated_config
 from .technology import target_executable
 from .parsers import (
     parse_bandit,
@@ -17,7 +17,7 @@ from .parsers import (
 
 
 # trace:v1 id=impl.src-bughunt-checks-quality.-build-quality-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_quality_checks(cx: CheckBuildCx) -> None:
+def build_quality_checks(cx: CheckBuildCx) -> None:
     policy_cmd = [sys.executable, "-m", "bughunt.policy_scan", "--root", str(cx.root)]
     for path in cx.src:
         policy_cmd += ["--source", path]
@@ -107,7 +107,7 @@ def _build_quality_checks(cx: CheckBuildCx) -> None:
     cx.add(
         "vulture",
         "dead-code",
-        _optional_cmd(
+        optional_cmd(
             target_executable(cx.root, "vulture"),
             [
                 *cx.py,
@@ -120,7 +120,7 @@ def _build_quality_checks(cx: CheckBuildCx) -> None:
         findings_exit_codes={3},
     )
     bandit_cfg = generated_config(cx.root, "bandit.yaml")
-    bandit_cmd = _optional_cmd(
+    bandit_cmd = optional_cmd(
         target_executable(cx.root, "bandit"), ["-r", *cx.src, "-f", "json", "-q"]
     )
     if bandit_cmd and bandit_cfg:

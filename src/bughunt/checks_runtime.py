@@ -16,12 +16,12 @@ from .models import Check, Result, Status
 
 
 # trace:v1 id=impl.src-bughunt-checks-runtime.-build-runtime-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_runtime_checks(cx: CheckBuildCx) -> None:
+def build_runtime_checks(cx: CheckBuildCx) -> None:
     if cx.technology.has("python"):
         if "coverage" in cx.wanted:
             cov_python = (
-                cx._target_py
-                if target_has_module(cx._target_py, "bughunt")
+                cx.target_py
+                if target_has_module(cx.target_py, "bughunt")
                 else sys.executable
             )
             if target_has_module(cov_python, "coverage") and cx.pytest:
@@ -104,7 +104,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
         if "runtime-types" in cx.wanted:
             packages = python_package_names(cx.root, cx.cfg.source_paths)
             tg_cmd = None
-            if cx.pytest and target_has_module(cx._target_py, "typeguard") and packages:
+            if cx.pytest and target_has_module(cx.target_py, "typeguard") and packages:
                 tg_cmd = [
                     cx.pytest,
                     "-q",
@@ -112,7 +112,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                     f"--typeguard-packages={','.join(packages)}",
                     *cx.tests,
                 ]
-                if target_has_module(cx._target_py, "pytest_timeout"):
+                if target_has_module(cx.target_py, "pytest_timeout"):
                     tg_cmd += ["--timeout", str(cx.test_timeout)]
             cx.add(
                 "runtime-types",
@@ -164,7 +164,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
             seed = secrets.randbelow(2**31 - 2) + 1
             cmd = (
                 [cx.pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *cx.tests]
-                if cx.pytest and target_has_module(cx._target_py, "pytest_randomly")
+                if cx.pytest and target_has_module(cx.target_py, "pytest_randomly")
                 else None
             )
             cx.add(
@@ -186,7 +186,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--allow-unix-socket",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx._target_py, "pytest_socket")
+                if cx.pytest and target_has_module(cx.target_py, "pytest_socket")
                 else None
             )
             cx.add(
@@ -210,7 +210,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                     "loadfile",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx._target_py, "xdist")
+                if cx.pytest and target_has_module(cx.target_py, "xdist")
                 else None
             )
             cx.add(
@@ -228,7 +228,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                 [cx.pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *cx.tests]
                 if cx.pytest
                 and blocker
-                and target_has_module(cx._target_py, "blockbuster")
+                and target_has_module(cx.target_py, "blockbuster")
                 else None
             )
             env = {"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(cx.repro_seed)}
@@ -255,7 +255,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--iterations=3",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx._target_py, "pytest_run_parallel")
+                if cx.pytest and target_has_module(cx.target_py, "pytest_run_parallel")
                 else None
             )
             cx.add(
@@ -436,7 +436,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--fail-on-increase",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx._target_py, "pytest_memray")
+                if cx.pytest and target_has_module(cx.target_py, "pytest_memray")
                 else None
             )
             cx.add(
@@ -452,7 +452,7 @@ def _build_runtime_checks(cx: CheckBuildCx) -> None:
             if (
                 cx.technology.has("benchmark-tests")
                 and cx.pytest
-                and target_has_module(cx._target_py, "pytest_benchmark")
+                and target_has_module(cx.target_py, "pytest_benchmark")
             ):
                 cmd = [cx.pytest, "-q", "--benchmark-only", "--benchmark-autosave"]
                 # xdist auto-activates --benchmark-disable, which conflicts

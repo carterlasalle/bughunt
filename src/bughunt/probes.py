@@ -91,7 +91,7 @@ def _supports_flag(executable_path: str, flag: str, root: Path) -> bool:
 
 
 # trace:v1 id=impl.src-bughunt-cli.pylint-disables work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _pylint_disables(pylint_bin: str, cfg_file: Path, root: Path) -> list[str] | None:
+def pylint_disables(pylint_bin: str, cfg_file: Path, root: Path) -> list[str] | None:
     """Disables from the rcfile that the installed pylint accepts.
 
     Generated strict configs name messages the bundled pylint knows;
@@ -196,7 +196,7 @@ def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
 
 
 # trace:v1 id=impl.src-bughunt-cli.-publishable-package-json work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _publishable_package_json(root: Path) -> Path | None:
+def publishable_package_json(root: Path) -> Path | None:
     """A package.json publint can actually pack: name and version declared."""
     path = root / "package.json"
     if not path.is_file():
@@ -285,6 +285,6 @@ def pysa_executable(root: Path) -> str | None:
 
 
 # trace:exempt reason=internal-detail
-def _optional_cmd(exe: str | None, args: Sequence[str]) -> list[str] | None:
+def optional_cmd(exe: str | None, args: Sequence[str]) -> list[str] | None:
     """Build a tool command when the executable resolved; None (SKIP) otherwise."""
     return [exe, *args] if exe else None

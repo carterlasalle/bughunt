@@ -133,30 +133,30 @@ class LiveRunState:
         return table
 
 
-_STOP_REQUESTED = False
-_LIVE_PROCS: set[asyncio.subprocess.Process] = set()
+STOP_REQUESTED = False
+LIVE_PROCS: set[asyncio.subprocess.Process] = set()
 
 
 # trace:v1 id=impl.src-bughunt-cli.stop-requested work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _stop_requested() -> bool:
+def stop_requested() -> bool:
     """True after the first SIGINT; new work must not start."""
-    return _STOP_REQUESTED
+    return STOP_REQUESTED
 
 
 # trace:v1 id=impl.src-bughunt-cli.-handle-sigint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _handle_sigint(signum: int, frame: object) -> None:
+def handle_sigint(signum: int, frame: object) -> None:
     """First Ctrl-C stops gracefully; a second one aborts immediately."""
-    global _STOP_REQUESTED
+    global STOP_REQUESTED
     _ = (signum, frame)
-    if _STOP_REQUESTED:
-        for proc in list(_LIVE_PROCS):
+    if STOP_REQUESTED:
+        for proc in list(LIVE_PROCS):
             try:
                 proc.kill()
             except (OSError, ProcessLookupError):
                 continue
         raise SystemExit(130)
-    _STOP_REQUESTED = True
-    for proc in list(_LIVE_PROCS):
+    STOP_REQUESTED = True
+    for proc in list(LIVE_PROCS):
         try:
             proc.terminate()
         except (OSError, ProcessLookupError):
@@ -168,7 +168,7 @@ def _handle_sigint(signum: int, frame: object) -> None:
 
 
 # trace:v1 id=impl.src-bughunt-cli.-interrupted-result work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _interrupted_result(name: str, category: str) -> Result:
+def interrupted_result(name: str, category: str) -> Result:
     """Synthetic ERROR result so partial reports read INCOMPLETE."""
     return Result(
         name,
@@ -194,8 +194,8 @@ async def run_process(
                 progress.finish(result)
         return result
 
-    if _stop_requested():
-        return finish(_interrupted_result(check.name, check.category))
+    if stop_requested():
+        return finish(interrupted_result(check.name, check.category))
     if progress:
         progress.start(check)
 
@@ -244,7 +244,7 @@ async def run_process(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        _LIVE_PROCS.add(proc)
+        LIVE_PROCS.add(proc)
         out_task = asyncio.create_task(drain(proc.stdout, stdout_chunks))
         err_task = asyncio.create_task(drain(proc.stderr, stderr_chunks))
         try:
@@ -260,7 +260,7 @@ async def run_process(
                 for pending in (out_task, err_task):
                     pending.cancel()
                 await asyncio.gather(out_task, err_task, return_exceptions=True)
-            _LIVE_PROCS.discard(proc)
+            LIVE_PROCS.discard(proc)
         except (TimeoutError, asyncio.CancelledError):
             proc.kill()
             try:
@@ -270,9 +270,9 @@ async def run_process(
             for pending in (out_task, err_task):
                 pending.cancel()
             await asyncio.gather(out_task, err_task, return_exceptions=True)
-            _LIVE_PROCS.discard(proc)
-            if _stop_requested():
-                return finish(_interrupted_result(check.name, check.category))
+            LIVE_PROCS.discard(proc)
+            if stop_requested():
+                return finish(interrupted_result(check.name, check.category))
             stdout = b"".join(stdout_chunks).decode(errors="replace")
             stderr = b"".join(stderr_chunks).decode(errors="replace")
             timeout_findings: list[Finding] = []
@@ -377,15 +377,15 @@ async def run_parallel(
     # trace:v1 id=impl.src-bughunt-cli-run-parallel.one work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     async def one(check: Check) -> Result:
         async with sem:
-            if _stop_requested():
-                return _interrupted_result(check.name, check.category)
+            if stop_requested():
+                return interrupted_result(check.name, check.category)
             return await run_process(check, raw_limit, progress)
 
     return await asyncio.gather(*(one(c) for c in checks))
 
 
 # trace:v1 id=impl.src-bughunt-cli.reset-tool-dir work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
-def _reset_tool_dir(path: Path) -> None:
+def reset_tool_dir(path: Path) -> None:
     """Best-effort writable recursive delete for tool output trees.
 
     Analyzer database directories routinely contain read-only files that make
@@ -430,7 +430,7 @@ async def run_codeql(
     db = cfg.root / CACHE_DIR / "codeql" / language
     sarif = cfg.root / CACHE_DIR / "codeql" / f"{language}.sarif"
     db.parent.mkdir(parents=True, exist_ok=True)
-    _reset_tool_dir(db)
+    reset_tool_dir(db)
 
     suite = cfg.raw.get("codeql", {}).get(
         "python_suite",
@@ -658,7 +658,7 @@ async def run_mutmut(
 
 
 # trace:v1 id=impl.src-bughunt-cli.-reconcile-pysa-provider work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _reconcile_pysa_provider(by_name: dict[str, Result]) -> None:
+def reconcile_pysa_provider(by_name: dict[str, Result]) -> None:
     pysa_result = by_name.get("pysa")
     pyrefly_result = by_name.get("pyrefly")
     if (

@@ -14,7 +14,7 @@ from .models import Check, Result, Status
 
 
 # trace:v1 id=impl.src-bughunt-checks-matrices.-build-matrix-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_matrix_checks(cx: CheckBuildCx) -> None:
+def build_matrix_checks(cx: CheckBuildCx) -> None:
     if "bugcorpus" in cx.wanted:
         if not (cx.root / ".bugcorpus").is_dir():
             cx.skipped.append(

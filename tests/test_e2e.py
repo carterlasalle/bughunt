@@ -196,13 +196,13 @@ def test_tools_all_falls_back_to_profile_union(tmp_path: Path) -> None:
 def test_publishable_package_json_gate(tmp_path: Path) -> None:
     import json
 
-    from bughunt.cli import _publishable_package_json
+    from bughunt.cli import publishable_package_json
 
-    assert _publishable_package_json(tmp_path) is None
+    assert publishable_package_json(tmp_path) is None
     _ = (tmp_path / "package.json").write_text(json.dumps({"private": True}))
-    assert _publishable_package_json(tmp_path) is None
+    assert publishable_package_json(tmp_path) is None
     _ = (tmp_path / "package.json").write_text("{broken")
-    assert _publishable_package_json(tmp_path) is None
+    assert publishable_package_json(tmp_path) is None
     pub = {"name": "x", "version": "0.0.1"}
     _ = (tmp_path / "package.json").write_text(json.dumps(pub))
-    assert _publishable_package_json(tmp_path) == tmp_path / "package.json"
+    assert publishable_package_json(tmp_path) == tmp_path / "package.json"

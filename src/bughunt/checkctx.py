@@ -6,7 +6,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Callable
+from collections.abc import Sequence
 
 from .models import Check, Finding, Result, Status
 from .parsers import text_findings
@@ -18,7 +19,7 @@ from .technology import (
 )
 
 if TYPE_CHECKING:
-    from .cli import Config
+    from .config import Config
     from .discovery import DiscoveredTarget
 
 PYTHON_ONLY_TOOLS = {
@@ -90,7 +91,7 @@ class CheckBuildCx:
     tests: list[str]
     config_dir: Path
     technology: TechnologyInventory
-    _target_py: str
+    target_py: str
     pytest: str | None
     hypothesis_plugin: Path | None
     repro_seed: int

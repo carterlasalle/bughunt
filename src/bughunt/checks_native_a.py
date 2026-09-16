@@ -24,7 +24,7 @@ from .models import Check
 
 
 # trace:v1 id=impl.src-bughunt-checks-native-a.-build-native-a-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_native_a_checks(cx: CheckBuildCx) -> None:
+def build_native_a_checks(cx: CheckBuildCx) -> None:
     actionlint = project_executable(cx.root, "actionlint")
     action_files = cx.technology.files.get("github-actions", [])
     action_cmd = (

@@ -167,7 +167,7 @@ class Config:
 
 
 # trace:v1 id=impl.src-bughunt-cli.-default-config-raw work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def _default_config_raw() -> dict[str, Any]:
+def default_config_raw() -> dict[str, Any]:
     raw: dict[str, Any] = {
         "project": {
             "python_paths": ["src", "tests"],
@@ -350,11 +350,11 @@ def _default_config_raw() -> dict[str, Any]:
 
 
 # trace:v1 id=impl.src-bughunt-config.deep-merge work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
     for key, value in overlay.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged[key], value)
+            merged[key] = deep_merge(merged[key], value)
         else:
             merged[key] = value
     return merged
@@ -363,7 +363,7 @@ def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]
 # trace:v1 id=impl.src-bughunt-config.load-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def load_config(root: Path, config_path: Path | None = None) -> Config:
     path = config_path or (root / CONFIG_NAME)
-    raw = _default_config_raw()
+    raw = default_config_raw()
     if path.exists():
-        raw = _deep_merge(raw, tomllib.loads(path.read_text()))
+        raw = deep_merge(raw, tomllib.loads(path.read_text()))
     return Config(root=root, raw=raw)

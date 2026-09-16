@@ -9,7 +9,7 @@ from pathlib import Path
 from functools import partial
 from .checkctx import CheckBuildCx
 from .probes import (
-    _publishable_package_json,
+    publishable_package_json,
     generated_config,
     local_schema_pairs,
     pact_json_files,
@@ -36,7 +36,7 @@ from .configurator import JS_TOOL_IGNORES
 
 
 # trace:v1 id=impl.src-bughunt-checks-native-b.-build-native-b-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _build_native_b_checks(cx: CheckBuildCx) -> None:
+def build_native_b_checks(cx: CheckBuildCx) -> None:
     cargo = project_executable(cx.root, "cargo")
     clippy_cmd = (
         [
@@ -249,7 +249,7 @@ def _build_native_b_checks(cx: CheckBuildCx) -> None:
         findings_exit_codes={1},
     )
     publint = project_executable(cx.root, "publint")
-    package_json = _publishable_package_json(cx.root)
+    package_json = publishable_package_json(cx.root)
     cx.add_technology(
         "publint",
         [publint, str(package_json)] if publint and package_json else None,

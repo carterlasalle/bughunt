@@ -11,7 +11,6 @@ from bughunt.cli import (
     Finding,
     Result,
     Status,
-    _default_config_raw,
     build_checks,
     overall_score,
     parse_actionlint,
@@ -21,6 +20,7 @@ from bughunt.cli import (
     parse_sqlfluff,
     parse_tflint,
 )
+from bughunt.config import default_config_raw
 from bughunt.configurator import configure_all
 from bughunt.technology import discover_technologies, infer_sql_dialect
 
@@ -271,7 +271,7 @@ def test_python_only_defenses_are_na_without_python(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "lib.rs").write_text("pub fn add(a:i32,b:i32)->i32{a+b}\n")
     discover_technologies(tmp_path, persist=True)
-    raw = _default_config_raw()
+    raw = default_config_raw()
     raw["profiles"]["all"]["tools"] = [
         "compile",
         "mypy",
@@ -325,7 +325,7 @@ def test_tsc_gated_on_tsconfig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     # with one, the check is built. tsc is force-present: host PATH varies.
     monkeypatch.setattr(cli_mod, "project_executable", lambda root, *names: "/bin/tsc")
     (tmp_path / "app.ts").write_text("export const x: number = 1;\n")
-    cfg = Config(root=tmp_path, raw=_default_config_raw())
+    cfg = Config(root=tmp_path, raw=default_config_raw())
     _, skipped = build_checks(cfg, "pr")
     tsc_skip = next(r for r in skipped if r.name == "tsc")
     assert tsc_skip.status == Status.SKIPPED
