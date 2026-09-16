@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import sys
+
 from .checkctx import CheckBuildCx
-from .probes import _optional_cmd, _pylint_disables, generated_config
+from .probes import _optional_cmd
+from .probes import _pylint_disables, generated_config
 from .technology import target_executable
 from .parsers import parse_basedpyright, parse_pylint, parse_pyrefly, parse_ruff
 from .models import Result, Status

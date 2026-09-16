@@ -83,6 +83,15 @@ class Config:
         skipped = self.raw.get("execution", {}).get("skip", [])
         return [str(x) for x in skipped] if isinstance(skipped, list) else []
 
+    # trace:v1 id=impl.src-bughunt-config.complexity-limit work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def complexity_limit(self, key: str, default: int) -> int:
+        """One complexity budget as int; non-dict/non-int config degrades to default."""
+        section = self.raw.get("complexity", {})
+        if not isinstance(section, dict):
+            return default
+        value = section.get(key, default)
+        return value if isinstance(value, int) else default
+
     # trace:v1 id=impl.src-bughunt-config.timeout work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     def timeout(self, profile: str) -> int:
         timeouts = self.raw.get("timeouts", {})

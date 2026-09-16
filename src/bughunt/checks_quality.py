@@ -51,7 +51,7 @@ def _build_quality_checks(cx: CheckBuildCx) -> None:
             "--no-ignore",
             "--report-ignored",
             "--max-complexity-allowed",
-            str(int(cx.cfg.raw.get("complexity", {}).get("cognitive_max", 10))),
+            str(cx.cfg.complexity_limit("cognitive_max", 10)),
         ]
         if complexipy
         else None
@@ -80,9 +80,9 @@ def _build_quality_checks(cx: CheckBuildCx) -> None:
             lizard,
             "-w",
             "-C",
-            str(int(cx.cfg.raw.get("complexity", {}).get("cyclomatic_warn", 10))),
+            str(cx.cfg.complexity_limit("cyclomatic_warn", 10)),
             "-L",
-            str(int(cx.cfg.raw.get("complexity", {}).get("function_loc_warn", 80))),
+            str(cx.cfg.complexity_limit("function_loc_warn", 80)),
             "-a",
             "8",
             "-t",

@@ -189,7 +189,7 @@ def build_checks(
         "bugcorpus": "historical/custom-static",
         **ENGINE_CATEGORY,
     }
-    _target_py = target_python(root)
+    target_py = target_python(root)
     pytest = target_executable(root, "pytest")
     hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
     repro_seed = int(cfg.raw.get("tests", {}).get("repro_seed", 1))
@@ -208,7 +208,7 @@ def build_checks(
         if pytest
         else None
     )
-    if pytest_cmd and target_has_module(_target_py, "pytest_timeout"):
+    if pytest_cmd and target_has_module(target_py, "pytest_timeout"):
         pytest_cmd += ["--timeout", str(test_timeout)]
     if pytest_cmd and profile in {"deep", "all"}:
         # Resource/deprecation/runtime warnings are often latent bugs. Developer
@@ -216,7 +216,7 @@ def build_checks(
         pytest_cmd += ["-W", "error"]
         pytest_env["PYTHONDEVMODE"] = "1"
         pytest_env["PYTHONASYNCIODEBUG"] = "1"
-    if pytest_cmd and hypothesis_plugin and target_has_module(_target_py, "hypothesis"):
+    if pytest_cmd and hypothesis_plugin and target_has_module(target_py, "hypothesis"):
         pytest_cmd += ["-p", "hypothesis_plugin"]
         pytest_env["PYTHONPATH"] = (
             str(hypothesis_plugin.parent)
@@ -241,7 +241,7 @@ def build_checks(
         generated_targets=generated_targets,
         technology=technology,
         category_by_tool=category_by_tool,
-        _target_py=_target_py,
+        target_py=target_py,
         pytest=pytest,
         hypothesis_plugin=hypothesis_plugin,
         repro_seed=repro_seed,

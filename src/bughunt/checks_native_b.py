@@ -98,7 +98,7 @@ def _build_native_b_checks(cx: CheckBuildCx) -> None:
     if run_clang_tidy and compile_db:
         clang_cmd = [
             run_clang_tidy,
-            f"-p={Path(compile_db[0]).parent or Path()}",
+            f"-p={Path(compile_db[0]).parent}",
             "-checks=-*,clang-analyzer-*,bugprone-*,concurrency-*",
             "-warnings-as-errors=*",
         ]
@@ -371,8 +371,8 @@ def _build_native_b_checks(cx: CheckBuildCx) -> None:
                 if t.kind == "schemathesis"
                 and (t.metadata or {}).get("transport") == "asgi"
             ]
-            pact_ready = target_has_module(cx._target_py, "pact") and target_has_module(
-                cx._target_py,
+            pact_ready = target_has_module(cx.target_py, "pact") and target_has_module(
+                cx.target_py,
                 "uvicorn",
             )
             if len(asgi) == 1 and pacts and pact_ready:
