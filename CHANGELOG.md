@@ -6,6 +6,15 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-09-17
+
+Scan-fix release: generated checker configs no longer ship defects
+(mypy `explicit_package_bases` + `mypy_path`, dead pylint disables
+dropped), binary-spy tests patch the real `technology` resolver,
+vulture/ruff false positives scoped with reasons, `_supports_flag`
+promoted to public `supports_flag`, assertion-free-test rule scoped
+to test files, yaml indentation fixed, lockfile current.
+
 ## [0.9.3] - 2026-09-16
 
 cli.py split: the 6.5k-line orchestrator is now focused modules
