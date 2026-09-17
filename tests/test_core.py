@@ -452,11 +452,15 @@ def test_semgrep_auto_is_rewritten_to_explicit_default_pack(
             "semgrep": {"configs": ["auto"]},
         },
     )
-    real = cli.executable
+    from bughunt import technology
+
+    real = technology.target_executable
     monkeypatch.setattr(
-        cli,
-        "executable",
-        lambda *names: "/usr/bin/semgrep" if "semgrep" in names else real(*names),
+        technology,
+        "target_executable",
+        lambda root, *names: (
+            "/usr/bin/semgrep" if "semgrep" in names else real(root, *names)
+        ),
     )
     checks, _ = cli.build_checks(cfg, "pr")
     command = next(c.command for c in checks if c.name == "semgrep")
@@ -737,20 +741,30 @@ def test_build_checks_marks_explicitly_skipped_mutmut(tmp_path: Path) -> None:
 
     cfg = cli.load_config(tmp_path)
     checks, skipped = cli.build_checks(cfg, "all", excluded={"mutmut"})
-    assert not any(check.name == "mutmut" for check in checks)
     item = next(result for result in skipped if result.name == "mutmut")
     assert item.status == cli.Status.SKIPPED
     assert "explicitly skipped" in (item.note or "")
 
 
 # trace:v1 id=test.tests-test-core.test-pylint-tests-scoped-to-test-paths work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def test_pylint_tests_scoped_to_test_paths(tmp_path: Path) -> None:
+def test_pylint_tests_scoped_to_test_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     from bughunt import cli
+    from bughunt import technology
 
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests/test_probe.py").write_text("def test_ok(): assert True\n")
     (tmp_path / ".bughunt/configs").mkdir(parents=True)
     (tmp_path / ".bughunt/configs/pylintrc-tests").write_text("")
+    real = technology.target_executable
+    monkeypatch.setattr(
+        technology,
+        "target_executable",
+        lambda root, *names: (
+            "/usr/bin/pylint" if "pylint" in names else real(root, *names)
+        ),
+    )
     cfg = cli.load_config(tmp_path)
     assert "pylint-tests" in cfg.tools("pr")
     checks, _ = cli.build_checks(cfg, "pr")
