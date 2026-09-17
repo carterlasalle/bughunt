@@ -74,7 +74,7 @@ def ast_grep_executable(root: Path | None = None) -> str | None:
 
 
 # trace:v1 id=impl.src-bughunt-cli.supports-flag work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _supports_flag(executable_path: str, flag: str, root: Path) -> bool:
+def supports_flag(executable_path: str, flag: str, root: Path) -> bool:
     """Probe `--help` once so version-drifted CLIs never get unknown flags."""
     try:
         probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell

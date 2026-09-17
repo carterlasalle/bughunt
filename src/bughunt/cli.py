@@ -89,7 +89,7 @@ from .checks_native_b import build_native_b_checks
 from .probes import optional_cmd as optional_cmd
 from .probes import publishable_package_json as publishable_package_json
 from .probes import pylint_disables as pylint_disables
-from .probes import _supports_flag as _supports_flag
+from .probes import supports_flag as supports_flag
 from .probes import analysis_scope as analysis_scope
 from .probes import ast_grep_executable as ast_grep_executable
 from .probes import atheris_available as atheris_available

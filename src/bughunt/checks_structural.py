@@ -8,7 +8,7 @@ import sys
 from .checkctx import CheckBuildCx
 from .probes import (
     optional_cmd,
-    _supports_flag,
+    supports_flag,
     ast_grep_executable,
     generated_config,
     import_linter_configured,
@@ -48,7 +48,7 @@ def build_structural_checks(cx: CheckBuildCx) -> None:
     generated_import_cfg = generated_config(cx.root, "importlinter.toml")
     lint_flags = (
         ["--no-logo", "--show-timings"]
-        if import_linter and _supports_flag(import_linter, "--no-logo", cx.root)
+        if import_linter and supports_flag(import_linter, "--no-logo", cx.root)
         else ["--show-timings"]
     )
     if import_linter and generated_import_cfg:
