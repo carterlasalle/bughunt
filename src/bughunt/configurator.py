@@ -222,8 +222,13 @@ ignore = [
   "use-implicit-booleaness-not-comparison-to-zero",
   "PLR2004",
   "PLC0415",
+  "PLC0414",
   "TC003",
 ]
+# PLC0414 flags `import X as X` re-exports, but those ARE the cli.py
+# compatibility surface: tests import names (Config, Finding, build_checks)
+# from bughunt.cli after the module split. F401 (unused import) still fires
+# on truly dead imports, so nothing is lost by scoping the alias form.
 # PLR2004/PLC0415 mirror the pylint calibration: domain literals ('.py',
 # small bounds) are not magic, and deferred imports are the
 # startup/cycle/optional-dep pattern. Operational numbers belong to policy

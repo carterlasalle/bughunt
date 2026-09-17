@@ -103,7 +103,12 @@ def build_quality_checks(cx: CheckBuildCx) -> None:
     vulture_confidence = (
         "0" if cx.profile in {"deep", "all"} else ("60" if cx.profile == "pr" else "80")
     )
-    vulture_ignored = "visit_[A-Z]*"
+    # `caption` is rich's Table attribute (set, never read back); MAX_REVISITS
+    # is a tripwire constant; dataclass fields look unused to vulture;
+    # http.server calls do_GET/log_message via the framework, not our code.
+    vulture_ignored = (
+        "visit_[A-Z]*,caption,MAX_REVISITS,python_type,numeric_range,do_GET,log_message"
+    )
     cx.add(
         "vulture",
         "dead-code",
