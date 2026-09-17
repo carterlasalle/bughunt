@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Carter LaSalle
 """Check construction: wanted subsets, N/A branches, tech engines."""
 
+import pytest
 from pathlib import Path
 
 
@@ -73,3 +74,25 @@ def test_alembic_without_config_skips(tmp_path: Path) -> None:
     by_name = {item.name: item for item in skipped}
     assert by_name["alembic-check"].status == Status.SKIPPED
     assert "no runnable migration config" in (by_name["alembic-check"].note or "")
+
+
+# trace:v1 id=test.tests-test-build-checks.test-publint-names-missing-manifest-fields work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_publint_names_missing_manifest_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from bughunt.cli import Status, build_checks
+
+    _project(tmp_path, ["publint"])
+    _ = (tmp_path / "package.json").write_text('{"name": "x"}\n')
+
+    # trace:v1 id=test.tests-test-build-checks-test-publint-names-missing-manifest-fields.fake-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def _fake_executable(root: Path, *names: str) -> str | None:
+        return "/usr/bin/publint" if "publint" in names else None
+
+    import bughunt.checks_native_b as native_b
+
+    monkeypatch.setattr(native_b, "project_executable", _fake_executable)
+    _, skipped = build_checks(_cfg(tmp_path), "pr")
+    by_name = {item.name: item for item in skipped}
+    assert by_name["publint"].status == Status.SKIPPED
+    assert "missing name/version" in (by_name["publint"].note or "")

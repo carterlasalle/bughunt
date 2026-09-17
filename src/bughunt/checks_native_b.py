@@ -250,13 +250,22 @@ def build_native_b_checks(cx: CheckBuildCx) -> None:
     )
     publint = project_executable(cx.root, "publint")
     package_json = publishable_package_json(cx.root)
+    if publint and package_json:
+        publint_cmd: list[str] | None = [publint, str(package_json)]
+        publint_reason = ""
+    elif publint:
+        publint_cmd = None
+        publint_reason = (
+            "publint is installed but package.json is missing name/version; "
+            "add both fields to make the package publishable"
+        )
+    else:
+        publint_cmd = None
+        publint_reason = "JavaScript package detected but publint is not installed"
     cx.add_technology(
         "publint",
-        [publint, str(package_json)] if publint and package_json else None,
-        reason=(
-            "JavaScript package detected but publint is not installed/package.json "
-            "missing or not publishable (name/version required)"
-        ),
+        publint_cmd,
+        reason=publint_reason,
         findings_exit_codes={1},
     )
     taplo = project_executable(cx.root, "taplo")
