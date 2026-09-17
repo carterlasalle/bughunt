@@ -332,6 +332,11 @@ def _mypy_config(root: Path, python_paths: list[str], python_version: str) -> st
 [mypy]
 python_version = {python_version}
 files = {files}
+# `src` layout plus tests-as-package means one file has two import names
+# (bughunt.X vs src.bughunt.X; conftest vs tests.conftest) unless mypy
+# resolves against the same roots the interpreter uses.
+explicit_package_bases = True
+mypy_path = src
 strict = True
 warn_unreachable = True
 warn_unused_configs = True
@@ -476,7 +481,6 @@ def _pylint_config(
         "missing-class-docstring,"
         "import-outside-toplevel,"
         "unused-argument,"
-        "magic-value-comparison,"
         "line-too-long,"
         "use-implicit-booleaness-not-comparison-to-zero"
     )
@@ -493,10 +497,8 @@ def _pylint_config(
         "missing-module-docstring,"
         "missing-function-docstring,"
         "missing-class-docstring,"
-        "magic-value-comparison,"
         "invalid-name,"
         "import-outside-toplevel,"
-        "consider-using-assignment-expr,"
         "broad-exception-caught,"
         "duplicate-code,"
         "line-too-long"

@@ -207,16 +207,17 @@ def test_pylint_contracts_scope_idiom() -> None:
     strict = _pylint_config()
     for code in (
         "missing-function-docstring",
-        "magic-value-comparison",
         "invalid-name",
         "import-outside-toplevel",
-        "consider-using-assignment-expr",
         "broad-exception-caught",
         "duplicate-code",
         "line-too-long",
     ):
         assert code in strict
     relaxed = _pylint_config(for_tests=True)
+    for dead in ("magic-value-comparison", "consider-using-assignment-expr"):
+        assert dead not in strict
+        assert dead not in relaxed
     assert "unused-argument" in relaxed
     assert "line-too-long" in relaxed
 
