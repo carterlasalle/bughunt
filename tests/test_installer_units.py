@@ -4,6 +4,7 @@
 import sys
 from pathlib import Path
 
+
 from tests.conftest import serialized
 
 
@@ -179,3 +180,23 @@ def test_ready_without_path(monkeypatch, tmp_path: Path) -> None:
     tool.chmod(0o755)
     monkeypatch.setattr(shutil, "which", lambda _: None)
     assert installers._project_component_ready(tmp_path, "ruff") is True
+
+
+# trace:v1 id=test.tests-test-installer-units.test-summarize-installs-receipt work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_summarize_installs_receipt(capsys) -> None:
+    from bughunt.cli import summarize_installs
+    from bughunt.installers import InstallResult
+
+    results = [
+        InstallResult("semgrep", "PASS", ["uv", "add"], "installed"),
+        InstallResult("oxlint", "PASS", [], "already installed"),
+        InstallResult("mutmut", "SKIPPED", [], "excluded"),
+        InstallResult("lizard", "ERROR", ["uv", "add"], "failed"),
+    ]
+    summarize_installs(results)
+    out = capsys.readouterr().out
+    assert "installed semgrep" in out
+    assert "already present oxlint" in out
+    assert "skipped mutmut" in out
+    assert "failed" in out
+    assert "lizard" in out

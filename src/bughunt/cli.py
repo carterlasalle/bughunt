@@ -134,7 +134,7 @@ from .parsers import parse_squawk as parse_squawk
 from .parsers import parse_tflint as parse_tflint
 from .parsers import text_findings as text_findings
 from .discovery import discover_all, load_generated_targets
-from .installers import install_all
+from .installers import InstallResult, install_all
 from .technology import (
     ENGINE_CAPABILITY,
     ENGINE_CATEGORY,
@@ -704,6 +704,25 @@ def exit_code_for(cfg: Config, results: list[Result]) -> int:
     return 0
 
 
+# trace:v1 id=impl.src-bughunt-cli.summarize-installs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def summarize_installs(results: list[InstallResult]) -> None:
+    """Print what the scan-time install actually did, so missing tools leave a receipt."""
+    installed = sorted(r.name for r in results if r.command and r.status == "PASS")
+    present = sorted(r.name for r in results if not r.command and r.status == "PASS")
+    skipped = sorted(r.name for r in results if r.status == "SKIPPED")
+    failed = sorted(r.name for r in results if r.status == "ERROR")
+    parts = []
+    if installed:
+        parts.append(f"installed {', '.join(installed)}")
+    if present:
+        parts.append(f"already present {', '.join(present)}")
+    if skipped:
+        parts.append(f"skipped {', '.join(skipped)}")
+    if failed:
+        parts.append(f"failed {', '.join(failed)}")
+    console.print(f"[dim]Install: {'; '.join(parts) or 'nothing to do'}.[/]")
+
+
 # trace:v1 id=impl.src-bughunt-cli.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: Sequence[str] | None = None) -> int:
     print(f"bughunt v{__version__}", file=sys.stderr)
@@ -835,6 +854,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "blind spots.[/]"
                 ),
             )
+        summarize_installs(install_results)
         # Reload config/environment view after uv modified the project.
         cfg = load_config(root, args.config)
 
