@@ -862,6 +862,11 @@ def _semgrep_correctness_rules() -> str:
       / unittest assert methods. (Assertions living in shared helpers are the known
       exception; hoist one assertion into the test itself.)
     languages: [python]
+    paths:
+      include:
+        - "tests/**"
+        - "test_*.py"
+        - "*_test.py"
     severity: ERROR
     metadata: {category: correctness, confidence: high}
     patterns:
