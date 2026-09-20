@@ -53,7 +53,7 @@ uv run bughunt all
 uv run bughunt skipmutmut
 ```
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+<!-- trace:exempt reason=setup-prerequisites-no-product-behavior -->
 ### Prerequisites
 
 - `uv` (any recent release), Python 3.12 (pinned in `.python-version`;
@@ -468,7 +468,7 @@ See [`docs/V2_SPEC.md`](docs/V2_SPEC.md). V2 turns BugHunt from a multi-analyzer
 
 BugHunt treats analyzer infrastructure as part of correctness. Semgrep uses `p/default` plus BugHunt's generated correctness pack instead of `--config auto` while metrics are disabled; security-audit/secrets packs are opt-in. Pysa uses an isolated Python 3.12 compatibility runtime with `click<8.2`; the target repository still controls the Python version semantics in `.pyre_configuration`. Internal CodeQL database construction and `mutmut results` are progress phases, not extra defenses.
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+<!-- trace:exempt reason=docs-index-no-product-behavior -->
 ## Documentation
 
 | Document | What it covers |
@@ -486,13 +486,17 @@ BugHunt treats analyzer infrastructure as part of correctness. Semgrep uses `p/d
 | [CONTEXT](CONTEXT.md) | Domain vocabulary |
 | [CHANGELOG](CHANGELOG.md) | Release history |
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+<!-- trace:exempt reason=contributing-pointer-no-product-behavior -->
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for setup, commands, and pull-request
 standards. Small, atomic commits; `trace verify --changed` must pass.
 
-<!-- trace:exempt reason=repo-scaffolding-no-product-behavior -->
+<!-- trace:exempt reason=release-media-no-product-behavior -->
+## Launch video
+
+<video src="brag-output/brag.mp4" poster="brag-output/brag.jpg" controls preload="none"></video>
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

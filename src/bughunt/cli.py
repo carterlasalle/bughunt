@@ -6,14 +6,12 @@ import dataclasses
 import json
 import os
 import re
-import secrets as secrets
 import signal
 import sys
 import threading
 import time
 from collections.abc import Sequence
-from functools import partial as partial
-from typing import Any
+from pathlib import Path
 
 from rich import box
 from rich.live import Live
@@ -24,7 +22,6 @@ from rich.table import Table
 from bughunt.default_rules import DEFAULT_RULES
 
 from . import __version__
-from .configurator import JS_TOOL_IGNORES as JS_TOOL_IGNORES
 from .configurator import configure_all, configure_custom_checks
 from .models import Result as Result, Status as Status
 from .models import Check as Check, DebtEntry as DebtEntry, Finding as Finding
@@ -133,20 +130,17 @@ from .parsers import parse_sqlfluff as parse_sqlfluff
 from .parsers import parse_squawk as parse_squawk
 from .parsers import parse_tflint as parse_tflint
 from .parsers import text_findings as text_findings
-from .discovery import discover_all, load_generated_targets
+from .discovery import DiscoveredTarget, discover_all, load_generated_targets
 from .installers import InstallResult, install_all
 from .technology import (
     ENGINE_CAPABILITY,
     ENGINE_CATEGORY,
     discover_technologies,
-    git_path_exists as git_path_exists,
     load_technology_inventory,
-    project_executable as project_executable,
     target_executable,
     target_has_module,
     target_python,
-    TECH_DEEP_TOOLS as TECH_DEEP_TOOLS,
-    TECH_PR_TOOLS as TECH_PR_TOOLS,
+    TECH_DEEP_TOOLS,
 )
 from .ui import console as console
 
@@ -424,7 +418,7 @@ def doctor(cfg: Config) -> int:
 
 
 # trace:v1 id=impl.src-bughunt-cli.auto-configure work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def auto_configure(cfg: Config, *, quiet: bool = False) -> list[Any]:
+def auto_configure(cfg: Config, *, quiet: bool = False) -> list[DiscoveredTarget]:
     autod = cfg.raw.get("autodiscovery", {})
     schemathesis_examples = max(1000, int(autod.get("schemathesis_max_examples", 1000)))
     artifacts = configure_all(
@@ -728,8 +722,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"bughunt v{__version__}", file=sys.stderr)
     parser = build_parser()
     args = parser.parse_args(argv)
-    root = args.root.resolve()
-    cfg = load_config(root, args.config)
+    root = Path(str(args.root)).resolve()
+    config_value = args.config
+    config_path = Path(str(config_value)) if config_value is not None else None
+    cfg = load_config(root, config_path)
 
     if args.command == "rules":
         return show_default_rules()
