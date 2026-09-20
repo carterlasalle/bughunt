@@ -31,7 +31,6 @@ node_modules/
 .DS_Store
 **/.DS_Store
 .tmp/
-.scc/
 .cache/
 .artifacts/
 .work/
@@ -47,3 +46,9 @@ package.json
 
 # Regenerable scan output; the BugCase sources under .bugcorpus/corpus/ stay tracked.
 .bugcorpus/generated/
+.scc/*
+!.scc/intent.yaml
+
+# Brag video output (regenerable render artifacts).
+brag-output/
+brag-output-*/
