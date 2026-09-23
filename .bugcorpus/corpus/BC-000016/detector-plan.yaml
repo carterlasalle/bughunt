@@ -1,0 +1,14 @@
+# trace:v1 id=ops.bc000016-plan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000016
+# trace:v1 id=ops.bc000016-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: 'data-interval-endpoint'
+# trace:v1 id=ops.bc000016-recommended_engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc000016-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: native BugHunt data_scan/seam detector (BHINT001)
+# trace:v1 id=ops.bc000016-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  fixtures:
+    positive: [.bugcorpus/corpus/BC-000016/fixtures/positive/probe.py]
+    negative: [.bugcorpus/corpus/BC-000016/fixtures/negative/probe_fixed.py]
+    adversarial: [.bugcorpus/corpus/BC-000016/fixtures/adversarial/probe_variant.py]

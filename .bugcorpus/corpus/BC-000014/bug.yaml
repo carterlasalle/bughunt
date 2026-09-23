@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000014-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000014
+# trace:v1 id=ops.bc000014-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: 'Missingness destruction: fillna(0) into integrator'
+# trace:v1 id=ops.bc000014-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000014-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-23T08:25:25+00:00'
+# trace:v1 id=ops.bc000014-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000014-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000014-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: high
+# trace:v1 id=ops.bc000014-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'unknown radiation measurement becomes fabricated zero in dose integration'
+# trace:v1 id=ops.bc000014-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'fillna(0) output flows into integrate_* without a missingness check'
+# trace:v1 id=ops.bc000014-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'unknown measurement must never become a fabricated numeric zero at a quantitative sink'
+# trace:v1 id=ops.bc000014-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'data-missingness'
+# trace:v1 id=ops.bc000014-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHMISS001]

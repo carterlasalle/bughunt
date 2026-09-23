@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000016-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000016
+# trace:v1 id=ops.bc000016-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Half-open point selection into adjacent-sample integrator
+# trace:v1 id=ops.bc000016-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000016-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-23T08:25:25+00:00'
+# trace:v1 id=ops.bc000016-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000016-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000016-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: high
+# trace:v1 id=ops.bc000016-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'final dose interval silently dropped by [start,end) mask'
+# trace:v1 id=ops.bc000016-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'half-open mask result feeds integrate_* which needs the endpoint sample'
+# trace:v1 id=ops.bc000016-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'point selection for adjacent-sample integration must include the endpoint'
+# trace:v1 id=ops.bc000016-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'data-interval-endpoint'
+# trace:v1 id=ops.bc000016-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHINT001]

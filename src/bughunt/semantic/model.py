@@ -30,6 +30,10 @@ MEDIUM_CONFIDENCE = 0.45
 FLOOR_CONFIDENCE = 0.10
 
 
+DATA_MISSINGNESS = ("unknown", "measured", "imputed", "measured_zero")
+DATA_TIME_BASIS = ("utc", "local_wall", "naive_unknown")
+DATA_INTERVAL_ALIGNMENT = ("point", "trailing", "leading", "centered")
+
 # trace:v1 id=impl.src-bughunt-semantic-model.semantic-value work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class SemanticValue:
@@ -44,6 +48,10 @@ class SemanticValue:
     timezone: str | None = None
     encoding: str | None = None
     frame: str | None = None
+    missingness: str | None = None
+    time_basis: str | None = None
+    interval_alignment: str | None = None
+    dependencies: frozenset[str] = field(default_factory=frozenset)
     provenance: str = "unknown"
     confidence: float = 0.0
 
@@ -75,6 +83,13 @@ def combine(first: SemanticValue, second: SemanticValue) -> SemanticValue:
         out.encoding = None
     if first.frame != second.frame:
         out.frame = None
+    if first.missingness != second.missingness:
+        out.missingness = None
+    if first.time_basis != second.time_basis:
+        out.time_basis = None
+    if first.interval_alignment != second.interval_alignment:
+        out.interval_alignment = None
+    out.dependencies = first.dependencies & second.dependencies
     if first.dimension != second.dimension:
         out.dimension = {}
     out.nullable = first.nullable or second.nullable

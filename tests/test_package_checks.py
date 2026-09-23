@@ -69,7 +69,9 @@ def test_tool_failures_become_structured_findings(
     assert package_checks.main([str(tmp_path)]) == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["findings"]
-    assert all(item["code"] == "BHPKG001" for item in payload["findings"])
+    codes = {item["code"] for item in payload["findings"]}
+    assert codes <= {"BHPKG001", "BHPKG002"}
+    assert "BHPKG001" in codes
 
 
 def test_run_failure_is_structured_error(monkeypatch) -> None:

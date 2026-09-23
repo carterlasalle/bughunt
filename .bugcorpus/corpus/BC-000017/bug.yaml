@@ -1,0 +1,24 @@
+# trace:v1 id=ops.bc000017-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000017
+# trace:v1 id=ops.bc000017-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Trailing interval value used as forward interval start
+# trace:v1 id=ops.bc000017-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000017-created_at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-23T08:25:25+00:00'
+# trace:v1 id=ops.bc000017-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: python
+# trace:v1 id=ops.bc000017-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: medium
+# trace:v1 id=ops.bc000017-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: medium
+# trace:v1 id=ops.bc000017-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: '30-minute trailing dose labeled as interval starting now'
+# trace:v1 id=ops.bc000017-root_cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'trailing-evidence value assigned to a forward-start name'
+# trace:v1 id=ops.bc000017-violated_invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'trailing intervals must never be relabeled as forward intervals'
+# trace:v1 id=ops.bc000017-family_id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'data-interval-alignment'
+# trace:v1 id=ops.bc000017-detectors work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+detectors: [BHINT002]

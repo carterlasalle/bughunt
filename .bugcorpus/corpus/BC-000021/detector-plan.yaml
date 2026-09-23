@@ -1,0 +1,14 @@
+# trace:v1 id=ops.bc000021-plan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000021
+# trace:v1 id=ops.bc000021-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: 'data-quality-metadata'
+# trace:v1 id=ops.bc000021-recommended_engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc000021-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: native BugHunt data_scan/seam detector (BHMETA002)
+# trace:v1 id=ops.bc000021-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  fixtures:
+    positive: [.bugcorpus/corpus/BC-000021/fixtures/positive/probe.py]
+    negative: [.bugcorpus/corpus/BC-000021/fixtures/negative/probe_fixed.py]
+    adversarial: [.bugcorpus/corpus/BC-000021/fixtures/adversarial/probe_variant.py]

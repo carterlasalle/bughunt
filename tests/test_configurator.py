@@ -87,12 +87,15 @@ def test_configure_all_ships_correctness_first_semgrep_rules(tmp_path: Path) -> 
     rules = (
         tmp_path / ".bughunt/configs/semgrep/rules/bughunt-correctness.yml"
     ).read_text()
-    assert rules.count("  - id: bughunt.") == 10
+    assert rules.count("  - id: bughunt.") == 13
     assert "bughunt.cached-generator" in rules
     assert "bughunt.unconsumed-threadpool-map" in rules
     assert "bughunt.assertion-free-test" in rules
     assert "bughunt.ignored-warnings-filter" in rules
     assert "bughunt.suppressed-exception" in rules
+    assert "bughunt.boolean-env-denylist" in rules
+    assert "bughunt.duplicated-version-constant" in rules
+    assert "bughunt.hardcoded-success-claim" in rules
     semgrep = next(item for item in artifacts if item.name == "Semgrep")
     assert "correctness-first" in semgrep.detail
     assert "security-audit/secrets are opt-in" in semgrep.detail

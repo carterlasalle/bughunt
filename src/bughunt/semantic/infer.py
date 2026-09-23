@@ -49,6 +49,59 @@ _FRACTION_HINTS = (
     "_probability",
     "_share",
 )
+_LOCAL_WALL_HINTS = (
+    "local",
+    "wall",
+    "dt_local",
+    "local_time",
+    "wall_time",
+    "site_time",
+)
+_UTC_HINTS = ("utc", "_utc", "time_utc", "timestamp_utc", "aware")
+_TRAILING_HINTS = ("trailing", "tan_dose_30m", "_30m", "trailing_")
+_FORWARD_START_HINTS = ("best_", "_start", "_begin", "window_start")
+_QUANTITY_HINTS = (
+    "irradiance",
+    "radiation",
+    "dose",
+    "uv_index",
+    "uvi",
+    "_wm2",
+    "_j_m2",
+    "sed_",
+    "score",
+    "pigment",
+    "uva",
+    "uvb",
+    "vitamin",
+    "erythemal",
+)
+_QUALITY_SUFFIXES = (
+    "_complete",
+    "_coverage",
+    "_coverage_fraction",
+    "_valid",
+    "_stale",
+    "_version",
+    "_confidence",
+    "_source",
+)
+
+
+# trace:v1 id=impl.src-bughunt-semantic-infer.quality-base work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def quality_base(name: str) -> str | None:
+    """Base quantity name when `name` is attached quality metadata, else None."""
+    lowered = name.lower()
+    for suffix in _QUALITY_SUFFIXES:
+        if lowered.endswith(suffix) and len(lowered) > len(suffix):
+            return name[: -len(suffix)]
+    return None
+
+
+# trace:v1 id=impl.src-bughunt-semantic-infer.is-quality-metadata work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def is_quality_metadata(name: str) -> bool:
+    """True when `name` carries a paired quality-metadata suffix."""
+    return quality_base(name) is not None
 
 
 SINK_CONTRACTS: dict[str, SemanticValue] = {
@@ -159,6 +212,37 @@ def evidence_for_name(name: str) -> SemanticValue | None:
         if lowered.endswith(hint):
             return SemanticValue(
                 unit="fraction", provenance=f"name:{name}", confidence=0.0
+            ).with_evidence("name", f"name:{name}")
+    for hint in _LOCAL_WALL_HINTS:
+        if hint in lowered:
+            return SemanticValue(
+                time_basis="local_wall", provenance=f"name:{name}", confidence=0.0
+            ).with_evidence("name", f"name:{name}")
+    for hint in _UTC_HINTS:
+        if hint in lowered:
+            return SemanticValue(
+                time_basis="utc", provenance=f"name:{name}", confidence=0.0
+            ).with_evidence("name", f"name:{name}")
+    for hint in _TRAILING_HINTS:
+        if hint in lowered:
+            return SemanticValue(
+                interval_alignment="trailing",
+                provenance=f"name:{name}",
+                confidence=0.0,
+            ).with_evidence("name", f"name:{name}")
+    for hint in _FORWARD_START_HINTS:
+        if lowered.startswith(hint) or lowered.endswith(hint.strip("_")):
+            return SemanticValue(
+                interval_alignment="leading",
+                provenance=f"name:{name}",
+                confidence=0.0,
+            ).with_evidence("name", f"name:{name}")
+    for hint in _QUANTITY_HINTS:
+        if hint in lowered:
+            return SemanticValue(
+                missingness="unknown",
+                provenance=f"name:{name}",
+                confidence=0.0,
             ).with_evidence("name", f"name:{name}")
     return None
 

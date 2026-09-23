@@ -21,6 +21,7 @@ from .runtime_plugins import write_runtime_plugins
 from .technology import discover_technologies, infer_sql_dialect
 
 
+# trace:v1 id=impl.src-bughunt-configurator.config-artifact work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 @dataclass(slots=True)
 class ConfigArtifact:
     name: str
@@ -60,6 +61,7 @@ EXCLUDE_DIRS = [
 ]
 
 
+# trace:v1 id=impl.src-bughunt-configurator.existing work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _existing(root: Path, values: Iterable[str]) -> list[str]:
     result = [v for v in values if (root / v).exists()]
     return result or ["."]
@@ -82,6 +84,7 @@ def _toml_project(root: Path) -> dict[str, Any]:
     return project if isinstance(project, dict) else {}
 
 
+# trace:v1 id=impl.src-bughunt-configurator.python-version work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _python_version(root: Path) -> str:
     """Analyze against the minimum declared supported 3.x version when possible."""
     req = str(_toml_project(root).get("requires-python", ""))
@@ -92,11 +95,13 @@ def _python_version(root: Path) -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
+# trace:v1 id=impl.src-bughunt-configurator.ruff-target-version work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _ruff_target_version(version: str) -> str:
     major, minor = version.split(".", 1)
     return f"py{major}{minor}"
 
 
+# trace:v1 id=impl.src-bughunt-configurator.rel work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _rel(config_dir: Path, target: Path) -> str:
     return Path(os.path.relpath(target, config_dir)).as_posix()
 
@@ -121,6 +126,7 @@ def _package_roots(root: Path, source_paths: list[str]) -> list[str]:
     return list(dict.fromkeys(roots))
 
 
+# trace:v1 id=impl.src-bughunt-configurator.write work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not text.endswith("\n"):
@@ -690,6 +696,49 @@ rule:
         except:
           continue
 """,
+        "unguarded-first-index.yml": """id: bughunt-unguarded-first-index
+language: Python
+severity: error
+message: First-element indexing of a fallible sequence with no emptiness
+  guard; splitlines()/readlines()/split() on empty output raises IndexError.
+rule:
+  any:
+    - pattern: $CALL.splitlines()[0]
+    - pattern: $CALL.readlines()[0]
+    - pattern: $CALL.split($SEP)[0]
+    - pattern: $CALL.splitlines()[-1]
+    - pattern: $CALL.readlines()[-1]
+""",
+        "fillna-zero.yml": """id: bughunt-fillna-zero
+language: Python
+severity: warning
+message: fillna(0) turns missing measurement into physical zero; the
+  native BHMISS001 rule decides at the quantitative sink.
+rule:
+  any:
+    - pattern: $SERIES.fillna(0)
+    - pattern: $SERIES.fillna(0.0)
+""",
+        "runtime-assert.yml": """id: bughunt-runtime-assert
+language: Python
+severity: warning
+message: Bare assert is removed under python -O; runtime validation must
+  raise explicitly instead of relying on assert.
+rule:
+  pattern: assert $COND
+""",
+        "repo-relative-resource.yml": """id: bughunt-repo-relative-resource
+language: Python
+severity: error
+message: Repo-layout-dependent runtime resource; importable packages must
+  use importlib.resources instead of assuming a source checkout.
+rule:
+  any:
+    - pattern: Path(__file__).resolve().parent.parent.parent / $REST
+    - pattern: Path(__file__).parent.parent.parent / $REST
+    - pattern: Path.cwd() / "data" / $REST
+    - pattern: Path.cwd() / "data"
+""",
     }
     return config, rules
 
@@ -918,6 +967,38 @@ def _semgrep_correctness_rules() -> str:
       - pattern: |
           with suppress(...):
             ...
+
+  - id: bughunt.boolean-env-denylist
+    message: Denylist boolean parsing treats every unexpected value as true;
+      use an explicit allowlist mapping instead.
+    languages: [python]
+    severity: ERROR
+    metadata: {category: correctness, confidence: high}
+    patterns:
+      - pattern-either:
+          - pattern: os.getenv(...) not in {...}
+          - pattern: os.environ.get(...) not in {...}
+          - pattern: $V not in {"0", "false", "no", ...}
+      - pattern-not-regex: (?s)in\s*\{\s*"1"\s*,\s*"true"
+
+  - id: bughunt.duplicated-version-constant
+    message: Authority/version literal shape duplicated across files; hoist
+      to one constant. The native BHCONST check flags cross-file dupes.
+    languages: [python]
+    severity: WARNING
+    metadata: {category: correctness, confidence: medium}
+    patterns:
+      - pattern-regex: "[A-Za-z][A-Za-z0-9_-]*-v\\d+(\\.\\d+)*"
+
+  - id: bughunt.hardcoded-success-claim
+    message: Hardcoded success claim after computed validation; report the
+      computed counts instead of a literal zero.
+    languages: [python]
+    severity: WARNING
+    metadata: {category: correctness, confidence: medium}
+    pattern-either:
+      - pattern-regex: ERROR count\s*=\s*0
+      - pattern-regex: errors\s*=\s*0
 """
 
 
@@ -1158,6 +1239,7 @@ def _normalized_paths(value: object) -> list[str]:
     ]
 
 
+# trace:v1 id=impl.src-bughunt-configurator.path-covered work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _path_covered(configured: list[str], required: str) -> bool:
     req = required.replace("\\", "/").strip().removeprefix("./").rstrip("/") or "."
     for item in configured:
@@ -1388,6 +1470,7 @@ def _manifest(artifacts: list[ConfigArtifact], root: Path) -> None:
     )
 
 
+# trace:v1 id=impl.src-bughunt-configurator.sqlfluff-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _sqlfluff_config(dialect: str) -> str:
     # Correctness-focused SQL rules only. Avoid capitalization/layout noise.
     rules = "AL04,AL08,AM04,AM07,AM08,AM09,RF01,RF02"
@@ -1596,6 +1679,7 @@ export default [
 """.replace(_JS_IGNORES_LINE_OLD, "  " + _JS_IGNORES_CLAUSE + ",")
 
 
+# trace:v1 id=impl.src-bughunt-configurator.buf-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _buf_config() -> str:
     return """# Auto-generated by BugHunt.
 version: v2
@@ -1608,6 +1692,7 @@ breaking:
 """
 
 
+# trace:v1 id=impl.src-bughunt-configurator.tflint-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _tflint_config() -> str:
     return """# Auto-generated by BugHunt.
 plugin "terraform" {
@@ -1617,6 +1702,7 @@ plugin "terraform" {
 """
 
 
+# trace:v1 id=impl.src-bughunt-configurator.clang-tidy-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _clang_tidy_config() -> str:
     return """# Auto-generated by BugHunt. Correctness-first C/C++ profile.
 Checks: '-*,clang-analyzer-*,bugprone-*,concurrency-*'
@@ -1626,6 +1712,7 @@ FormatStyle: none
 """
 
 
+# trace:v1 id=impl.src-bughunt-configurator.hadolint-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _hadolint_config() -> str:
     return """# Auto-generated by BugHunt.
 failure-threshold: warning
@@ -1633,6 +1720,7 @@ no-color: true
 """
 
 
+# trace:v1 id=impl.src-bughunt-configurator.phpstan-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def _phpstan_config(root: Path) -> str:
     candidates = [name for name in ("src", "app", "tests") if (root / name).exists()]
     if not candidates:
@@ -1669,6 +1757,7 @@ def _configure_technology_overlays(
         ),
     ]
 
+    # trace:v1 id=impl.src-bughunt-configurator.configure-technology-overlays work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
     def put(name: str, relative: str, content: str, detail: str) -> None:
         path = config_dir / relative
         _write(path, content)
@@ -2036,6 +2125,42 @@ invalid:
         except:
           continue
 """,
+        "bughunt-unguarded-first-index-test.yml": """id: bughunt-unguarded-first-index
+valid:
+  - |
+      lines = proc.stdout.splitlines()
+      first = lines[0] if lines else ""
+invalid:
+  - |
+      first = proc.stdout.splitlines()[0]
+  - |
+      name = run(["whoami"], capture_output=True, text=True).stdout.splitlines()[0]
+""",
+        "bughunt-fillna-zero-test.yml": """id: bughunt-fillna-zero
+valid:
+  - |
+      vals = series.fillna(method="ffill")
+invalid:
+  - |
+      vals = series.fillna(0)
+""",
+        "bughunt-runtime-assert-test.yml": """id: bughunt-runtime-assert
+valid:
+  - |
+      if not errors:
+          raise ValueError("validation failed")
+invalid:
+  - |
+      assert not errors
+""",
+        "bughunt-repo-relative-resource-test.yml": """id: bughunt-repo-relative-resource
+valid:
+  - |
+      ref = importlib.resources.files("pkg") / "spectrum.csv"
+invalid:
+  - |
+      ref = Path(__file__).resolve().parent.parent.parent / "data" / "spectrum.csv"
+""",
     }
     for filename, text in astgrep_tests.items():
         _ = put(
@@ -2160,7 +2285,7 @@ invalid:
             str(semgrep_rules.relative_to(root)),
             "READY",
             (
-                "7 bundled correctness-first rules + local/generated "
+                "13 bundled correctness-first rules + local/generated "
                 "rules; p/default runs as registry baseline; security-audit/secrets "
                 "are opt-in"
             ),

@@ -121,6 +121,23 @@ def build_matrix_checks(cx: CheckBuildCx) -> None:
                 lambda o, e, c: parse_bughunt_helper("protocol", o, e, c),
                 findings_exit_codes={1},
             )
+
+        # Data invariants (missingness, derived columns, intervals,
+        # artifacts, predicates) run as a pure-AST native check.
+        if "data" in cx.wanted:
+            cx.add(
+                "data",
+                "data-invariants",
+                [
+                    sys.executable,
+                    "-m",
+                    "bughunt.data_scan",
+                    str(cx.root),
+                    *cx.cfg.source_paths,
+                ],
+                lambda o, e, c: parse_bughunt_helper("data", o, e, c),
+                findings_exit_codes={1},
+            )
     if "schemathesis" in cx.wanted:
         explicit = cx.cfg.raw_list("schemathesis", "targets")
         auto = [
