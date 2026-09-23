@@ -837,26 +837,111 @@ def _predicates(tree: ast.AST, rel: str) -> list[DataFinding]:
             resolved.append((eq or (domain - neq), lineno))
         first, first_line = resolved[0]
         for other, other_line in resolved[1:]:
-                out.append(
-                    DataFinding(
-                        "BHINV001",
-                        f"inconsistent policy predicates over `{var}`: "
-                        f"line {first_line} accepts "
-                        f"{{{', '.join(sorted(first))}}} but line "
-                        f"{other_line} accepts "
-                        f"{{{', '.join(sorted(other))}}}",
-                        rel,
-                        other_line,
-                        "error",
-                    )
+            out.append(
+                DataFinding(
+                    "BHINV001",
+                    f"inconsistent policy predicates over `{var}`: "
+                    f"line {first_line} accepts "
+                    f"{{{', '.join(sorted(first))}}} but line "
+                    f"{other_line} accepts "
+                    f"{{{', '.join(sorted(other))}}}",
+                    rel,
+                    other_line,
+                    "error",
                 )
-                break
+            )
+            break
     return out
+
+
+QUALITY_SUFFIXES = (
+    "_complete",
+    "_coverage",
+    "_coverage_fraction",
+    "_valid",
+    "_stale",
+    "_version",
+    "_confidence",
+    "_source",
+)
+
+
+# trace:v1 id=impl.src-bughunt-data-scan.quality-base work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _quality_base(name: str) -> str | None:
+    """Base quantity when `name` is attached quality metadata, else None."""
+    lowered = name.lower()
+    for suffix in QUALITY_SUFFIXES:
+        if lowered.endswith(suffix) and len(lowered) > len(suffix):
+            return name[: -len(suffix)]
+    return None
+
+
+# trace:v1 id=impl.src-bughunt-data-scan.quality-metadata-gap work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _quality_metadata_gap(tree: ast.AST, rel: str) -> list[DataFinding]:
+    """BHMETA002: quantity crosses a boundary without its quality metadata."""
+    out: list[DataFinding] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        defined: set[str] = set()
+        for arg in (*node.args.args, *node.args.kwonlyargs):
+            defined.add(arg.arg)
+        for child in ast.walk(node):
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    if isinstance(target, ast.Name):
+                        defined.add(target.id)
+                    if (
+                        isinstance(target, ast.Subscript)
+                        and isinstance(target.value, ast.Name)
+                        and isinstance(target.slice, ast.Constant)
+                        and isinstance(target.slice.value, str)
+                    ):
+                        defined.add(target.slice.value)
+            if isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                defined.add(child.target.id)
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Return) or not isinstance(
+                child.value, ast.Dict
+            ):
+                continue
+            keys = _dict_keys(child.value)
+            for key in sorted(keys):
+                if _quality_base(key) is not None:
+                    continue
+                base = key.rsplit("_", 2)[0] if key.count("_") >= 2 else key
+                missing = sorted(
+                    candidate
+                    for suffix in QUALITY_SUFFIXES
+                    for candidate in (base + suffix,)
+                    if candidate in defined and candidate not in keys
+                )
+                if missing:
+                    out.append(
+                        DataFinding(
+                            "BHMETA002",
+                            f"`{key}` propagated without available quality "
+                            f"metadata: {', '.join(missing)}",
+                            rel,
+                            child.lineno,
+                            "warning",
+                        ),
+                    )
+    return out
+
+
+# trace:v1 id=impl.src-bughunt-data-scan.-dict-keys work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _dict_keys(node: ast.Dict) -> set[str]:
+    """String keys of a dict literal."""
+    return {
+        key.value
+        for key in node.keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
 
 
 # trace:v1 id=impl.src-bughunt-data-scan.scan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def scan(root: Path, source_paths: list[str]) -> list[DataFinding]:
-    """Run every data-invariant rule over first-party sources."""
     findings: list[DataFinding] = []
     for path in _iter_python(root, source_paths):
         try:
@@ -873,6 +958,7 @@ def scan(root: Path, source_paths: list[str]) -> list[DataFinding]:
         findings.extend(_contradictory_meta(tree, rel))
         findings.extend(_local_as_utc(tree, rel))
         findings.extend(_predicates(tree, rel))
+        findings.extend(_quality_metadata_gap(tree, rel))
     return sorted(findings, key=lambda item: (item.path, item.line, item.code))
 
 

@@ -34,6 +34,7 @@ DATA_MISSINGNESS = ("unknown", "measured", "imputed", "measured_zero")
 DATA_TIME_BASIS = ("utc", "local_wall", "naive_unknown")
 DATA_INTERVAL_ALIGNMENT = ("point", "trailing", "leading", "centered")
 
+
 # trace:v1 id=impl.src-bughunt-semantic-model.semantic-value work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 @dataclass(slots=True)
 class SemanticValue:

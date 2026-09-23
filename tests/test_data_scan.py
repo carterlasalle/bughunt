@@ -120,28 +120,20 @@ def test_artifact_before_validation(tmp_path: Path) -> None:
 
 
 def test_quality_metadata_gap(tmp_path: Path) -> None:
-    from bughunt.seam_scan import scan_seams
-
-    src = tmp_path / "src"
-    src.mkdir(exist_ok=True)
-    _ = (src / "a.py").write_text(
+    findings = _scan(
+        tmp_path,
         "def build(sed_day_total, sed_complete):\n"
         '    return {"sed_day_total": sed_day_total}\n',
     )
-    findings = scan_seams(tmp_path, ["src"], ["tests"])
     assert "BHMETA002" in [item.code for item in findings]
 
 
 def test_quality_complete_is_quiet(tmp_path: Path) -> None:
-    from bughunt.seam_scan import scan_seams
-
-    src = tmp_path / "src"
-    src.mkdir(exist_ok=True)
-    _ = (src / "a.py").write_text(
+    findings = _scan(
+        tmp_path,
         "def build(sed_day_total, sed_complete):\n"
         '    return {"sed_day_total": sed_day_total, "sed_complete": sed_complete}\n',
     )
-    findings = scan_seams(tmp_path, ["src"], ["tests"])
     assert "BHMETA002" not in [item.code for item in findings]
 
 
