@@ -6,7 +6,23 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.9.4] - 2026-09-17
+## [0.10.0] - 2026-09-24
+
+Data-invariant layer (SPEC-BUG-DATA01, ADR-009): new native `data`
+defense with BHMISS001 (fillna(0) into quantitative sinks), BHDF001
+(stale derived columns via column-level SSA), BHINT001/2 (half-open
+selection into integrators; trailing-as-forward), BHART001/2
+(use-before-validation; freshness-subset fingerprints), BHMETA001/2
+(contradictory availability metadata; quality-metadata gaps),
+BHTIME002 (local-wall-as-UTC), BHINV001 (eq-vs-neq predicate pairs).
+SemanticValue gains missingness/time_basis/interval_alignment/
+dependencies facets. Cheap shapes via generators: 4 ast-grep rules
+(unguarded [0], fillna tripwire, runtime assert, repo-relative
+resource) + 3 Semgrep rules (boolean denylist, version-constant
+shape, hardcoded success claim). Packaging gains BHPKG002 isolated
+wheel-install smoke. BugCorpus BC-000014-021 with pos/neg/adv
+fixtures. `data` joins the PR correctness floor (old bughunt.toml
+files gain it automatically).
 
 Scan-fix release: generated checker configs no longer ship defects
 (mypy `explicit_package_bases` + `mypy_path`, dead pylint disables
