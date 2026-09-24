@@ -1,0 +1,14 @@
+# trace:v1 id=ops.bc000019-plan work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000019
+# trace:v1 id=ops.bc000019-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: 'data-predicate-contradiction'
+# trace:v1 id=ops.bc000019-recommended_engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc000019-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: native BugHunt data_scan/seam detector (BHINV001)
+# trace:v1 id=ops.bc000019-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  fixtures:
+    positive: [.bugcorpus/corpus/BC-000019/fixtures/positive/probe.py]
+    negative: [.bugcorpus/corpus/BC-000019/fixtures/negative/probe_fixed.py]
+    adversarial: [.bugcorpus/corpus/BC-000019/fixtures/adversarial/probe_variant.py]
