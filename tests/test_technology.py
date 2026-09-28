@@ -319,11 +319,11 @@ def test_eslint_empty_scope_banner_parses_clean() -> None:
 
 # trace:v1 id=test.tests-test-technology.test-tsc-gated-on-tsconfig work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_tsc_gated_on_tsconfig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from bughunt import cli as cli_mod
+    import bughunt.checks_native_b as native_b
 
     # Without a project file tsc prints help text that is not a finding;
     # with one, the check is built. tsc is force-present: host PATH varies.
-    monkeypatch.setattr(cli_mod, "project_executable", lambda root, *names: "/bin/tsc")
+    monkeypatch.setattr(native_b, "project_executable", lambda root, *names: "/bin/tsc")
     (tmp_path / "app.ts").write_text("export const x: number = 1;\n")
     cfg = Config(root=tmp_path, raw=default_config_raw())
     _, skipped = build_checks(cfg, "pr")

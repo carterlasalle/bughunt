@@ -662,6 +662,36 @@ def load_technology_inventory(root: Path) -> TechnologyInventory:
         return discover_technologies(root)
 
 
+# trace:v1 id=impl.src-bughunt-technology.rust-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def rust_executable(root: Path, name: str) -> str | None:
+    """Resolve Rust toolchain binaries past broken PATH shims.
+
+    A stale `~/.cargo/bin/cargo -> .../rustup-init` symlink (missing target)
+    is executable-looking but resolves to nothing: `shutil.which` returns it
+    and every later probe fails. Ask rustup for the real toolchain path
+    first; fall back to the normal repo-local/PATH resolution.
+    """
+    rustup = shutil.which("rustup")
+    if rustup:
+        try:
+            proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+                [rustup, "which", name],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=_GIT_TIMEOUT_S,
+                check=False,
+            )
+            candidate = proc.stdout.strip().splitlines()
+            if proc.returncode == 0 and candidate:
+                path = Path(candidate[0].strip())
+                if path.is_file() and os.access(path, os.X_OK):
+                    return str(path)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return project_executable(root, name)
+
+
 # trace:v1 id=impl.src-bughunt-technology.project-executable work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def project_executable(root: Path, *names: str) -> str | None:
     """Resolve repo-local tooling before global PATH.

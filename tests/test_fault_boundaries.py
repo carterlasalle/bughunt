@@ -248,3 +248,72 @@ def test_target_has_module_survives_probe_crash(monkeypatch) -> None:
 
     monkeypatch.setattr(subprocess, "run", _boom)
     assert target_has_module("/nonexistent/python", "json") is False
+
+
+# trace:v1 id=test.tests-test-fault-boundaries.test-rust-executable-past-broken-shim work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_rust_executable_past_broken_shim(monkeypatch, tmp_path: Path) -> None:
+    """A dead cargo symlink must not poison resolution when rustup knows better."""
+    import subprocess
+
+    from bughunt.technology import rust_executable
+
+    real = tmp_path / "cargo"
+    real.write_text("#!/bin/sh\n")
+    real.chmod(0o755)
+
+    # trace:v1 id=test.tests-test-fault-boundaries-test-rust-executable-past-broken-shim.which work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    class _Which:
+        returncode = 0
+        stdout = str(real) + "\n"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Which())
+    monkeypatch.setattr("shutil.which", lambda name, **k: "/usr/bin/rustup")
+    assert rust_executable(tmp_path, "cargo") == str(real)
+
+
+# trace:v1 id=test.tests-test-fault-boundaries.test-knip-gated-on-root-manifest work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_knip_gated_on_root_manifest(tmp_path: Path, monkeypatch) -> None:
+    """Knip without a root package.json is a SKIP, never an execution ERROR."""
+    from bughunt.checkctx import CheckBuildCx
+    from bughunt.checks_native_b import build_native_b_checks
+    from bughunt.config import Config, default_config_raw
+    from bughunt.models import Status
+    from bughunt.technology import discover_technologies
+
+    (tmp_path / "app.js").write_text("export const x = 1;\n")
+    monkeypatch.setattr(
+        "bughunt.checks_native_b.project_executable",
+        lambda root, *names: "/bin/knip",
+    )
+    cfg = Config(root=tmp_path, raw=default_config_raw())
+    inventory = discover_technologies(tmp_path, persist=False)
+    cx = CheckBuildCx(
+        cfg=cfg,
+        profile="all",
+        root=tmp_path,
+        timeout=60,
+        wanted=["knip"],
+        excluded=set(),
+        py=[],
+        src=[],
+        tests=[],
+        config_dir=tmp_path,
+        checks=[],
+        skipped=[],
+        generated_targets=[],
+        technology=inventory,
+        category_by_tool={},
+        target_py="",
+        pytest=None,
+        hypothesis_plugin=None,
+        repro_seed=1,
+        test_timeout=60,
+        pytest_env={},
+        pytest_cmd=None,
+    )
+    build_native_b_checks(cx)
+    skip = next(r for r in cx.skipped if r.name == "knip")
+    assert skip.status == Status.SKIPPED
+    assert skip.note is not None
+    assert "package.json" in skip.note
+    assert not [c for c in cx.checks if c.name == "knip"]

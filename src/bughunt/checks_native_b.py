@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from .technology import (
     ENGINE_CATEGORY,
     llvm_executable,
     project_executable,
+    rust_executable,
     target_has_module,
 )
 from .parsers import (
@@ -37,7 +39,7 @@ from .configurator import JS_TOOL_IGNORES
 
 # trace:v1 id=impl.src-bughunt-checks-native-b.-build-native-b-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def build_native_b_checks(cx: CheckBuildCx) -> None:
-    cargo = project_executable(cx.root, "cargo")
+    cargo = rust_executable(cx.root, "cargo")
     clippy_cmd = (
         [
             cargo,
@@ -59,12 +61,21 @@ def build_native_b_checks(cx: CheckBuildCx) -> None:
         if cargo
         else None
     )
+    # `cargo clippy` resolves its cargo-clippy subcommand off PATH: without
+    # the toolchain bin dir visible, cargo reports "no such command: `clippy`"
+    # even when invoked by absolute path. Same pattern as the pysa runner.
+    clippy_env = (
+        {"PATH": str(Path(cargo).parent) + os.pathsep + os.environ.get("PATH", "")}
+        if cargo
+        else None
+    )
     cx.add_technology(
         "clippy",
         clippy_cmd,
         parse_clippy,
         reason="Rust detected but cargo/clippy is not installed",
         findings_exit_codes={1, 101},
+        env=clippy_env,
     )
     compile_db = cx.technology.files.get("cpp-compile-db", [])
     cpp_files = cx.technology.files.get("cpp", [])
@@ -233,12 +244,19 @@ def build_native_b_checks(cx: CheckBuildCx) -> None:
     knip = project_executable(cx.root, "knip")
     knip_cfg = generated_config(cx.root, "knip.json")
     knip_cmd = [knip, "--strict"] if knip else None
+    knip_manifest = cx.root / "package.json"
     if knip_cmd and knip_cfg:
         knip_cmd += ["--config", str(knip_cfg)]
+    if knip_cmd and not knip_manifest.is_file():
+        knip_cmd = None
     cx.add_technology(
         "knip",
         knip_cmd,
-        reason="JavaScript/TypeScript detected but Knip is not installed",
+        reason=(
+            "JavaScript/TypeScript detected but Knip is not installed"
+            if not knip
+            else "no root package.json: knip requires a project manifest at the scan root"
+        ),
         findings_exit_codes={1},
     )
     madge = project_executable(cx.root, "madge")

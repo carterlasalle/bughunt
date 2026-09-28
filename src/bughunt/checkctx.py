@@ -175,6 +175,7 @@ class CheckBuildCx:
         empty_scope_markers: tuple[str, ...] | None = None,
         name: str | None = None,
         check_timeout: int | None = None,
+        env: dict[str, str] | None = None,
     ) -> None:
         if engine not in self.wanted:
             return
@@ -218,5 +219,6 @@ class CheckBuildCx:
                 if findings_exit_codes is not None
                 else {1},
                 empty_scope_markers=empty_scope_markers or (),
+                env=env,
             ),
         )

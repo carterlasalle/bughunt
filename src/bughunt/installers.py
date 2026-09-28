@@ -14,6 +14,7 @@ from .technology import (
     applicable_technology_engines,
     discover_technologies,
     project_executable,
+    rust_executable,
     target_python,
 )
 
@@ -134,12 +135,12 @@ def _run(
     except OSError as exc:
         return InstallResult(cmd[-1] if cmd else "command", "ERROR", cmd, str(exc))
     except subprocess.TimeoutExpired as exc:
+        detail = f"installer hung past {_INSTALL_CMD_TIMEOUT_S}s and was killed; "
         return InstallResult(
             cmd[-1] if cmd else "command",
             "ERROR",
             cmd,
-            f"installer hung past {_INSTALL_CMD_TIMEOUT_S}s and was killed; "
-            f"retry by hand: {' '.join(cmd)} ({exc})",
+            detail + f"retry by hand: {' '.join(cmd)} ({exc})",
         )
     note = _tail(proc.stdout, proc.stderr)
     return InstallResult(
@@ -651,21 +652,36 @@ def _package_manager(root: Path) -> tuple[str, list[str]] | None:
 
 # trace:v1 id=impl.src-bughunt-installers.-clippy-ready work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _clippy_ready(root: Path) -> bool:
-    cargo = project_executable(root, "cargo")
+    cargo = rust_executable(root, "cargo")
     if not cargo:
         return False
     try:
-        return (
-            subprocess.run(  # noqa: S603 - audited: argv list, no shell
-                [cargo, "clippy", "--version"],
-                cwd=root,
-                text=True,
-                capture_output=True,
-                timeout=_CLIPPY_PROBE_TIMEOUT_S,
-                check=False,
-            ).returncode
-            == 0
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [cargo, "clippy", "--version"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=_CLIPPY_PROBE_TIMEOUT_S,
+            check=False,
         )
+        if proc.returncode == 0:
+            return True
+        # `cargo clippy` resolves the cargo-clippy subcommand off PATH: the
+        # toolchain bin dir must be visible or cargo cannot find its own
+        # subcommand ("no such command: `clippy`"). Retry with it prepended.
+        bindir = str(Path(cargo).parent)
+        env = dict(os.environ)
+        env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
+        retry = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [cargo, "clippy", "--version"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=_CLIPPY_PROBE_TIMEOUT_S,
+            check=False,
+            env=env,
+        )
+        return retry.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -721,13 +737,13 @@ def _install_technology_tools(
                 ),
             )
         else:
+            reason = f"{name} is applicable but automatic installation is currently "
             results.append(
                 InstallResult(
                     name,
                     "SKIPPED",
                     [],
-                    f"{name} is applicable but automatic installation is currently "
-                    "supported on macOS/Homebrew only",
+                    reason + "supported on macOS/Homebrew only",
                 ),
             )
 
