@@ -437,6 +437,13 @@ DEFAULT_RULES: tuple[DefaultRule, ...] = (
         "except handler silently discards the error with continue",
     ),
     DefaultRule(
+        "bughunt-unused-auth-param",
+        "error",
+        "ast-grep",
+        "auth-shaped parameter never appears in a digest/comparison body",
+        "BC-000022 proof-preimage family",
+    ),
+    DefaultRule(
         "bughunt.cached-generator",
         "error",
         "semgrep",

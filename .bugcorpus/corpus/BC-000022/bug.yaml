@@ -1,0 +1,29 @@
+# trace:v1 id=ops.bc000022-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+id: BC-000022
+# trace:v1 id=ops.bc000022-title work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+title: Handshake proof drops session token from preimage
+# trace:v1 id=ops.bc000022-status work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+status: confirmed
+# trace:v1 id=ops.bc000022-created-at work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+created_at: '2026-09-29T16:44:51+00:00'
+# trace:v1 id=ops.bc000022-language work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+language: javascript
+# trace:v1 id=ops.bc000022-severity work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+severity: high
+# trace:v1 id=ops.bc000022-confidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+confidence: high
+# trace:v1 id=ops.bc000022-symptom work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+symptom: 'browser handshake proof rejected: shipped client.js proofOfBytes hashed prefix+word+key but not the session token'
+# trace:v1 id=ops.bc000022-root-cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+root_cause: 'proofOfBytes(raw) built the SHA-256 preimage without the token even though makeOffer(token) accepted and stored it'
+# trace:v1 id=ops.bc000022-violated-invariant work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+violated_invariant: 'every authorization input accepted by a handshake entry point must reach the proof digest preimage on every path'
+# trace:v1 id=ops.bc000022-family-id work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family_id: 'auth-preimage-completeness'
+# trace:v1 id=ops.bc000022-related-candidates work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+related_candidates:
+- BC-000001
+- BC-000003
+- BC-000013
+- BC-000020
+- BC-000021

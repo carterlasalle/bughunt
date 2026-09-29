@@ -1,0 +1,43 @@
+# trace:v1 id=ops.bc000022-plan-bug work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+bug: BC-000022
+# trace:v1 id=ops.bc000022-plan-family work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+family: auth-preimage-completeness
+# trace:v1 id=ops.bc000022-plan-recommended-engine work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+recommended_engine: custom
+# trace:v1 id=ops.bc000022-plan-rationale work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+rationale: shipped ast-grep rule bughunt-unused-auth-param (JS function scope)
+# trace:v1 id=ops.bc000022-plan-evidence work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+evidence:
+  id: BC-000022
+  title: Handshake proof drops session token from preimage
+  invariant: every authorization input accepted by a handshake entry point must reach
+    the proof digest preimage on every path
+  root_cause: proofOfBytes(raw) built the SHA-256 preimage without the token even
+    though makeOffer(token) accepted and stored it
+  symptom: 'browser handshake proof rejected: shipped client.js proofOfBytes hashed
+    prefix+word+key but not the session token'
+  signature: {}
+  symbols: []
+  calls: []
+  family: auth-preimage-completeness
+  original.diff: ''
+  fix.diff: ''
+  fixtures:
+    positive:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000022/fixtures/positive/probe.js
+    negative:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000022/fixtures/negative/probe_fixed.js
+    adversarial:
+    - /Users/rocket/bughunt/.bugcorpus/corpus/BC-000022/fixtures/adversarial/probe_variant.js
+# trace:v1 id=ops.bc000022-plan-checklist work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+checklist:
+- minimize reproducer
+- positive fixture
+- fixed negative fixture
+- neighboring negatives
+- synthesize detector
+- verify fixtures
+- adversarial variants
+- scan repo
+- evaluation report
+- recommend promotion (shadow first)

@@ -739,6 +739,23 @@ rule:
     - pattern: Path.cwd() / "data" / $REST
     - pattern: Path.cwd() / "data"
 """,
+        "unused-auth-param.yml": """id: bughunt-unused-auth-param
+language: js
+severity: error
+message: Function takes an authorization-shaped parameter that never
+  appears in its body; an auth input accepted but unused is either dead
+  weight or a dropped proof/verification step. Confirm the parameter
+  reaches its sink (digest, comparison, or forward call) or remove it.
+rule:
+  all:
+    - pattern: "async function $F($TOKEN) { $$$BODY }"
+    - regex: "(?i)token|secret|auth|proof|nonce|session"
+    - has:
+        regex: "digest|createHash|sha256|createHmac|sign|verify|compare|equal"
+    - not:
+        has:
+          pattern: "$TOKEN"
+""",
     }
     return config, rules
 
@@ -2135,6 +2152,20 @@ invalid:
       first = proc.stdout.splitlines()[0]
   - |
       name = run(["whoami"], capture_output=True, text=True).stdout.splitlines()[0]
+""",
+        "bughunt-unused-auth-param-test.yml": """id: bughunt-unused-auth-param
+valid:
+  - |
+      async function proofOfBytes(raw, token) {
+        const secret = enc.encode(token);
+        return crypto.subtle.digest("SHA-256", secret);
+      }
+invalid:
+  - |
+      async function proofOfBytes(raw) {
+        const data = new Uint8Array(raw.length);
+        return crypto.subtle.digest("SHA-256", data);
+      }
 """,
         "bughunt-fillna-zero-test.yml": """id: bughunt-fillna-zero
 valid:
