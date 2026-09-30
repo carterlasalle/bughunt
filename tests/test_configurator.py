@@ -165,6 +165,25 @@ def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
         assert ignored in knip["ignoreFiles"]
 
 
+# trace:v1 id=test.tests-test-configurator.test-generated-dirs-ignored-in-all-generated-configs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_generated_dirs_ignored_in_all_generated_configs(tmp_path: Path) -> None:
+    """Every generated analyzer config must skip generated/dependency trees.
+
+    Regression: the walker set (technology.IGNORED_DIRS) and the
+    linter-exclude set (configurator.EXCLUDE_DIRS) diverged, so some
+    generated configs kept linting node_modules/venv trees. They are now one
+    canonical set.
+    """
+    from bughunt.configurator import EXCLUDE_DIRS, _ruff_config
+
+    assert EXCLUDE_DIRS == sorted(EXCLUDE_DIRS)
+    for generated in ("node_modules", ".venv", "venv", ".tox", ".nox", "dist"):
+        assert generated in EXCLUDE_DIRS
+    ruff = _ruff_config("3.12", ["src"], ["tests"])
+    for generated in ("node_modules", ".venv", "venv", ".tox", ".nox", "dist"):
+        assert f'"{generated}"' in ruff
+
+
 # trace:v1 id=test.tests-test-configurator.test-ruff-per-file-ignores-scope-tests-and-runners work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_ruff_per_file_ignores_scope_tests_and_runners(tmp_path: Path) -> None:
 

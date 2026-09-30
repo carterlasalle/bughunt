@@ -9,17 +9,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-EXCLUDED = {
-    ".git",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".tox",
-    ".nox",
-    "dist",
-    "build",
-    ".bughunt",
-}
+# Canonical generated/dependency directory set; shared with every scanner
+from .technology import IGNORED_DIRS as EXCLUDED
 
 FUZZ_NAME = re.compile(
     r"(^|_)(parse|parser|decode|deserialize|loads?|from_bytes|from_string|tokenize|lex|"

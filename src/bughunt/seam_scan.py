@@ -9,21 +9,8 @@ from pathlib import Path
 
 from typing_extensions import override
 
-IGNORED_DIRS = {
-    ".git",
-    ".venv",
-    "venv",
-    "node_modules",
-    "vendor",
-    "build",
-    "dist",
-    ".bughunt",
-    ".tox",
-    ".nox",
-    "__pycache__",
-    "site-packages",
-    "mutants",
-}
+# Canonical generated/dependency directory set; shared with every scanner
+from .technology import IGNORED_DIRS
 
 SERIALIZATION_BOUNDARIES = {
     "json.dump",

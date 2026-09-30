@@ -24,21 +24,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-IGNORED_DIRS = {
-    ".git",
-    ".venv",
-    "venv",
-    "node_modules",
-    "vendor",
-    "build",
-    "dist",
-    ".bughunt",
-    ".tox",
-    ".nox",
-    "__pycache__",
-    "site-packages",
-    "mutants",
-}
+# Canonical generated/dependency directory set; shared with every scanner
+from .technology import IGNORED_DIRS
 
 _QUANTITY_HINTS = (
     "irradiance",

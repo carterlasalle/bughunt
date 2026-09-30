@@ -18,6 +18,7 @@ from typing import Any
 from .coverage_tools import coverage_config
 from .policy_scan import ensure_env_example
 from .runtime_plugins import write_runtime_plugins
+from .technology import IGNORED_DIRS as _WALKER_IGNORES
 from .technology import discover_technologies, infer_sql_dialect
 
 
@@ -30,35 +31,12 @@ class ConfigArtifact:
     detail: str
 
 
-# These directories are implementation/tooling artifacts, dependencies, caches, or
-# generated reports. BugHunt's strictness should apply to first-party code rather
-# than vendored analyzers and its own runtime.
-EXCLUDE_DIRS = [
-    ".git",
-    ".hg",
-    ".svn",
-    ".venv",
-    "venv",
-    "env",
-    ".direnv",
-    "node_modules",
-    "build",
-    "dist",
-    ".tox",
-    ".nox",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".pyre",
-    ".coverage",
-    "htmlcov",
-    "site-packages",
-    "__pypackages__",
-    "mutants",
-    ".bughunt/runtime",
-    ".bughunt/cache",
-    ".bughunt/reports",
-]
+# These directories are implementation/tooling artifacts, dependencies, caches,
+# or generated reports. BugHunt's strictness should apply to first-party code
+# rather than vendored analyzers and its own runtime. Built from the canonical
+# walker set (technology.IGNORED_DIRS) so every scanner, linter, and type
+# checker agrees on what "generated" means. Sorted: deterministic config text.
+EXCLUDE_DIRS: list[str] = sorted(_WALKER_IGNORES)
 
 
 # trace:v1 id=impl.src-bughunt-configurator.existing work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79

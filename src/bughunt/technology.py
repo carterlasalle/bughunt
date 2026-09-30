@@ -22,25 +22,43 @@ IGNORED_DIRS = {
     ".venv",
     "venv",
     "env",
+    ".direnv",
     "node_modules",
+    ".yarn",
     "vendor",
     "build",
     "dist",
+    "target",
+    ".terraform",
+    ".next",
     ".tox",
     ".nox",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
     ".pyre",
+    ".coverage",
+    "coverage",
+    "htmlcov",
+    ".benchmarks",
+    ".complexipy_cache",
+    ".import_linter_cache",
     "site-packages",
+    "__pycache__",
     "__pypackages__",
     "mutants",
     ".bughunt",
-    "target",
-    ".terraform",
-    ".next",
-    "coverage",
-    "htmlcov",
+    ".bughunt/runtime",
+    ".bughunt/cache",
+    ".bughunt/reports",
+    ".trace",
+    ".agents",
+    ".claude",
+    ".codex",
+    ".pi",
+    ".omp",
+    ".hermes",
+    ".scc",
 }
 
 
@@ -719,6 +737,23 @@ def project_executable(root: Path, *names: str) -> str | None:
     return None
 
 
+# trace:v1 id=impl.src-bughunt-technology.project-python work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def project_python(root: Path) -> str | None:
+    """The target project's own interpreter, or None when it has none.
+
+    Library/pytest-plugin installs must land here: pytest imports plugins
+    from the interpreter it runs under, so a package installed anywhere else
+    is invisible at collection time.
+    """
+    if os.name == "nt":
+        candidate = root / ".venv" / "Scripts" / "python.exe"
+    else:
+        candidate = root / ".venv" / "bin" / "python"
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return None
+
+
 # trace:v1 id=impl.src-bughunt-technology.target-python work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def target_python(root: Path) -> str:
     """Interpreter for target-repo execution: its `.venv` first, else ours.
@@ -727,10 +762,7 @@ def target_python(root: Path) -> str:
     scripts from the target environment. Falling back to `sys.executable`
     preserves the old behavior for repositories without a virtualenv.
     """
-    venv = root / ".venv" / ("Scripts" if os.name == "nt" else "bin") / "python"
-    if venv.is_file() and os.access(venv, os.X_OK):
-        return str(venv)
-    return sys.executable
+    return project_python(root) or sys.executable
 
 
 # trace:v1 id=impl.src-bughunt-technology.target-executable work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
