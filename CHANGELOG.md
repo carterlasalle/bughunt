@@ -6,6 +6,32 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-30
+
+### Fixed
+
+- `bughunt install` no longer routes library/pytest-plugin packages through
+  `uv tool install`, which refuses any package that ships no console script
+  (typeguard, pytest-randomly, deal, and the rest reported
+  "Failed to install entrypoints"). They install into the Python BugHunt runs
+  under instead, where the plugin probes actually look.
+- Isolated `uv tool` environments now pin a stable CPython
+  (`BUGHUNT_TOOL_PYTHON`, default 3.12) instead of inheriting the newest
+  interpreter on the machine; a free-threaded build (3.14t) has no wheels for
+  several analyzer C extensions and failed the stack install.
+- The generated-directory ignore sets used by the tree walkers and the
+  generated analyzer configs are now one canonical list, so `node_modules`,
+  `.venv`, build output, and cache directories are excluded consistently.
+
+### Added
+
+- `bughunt init`: bootstrap a repository with a starter `bughunt.toml` and
+  auto-configure analysis targets. Never overwrites an existing config.
+- Shipped rule `bughunt-unused-auth-param` (ast-grep, JS): a function taking an
+  authorization-shaped parameter that never reaches its digest/comparison
+  sink. Covers the auth-preimage family (BC-000022) with positive/negative
+  fixtures.
+
 ## [0.10.0] - 2026-09-24
 
 Data-invariant layer (SPEC-BUG-DATA01, ADR-009): new native `data`
