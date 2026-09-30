@@ -122,6 +122,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _ = config_p.add_argument("--auto", action="store_true", default=True)
 
+    init_p = sub.add_parser(
+        "init",
+        help=(
+            "bootstrap a repository for BugHunt: write bughunt.toml when "
+            "missing, auto-configure analysis targets"
+        ),
+    )
+    _ = init_p.add_argument("--auto", action="store_true", default=True)
+
     _ = sub.add_parser(
         "rules",
         help="list the shipped BugHunt-native default rule pack",

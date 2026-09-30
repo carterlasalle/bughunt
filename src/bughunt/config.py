@@ -187,6 +187,21 @@ class Config:
         return list(dict.fromkeys([*self.source_paths, *self.test_paths, *configured]))
 
 
+# trace:v1 id=impl.src-bughunt-config.ensure-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def ensure_config(root: Path) -> Path:
+    """Write a starter bughunt.toml once; never overwrite user config."""
+    path = root / CONFIG_NAME
+    if path.exists():
+        return path
+    path.write_text(
+        "# BugHunt configuration.\n"
+        "# Every external analyzer is optional. BugHunt reports tools it could\n"
+        '# not run instead of treating "not installed" as "clean".\n'
+        "# Profiles, timeouts, budgets: see the README.\n",
+    )
+    return path
+
+
 # trace:v1 id=impl.src-bughunt-cli.-default-config-raw work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def default_config_raw() -> dict[str, Any]:
     raw: dict[str, Any] = {

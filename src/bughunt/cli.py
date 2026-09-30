@@ -56,6 +56,7 @@ from .config import (
     deep_merge as deep_merge,
     default_config_raw as default_config_raw,
     load_config as load_config,
+    ensure_config as ensure_config,
 )
 from .argparse_cli import build_parser
 from . import runners as runners
@@ -742,7 +743,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         return debt_review(root)
 
-    if args.command == "configure":
+    if args.command in {"configure", "init"}:
+        if args.command == "init":
+            ensure_config(root)
+        cfg = load_config(root, config_path)
         _ = auto_configure(cfg)
         return 0
 

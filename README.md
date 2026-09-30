@@ -85,11 +85,21 @@ bughunt doctor
 bughunt rules
     List the shipped BugHunt-native default rules and intentional overlaps.
 
+bughunt init
+    Bootstrap a repository: write a starter `bughunt.toml` when missing, then
+    run `configure --auto`. Idempotent; never overwrites an existing config.
+
 bughunt install
     Install the Python analysis stack with `uv add --dev` when the target is a
     uv project. Each package is installed independently so one incompatible
     optional analyzer cannot block the rest. On macOS with Homebrew it also
-    installs CodeQL and best-effort Watchman.
+    installs CodeQL and best-effort Watchman. Outside a Python project,
+    analyzers install as isolated `uv tool` environments pinned to a stable
+    CPython (`BUGHUNT_TOOL_PYTHON`, default 3.12) — never a free-threaded
+    build, which cannot resolve C-extension wheels. Library/pytest-plugin
+    packages (typeguard, pytest-randomly, deal, ...) have no console script
+    and are installed into the Python BugHunt runs under instead of
+    `uv tool`, which refuses packages that ship no executables.
 
 bughunt install --dry-run
     Print what would be installed without changing the project.
