@@ -113,6 +113,58 @@ def _tail(stdout: str, stderr: str, lines: int = 6) -> str:
     return "\n".join(material[-lines:]) if material else "no output"
 
 
+# Python used for isolated `uv tool install` environments. A free-threaded
+# (3.14t) default cannot resolve native wheels for several analyzers
+# (ruamel-yaml-clib, pact-python-ffi), so tool environments stay on the
+# stable ABI.
+_TOOL_PYTHON = "3.12"
+
+
+# trace:v1 id=impl.src-bughunt-installers.tool-python work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def tool_python() -> str:
+    """Interpreter request for isolated uv tool environments.
+
+    `uv tool install` always picks the latest installed interpreter by
+    default, which on a developer machine can be a free-threaded build with
+    no wheels for C extensions (observed 2026-09-30: 3.14t rejected
+    pact-python-ffi and failed to compile ruamel-yaml-clib).
+    """
+    return os.environ.get("BUGHUNT_TOOL_PYTHON", _TOOL_PYTHON)
+
+
+# Packages consumed as libraries or pytest plugins: no console scripts, so
+# `uv tool install` can never make them usable (uv refuses a tool that
+# provides no executables). They belong in a Python project's dev
+# dependencies, where pytest can import them. Verified against installed
+# metadata 2026-09-30: every name below reports zero console_scripts.
+# Packages that DO ship a console script (ruff, mypy, pytest, pact-python's
+# `pact-verifier`, hypothesis, semgrep, ...) stay on the uv tool path.
+LIBRARY_ONLY_PACKAGES = frozenset(
+    {
+        "deal[all]",
+        "typeguard",
+        "pytest-randomly",
+        "pytest-timeout",
+        "pytest-socket",
+        "pytest-xdist",
+        "pytest-run-parallel",
+        "blockbuster>=1.5,<1.6",
+        "hypofuzz",
+        "pytest-memray",
+        "time-machine",
+        "freezegun",
+        "vcrpy",
+        "uvicorn",
+    }
+)
+
+
+# trace:v1 id=impl.src-bughunt-installers.is-library-only work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def is_library_only(package_spec: str) -> bool:
+    """True when a package ships no console script and needs a project env."""
+    return package_spec in LIBRARY_ONLY_PACKAGES
+
+
 # trace:v1 id=impl.src-bughunt-installers.-run work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _run(
     cmd: list[str],
@@ -760,7 +812,7 @@ def _install_technology_tools(
         cmd = (
             [uv, "add", "--dev", package]
             if (root / "pyproject.toml").exists()
-            else [uv, "tool", "install", package]
+            else [uv, "tool", "install", "--python", tool_python(), package]
         )
         results.append(
             _install_cmd(
@@ -1066,14 +1118,54 @@ def install_all(
                 continue
             if name in exclude or (only is not None and name not in only):
                 continue
-            cmd = [uv, "tool", "install", package_spec]
+            if is_library_only(package_spec):
+                # No console script: `uv tool install` refuses these outright
+                # ("No executables are provided by package"; observed
+                # 2026-09-30). Library/pytest-plugin packages need a Python
+                # interpreter that pytest runs under. A project installs them
+                # with `uv add --dev`; without a project BugHunt's own
+                # interpreter is the only pytest-facing environment it owns.
+                cmd = [
+                    uv,
+                    "pip",
+                    "install",
+                    "--python",
+                    sys.executable,
+                    package_spec,
+                ]
+                if dry_run:
+                    results.append(
+                        InstallResult(
+                            name,
+                            "DRY-RUN",
+                            cmd,
+                            (
+                                "would install library/pytest-plugin package "
+                                "into the Python BugHunt runs under "
+                                "(no console script; uv tool cannot host it)"
+                            ),
+                        ),
+                    )
+                else:
+                    result = _run(cmd, root, emit)
+                    result.name = name
+                    if result.status == "PASS":
+                        result.note = (
+                            "library/pytest-plugin package installed into the "
+                            f"Python BugHunt runs under ({sys.executable}); "
+                            "add it to the target project's dev dependencies "
+                            "for the project's own test runs"
+                        )
+                    results.append(result)
+                continue
+            cmd = [uv, "tool", "install", "--python", tool_python(), package_spec]
             if dry_run:
                 results.append(
                     InstallResult(
                         name,
                         "DRY-RUN",
                         cmd,
-                        "would install isolated uv tool",
+                        f"would install isolated uv tool on Python {tool_python()}",
                     ),
                 )
             else:
