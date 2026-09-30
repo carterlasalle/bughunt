@@ -8,6 +8,21 @@ from pathlib import Path
 from tests.conftest import serialized
 
 
+def _require_scc() -> None:
+    """Skip when the external scc CLI is absent (CI images do not ship it).
+
+    These tests exercise real `scc` consumption; without the binary the only
+    observable behavior is the documented not-applicable path, which
+    test_missing_cli_is_not_applicable covers explicitly.
+    """
+    import shutil
+
+    if shutil.which("scc") is None:
+        import pytest
+
+        pytest.skip("scc CLI not installed")
+
+
 def _mini(tmp_path: Path) -> Path:
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
@@ -41,6 +56,7 @@ def test_missing_cli_is_not_applicable(monkeypatch, tmp_path: Path, capsys) -> N
 
 
 def test_export_cache_is_stable(tmp_path: Path) -> None:
+    _require_scc()
     from bughunt.system_ir_adapter import _cache_key, _cli, export
 
     root = _mini(tmp_path)
@@ -57,6 +73,7 @@ def test_export_cache_is_stable(tmp_path: Path) -> None:
 
 
 def test_graph_findings_empty_on_clean_tree(tmp_path: Path) -> None:
+    _require_scc()
     from bughunt.system_ir_adapter import graph_findings
 
     assert graph_findings(_mini(tmp_path)) == []
@@ -64,6 +81,7 @@ def test_graph_findings_empty_on_clean_tree(tmp_path: Path) -> None:
 
 @serialized
 def test_main_end_to_end(tmp_path: Path, capsys) -> None:
+    _require_scc()
     from bughunt.system_ir_adapter import export, main
 
     root = _mini(tmp_path)
@@ -161,6 +179,7 @@ def test_graph_findings_skips_non_dict(monkeypatch, tmp_path: Path) -> None:
 
 # trace:v1 id=test.tests-test-system-ir-adapter.test-unresolved-references-surface work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_unresolved_references_surface(tmp_path: Path) -> None:
+    _require_scc()
     from bughunt.system_ir_adapter import export, graph_findings
 
     root = _mini(tmp_path)

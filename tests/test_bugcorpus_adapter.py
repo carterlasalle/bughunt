@@ -29,6 +29,15 @@ def test_main_without_corpus_is_not_applicable(tmp_path: Path, capsys) -> None:
 
 
 def test_verify_on_real_corpus() -> None:
+    # Real-corpus verification needs the external bugcorpus CLI; without it
+    # verify() reports the documented BHBUGC001 blind spot, which is a
+    # different contract than detector verification.
+    import shutil
+
+    if shutil.which("bugcorpus") is None:
+        import pytest
+
+        pytest.skip("bugcorpus CLI not installed")
     from bughunt.bugcorpus_adapter import verify
 
     root = Path(__file__).resolve().parent.parent
