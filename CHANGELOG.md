@@ -6,6 +6,26 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-02
+
+### Fixed
+
+- First-party packages are now importable by target-python defenses (crosshair,
+  pytest, and the timezone/locale matrices) in nested and src-layout repos; the
+  source roots go on `PYTHONPATH` with correct flat-vs-src detection.
+- Pytest-plugin readiness (memray, blockbuster, xdist, and friends) is probed
+  against the interpreter that owns the `pytest` console script, not
+  `target_py`, so a plugin missing from pytest's environment is a clean skip
+  instead of an ImportError.
+- The hypofuzz check confirms the HypoFuzz `fuzz` subcommand exists before
+  running it; a Hypothesis CLI without hypofuzz no longer reports
+  "No such command: fuzz" as a failed defense.
+- `coverage` requires coverage and pytest co-located (it runs
+  `coverage run -m pytest`) and `coverage_runner` surfaces the real error
+  (BHCOV002) when no report is produced, instead of a bare "tool failed".
+- `vulture` carries `--exclude` for generated/dependency directories, so a broad
+  scope no longer reports dead code inside `.bughunt/` configs and virtualenvs.
+
 ## [0.10.1] - 2026-09-30
 
 ### Fixed
