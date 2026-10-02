@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -93,15 +94,47 @@ class CheckBuildCx:
     technology: TechnologyInventory
     target_py: str
     pytest: str | None
+    pytest_interp: str
     hypothesis_plugin: Path | None
     repro_seed: int
     test_timeout: int
     pytest_env: dict[str, str]
     pytest_cmd: list[str] | None
+    pythonpath_prefix: str = ""
     checks: list[Check] = field(default_factory=list)
     skipped: list[Result] = field(default_factory=list)
     generated_targets: list[DiscoveredTarget] = field(default_factory=list)
     category_by_tool: dict[str, str] = field(default_factory=dict)
+
+    # trace:v1 id=impl.src-bughunt-checkctx.-resolve-env work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def _resolve_env(self, env: dict[str, str] | None) -> dict[str, str] | None:
+        """Merge the first-party source roots into PYTHONPATH for target code.
+
+        Test runs and symbolic execution import the target's own packages. In a
+        nested or src-layout repository those packages are not on sys.path by
+        default, so pytest/crosshair fail with ModuleNotFoundError even though
+        the source is right there. Source roots are prepended so they win over
+        any stale install, and a check-specific PYTHONPATH (e.g. the Hypothesis
+        plugin dir) is preserved after them.
+        """
+        if not self.pythonpath_prefix:
+            return env
+        merged = dict(env or {})
+        tail = merged.get("PYTHONPATH", os.environ.get("PYTHONPATH", ""))
+        merged["PYTHONPATH"] = self.pythonpath_prefix + (
+            os.pathsep + tail if tail else ""
+        )
+        return merged
+
+    # trace:v1 id=impl.src-bughunt-checkctx.apply-source-pythonpath work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def apply_source_pythonpath(self) -> None:
+        """Give every registered check the first-party source PYTHONPATH.
+
+        Called once after all check builders run so it also covers checks that
+        construct Check(...) directly instead of going through add().
+        """
+        for check in self.checks:
+            check.env = self._resolve_env(check.env)
 
     # trace:v1 id=impl.src-bughunt-cli-build-checks.add work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
     def add(

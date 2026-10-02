@@ -99,6 +99,7 @@ from .probes import local_schema_pairs as local_schema_pairs
 from .probes import pact_json_files as pact_json_files
 from .probes import python_module_available as python_module_available
 from .probes import python_package_names as python_package_names
+from .probes import pythonpath_roots as pythonpath_roots
 from .probes import pysa_executable as pysa_executable
 from .parsers import ESLINT_EMPTY_SCOPE as ESLINT_EMPTY_SCOPE
 from .parsers import OXLINT_EMPTY_SCOPE as OXLINT_EMPTY_SCOPE
@@ -138,6 +139,7 @@ from .technology import (
     ENGINE_CATEGORY,
     discover_technologies,
     load_technology_inventory,
+    script_interpreter,
     target_executable,
     target_has_module,
     target_python,
@@ -186,6 +188,12 @@ def build_checks(
     }
     target_py = target_python(root)
     pytest = target_executable(root, "pytest")
+    # Pytest plugins (memray, blockbuster, xdist, ...) must be importable by the
+    # interpreter that runs the `pytest` console script, which is not always
+    # target_py (a repo with no virtualenv resolves pytest from PATH while
+    # plugins land in the tool environment). Gate plugin readiness on the real
+    # owner, not target_py.
+    pytest_interp = (script_interpreter(pytest) if pytest else None) or target_py
     hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
     repro_seed = cfg.raw_int("tests", "repro_seed", 1)
     test_timeout = cfg.raw_int("tests", "timeout_seconds", 300)
@@ -220,6 +228,7 @@ def build_checks(
         )
     if pytest_cmd:
         pytest_cmd += tests
+    pythonpath_prefix = os.pathsep.join(pythonpath_roots(root, src))
     cx = CheckBuildCx(
         cfg=cfg,
         profile=profile,
@@ -230,6 +239,7 @@ def build_checks(
         py=py,
         src=src,
         tests=tests,
+        pythonpath_prefix=pythonpath_prefix,
         config_dir=config_dir,
         checks=checks,
         skipped=skipped,
@@ -238,6 +248,7 @@ def build_checks(
         category_by_tool=category_by_tool,
         target_py=target_py,
         pytest=pytest,
+        pytest_interp=pytest_interp,
         hypothesis_plugin=hypothesis_plugin,
         repro_seed=repro_seed,
         test_timeout=test_timeout,
@@ -277,6 +288,7 @@ def build_checks(
     build_matrix_checks(cx)
     build_native_a_checks(cx)
     build_native_b_checks(cx)
+    cx.apply_source_pythonpath()
     return cx.checks, cx.skipped
 
 

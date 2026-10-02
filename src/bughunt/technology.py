@@ -776,6 +776,35 @@ def target_executable(root: Path, *names: str) -> str | None:
     return project_executable(root, *names)
 
 
+# trace:v1 id=impl.src-bughunt-technology.script-interpreter work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def script_interpreter(script_path: str) -> str | None:
+    """Interpreter a console script's shebang points at, or None.
+
+    pytest plugins must be importable by the interpreter that runs the
+    `pytest` console script, which is not always `target_python` (a repo with
+    no virtualenv resolves pytest from PATH while plugins land elsewhere).
+    Reading the shebang finds the real owning environment.
+    """
+    try:
+        first = Path(script_path).read_text(errors="replace").splitlines()[0]
+    except (OSError, IndexError):
+        return None
+    if not first.startswith("#!"):
+        return None
+    shebang = first[2:].strip().split()
+    if not shebang:
+        return None
+    exe = shebang[0]
+    if Path(exe).name in {"env", "env.exe"}:
+        # `#!/usr/bin/env python3` — resolve the named interpreter on PATH.
+        for candidate in shebang[1:]:
+            if "python" in candidate:
+                found = shutil.which(candidate)
+                return found
+        return None
+    return exe if Path(exe).exists() else None
+
+
 # trace:v1 id=impl.src-bughunt-technology.target-has-module work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
 def target_has_module(python: str, name: str) -> bool:
     """Check importlib against a specific interpreter without importing anything."""

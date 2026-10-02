@@ -9,7 +9,7 @@ import subprocess
 import sys
 from functools import partial
 from .checkctx import CheckBuildCx
-from .probes import generated_config, python_package_names
+from .probes import generated_config, python_package_names, supports_subcommand
 from .technology import target_executable, target_has_module
 from .parsers import parse_bughunt_helper, text_findings
 from .models import Check, Result, Status
@@ -24,7 +24,16 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 if target_has_module(cx.target_py, "bughunt")
                 else sys.executable
             )
-            if target_has_module(cov_python, "coverage") and cx.pytest:
+            # coverage_runner runs `coverage run -m pytest`, so both coverage and
+            # pytest must live in cov_python's environment. Without co-location
+            # `coverage run` fails, no coverage.json is written, and the check
+            # collapses to an opaque "tool failed".
+            cov_ready = (
+                target_has_module(cov_python, "coverage")
+                and target_has_module(cov_python, "pytest")
+                and bool(cx.pytest)
+            )
+            if cov_ready:
                 cx.add(
                     "coverage",
                     "coverage/branches",
@@ -43,7 +52,11 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "coverage",
                     "coverage/branches",
                     None,
-                    reason="coverage.py/pytest not installed",
+                    reason=(
+                        "coverage.py and pytest must be installed together in "
+                        "the same environment (coverage runs pytest); install "
+                        "both into the target project or BugHunt runtime"
+                    ),
                 )
 
         if "seam" in cx.wanted:
@@ -104,7 +117,11 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
         if "runtime-types" in cx.wanted:
             packages = python_package_names(cx.root, cx.cfg.source_paths)
             tg_cmd = None
-            if cx.pytest and target_has_module(cx.target_py, "typeguard") and packages:
+            if (
+                cx.pytest
+                and target_has_module(cx.pytest_interp, "typeguard")
+                and packages
+            ):
                 tg_cmd = [
                     cx.pytest,
                     "-q",
@@ -112,7 +129,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     f"--typeguard-packages={','.join(packages)}",
                     *cx.tests,
                 ]
-                if target_has_module(cx.target_py, "pytest_timeout"):
+                if target_has_module(cx.pytest_interp, "pytest_timeout"):
                     tg_cmd += ["--timeout", str(cx.test_timeout)]
             cx.add(
                 "runtime-types",
@@ -164,7 +181,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
             seed = secrets.randbelow(2**31 - 2) + 1
             cmd = (
                 [cx.pytest, "-q", "--tb=short", f"--randomly-seed={seed}", *cx.tests]
-                if cx.pytest and target_has_module(cx.target_py, "pytest_randomly")
+                if cx.pytest and target_has_module(cx.pytest_interp, "pytest_randomly")
                 else None
             )
             cx.add(
@@ -186,7 +203,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--allow-unix-socket",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx.target_py, "pytest_socket")
+                if cx.pytest and target_has_module(cx.pytest_interp, "pytest_socket")
                 else None
             )
             cx.add(
@@ -210,7 +227,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "loadfile",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx.target_py, "xdist")
+                if cx.pytest and target_has_module(cx.pytest_interp, "xdist")
                 else None
             )
             cx.add(
@@ -228,7 +245,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 [cx.pytest, "-q", "--tb=short", "-p", "blockbuster_plugin", *cx.tests]
                 if cx.pytest
                 and blocker
-                and target_has_module(cx.target_py, "blockbuster")
+                and target_has_module(cx.pytest_interp, "blockbuster")
                 else None
             )
             env = {"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(cx.repro_seed)}
@@ -255,7 +272,8 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--iterations=3",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx.target_py, "pytest_run_parallel")
+                if cx.pytest
+                and target_has_module(cx.pytest_interp, "pytest_run_parallel")
                 else None
             )
             cx.add(
@@ -276,8 +294,16 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 ),
             )
             workers = cx.cfg.raw_int("hypofuzz", "workers", 2)
-            cmd = (
-                [
+            # HypoFuzz registers `fuzz` on the Hypothesis CLI. If the resolved
+            # `hypothesis` was installed without hypofuzz, `fuzz` does not exist
+            # and running it dies with "No such command" (miscounted as a failed
+            # defense). Only run when the subcommand is really there.
+            fuzz_ready = hypothesis_cli is not None and supports_subcommand(
+                hypothesis_cli, "fuzz", cx.root
+            )
+            cmd = None
+            if fuzz_ready and hypothesis_cli is not None:
+                cmd = [
                     hypothesis_cli,
                     "fuzz",
                     "--no-dashboard",
@@ -286,14 +312,15 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--",
                     *cx.tests,
                 ]
-                if hypothesis_cli
-                else None
-            )
             cx.add(
                 "hypofuzz",
                 "coverage-guided-property-fuzz",
                 cmd,
-                reason="HypoFuzz/Hypothesis CLI not installed",
+                reason=(
+                    "hypothesis CLI is installed without the HypoFuzz `fuzz` "
+                    "subcommand; install hypofuzz alongside hypothesis to enable "
+                    "coverage-guided property fuzzing"
+                ),
                 check_timeout=budget,
                 timeout_is_success=True,
                 env={"PYTHONHASHSEED": str(cx.repro_seed)},
@@ -434,7 +461,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     "--fail-on-increase",
                     *cx.tests,
                 ]
-                if cx.pytest and target_has_module(cx.target_py, "pytest_memray")
+                if cx.pytest and target_has_module(cx.pytest_interp, "pytest_memray")
                 else None
             )
             cx.add(
@@ -450,7 +477,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
             if (
                 cx.technology.has("benchmark-tests")
                 and cx.pytest
-                and target_has_module(cx.target_py, "pytest_benchmark")
+                and target_has_module(cx.pytest_interp, "pytest_benchmark")
             ):
                 cmd = [cx.pytest, "-q", "--benchmark-only", "--benchmark-autosave"]
                 # xdist auto-activates --benchmark-disable, which conflicts

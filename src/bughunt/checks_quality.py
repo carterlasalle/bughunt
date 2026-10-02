@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from .checkctx import CheckBuildCx
 from .probes import optional_cmd, generated_config
-from .technology import target_executable
+from .technology import IGNORED_DIRS, target_executable
 from .parsers import (
     parse_bandit,
     parse_complexipy,
@@ -120,6 +120,12 @@ def build_quality_checks(cx: CheckBuildCx) -> None:
                 vulture_confidence,
                 "--ignore-names",
                 vulture_ignored,
+                # vulture walks the given paths recursively and knows nothing of
+                # BugHunt's scope excludes; when the scope is broad (".") it
+                # would otherwise report dead code inside generated configs,
+                # vendored deps, and virtualenvs. Keep it to first-party code.
+                "--exclude",
+                ",".join(sorted(IGNORED_DIRS)),
             ],
         ),
         findings_exit_codes={3},

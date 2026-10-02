@@ -70,6 +70,27 @@ def main(argv: list[str] | None = None) -> int:
                 ),
             )
             return 2
+    else:
+        # coverage.json was never produced: `coverage run`/`json` failed. Surface
+        # the real reason (missing config, missing pytest in this env, ...) so the
+        # report names the cause instead of a bare "tool failed".
+        detail = (
+            report.stderr.strip()
+            or test.stderr.strip()
+            or report.stdout.strip()
+            or test.stdout.strip()
+            or "coverage produced no report"
+        )
+        findings.append(
+            {
+                "tool": "coverage",
+                "code": "BHCOV002",
+                "path": str(root),
+                "line": 1,
+                "message": f"coverage run failed: {detail[-1000:]}",
+                "severity": "error",
+            },
+        )
     payload = {
         "findings": findings,
         "summary": summary,

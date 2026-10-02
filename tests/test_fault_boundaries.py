@@ -305,6 +305,7 @@ def test_knip_gated_on_root_manifest(tmp_path: Path, monkeypatch) -> None:
         category_by_tool={},
         target_py="",
         pytest=None,
+        pytest_interp="",
         hypothesis_plugin=None,
         repro_seed=1,
         test_timeout=60,

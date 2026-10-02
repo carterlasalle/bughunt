@@ -90,6 +90,29 @@ def supports_flag(executable_path: str, flag: str, root: Path) -> bool:
     return flag in (probe.stdout + "\n" + probe.stderr)
 
 
+# trace:v1 id=impl.src-bughunt-probes.supports-subcommand work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def supports_subcommand(executable_path: str, subcommand: str, root: Path) -> bool:
+    """True when `<cli> <subcommand> --help` is accepted.
+
+    Subcommands can come from plugins (e.g. HypoFuzz adds `fuzz` to the
+    Hypothesis CLI). Probing the leaf avoids running a command that would die
+    with "No such command" and get miscounted as a failed defense.
+    """
+    try:
+        probe = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [executable_path, subcommand, "--help"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    combined = (probe.stdout + "\n" + probe.stderr).lower()
+    return probe.returncode == 0 and f"no such command: {subcommand}" not in combined
+
+
 # trace:v1 id=impl.src-bughunt-cli.pylint-disables work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def pylint_disables(pylint_bin: str, cfg_file: Path, root: Path) -> list[str] | None:
     """Disables from the rcfile that the installed pylint accepts.
@@ -193,6 +216,31 @@ def python_package_names(root: Path, source_paths: Sequence[str]) -> list[str]:
                 if child.is_dir() and (child / "__init__.py").exists()
             )
     return list(dict.fromkeys(x for x in names if x.isidentifier()))
+
+
+# trace:v1 id=impl.src-bughunt-probes.pythonpath-roots work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def pythonpath_roots(root: Path, source_paths: Sequence[str]) -> list[str]:
+    """Absolute directories to put on PYTHONPATH so first-party imports resolve.
+
+    Mirrors python_package_names' layout detection: a source path that is a
+    package itself contributes its parent (so `pkg` imports), while a source
+    path that merely contains packages (src layout) contributes itself. Single
+    module files contribute their parent. This is what lets pytest/crosshair
+    import the target's own packages in nested or src-layout repositories.
+    """
+    out: list[str] = []
+    for rel in source_paths:
+        base = root / rel
+        if base.is_file() and base.suffix == ".py":
+            out.append(str(base.parent.resolve()))
+            continue
+        if not base.is_dir():
+            continue
+        if (base / "__init__.py").exists():
+            out.append(str(base.parent.resolve()))
+        else:
+            out.append(str(base.resolve()))
+    return list(dict.fromkeys(out))
 
 
 # trace:v1 id=impl.src-bughunt-cli.-publishable-package-json work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
