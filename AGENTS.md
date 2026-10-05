@@ -3011,9 +3011,18 @@ Record exact traps, for example:
   literal commands and no exploration budget, or do it yourself. Verify with
   `history://<id>` before assuming progress.
 - Env fallback is intended, not a bug: `target_executable` prefers
-  root/.venv then PATH. System-pytest ERRORs on a foreign tree mean the
+  root/.venv, then BugHunt's private `.bughunt/runtime/pytest-venv`, then
+  PATH (see ADR-010). System-pytest ERRORs on a foreign tree mean the
   target env is incomplete (check install outcomes + root/.venv/bin), not
   that the resolver is wrong. Do not "fix" by removing the PATH fallback.
+- The pytest session resolves through ONE function,
+  `technology.pytest_python` (project `.venv` → private pytest venv → the
+  `pytest` console script's env). `doctor`, the installer, and every
+  plugin/coverage gate must use it; probing `target_python` instead reported
+  READY for packages the run could never import, and a globally installed
+  `bughunt` produced different results from `uv run` on the same repo
+  (2026-10-02). Family console scripts (`hypothesis`, `mutmut`) resolve via
+  `pytest_executable`, which ignores PATH copies.
 - Hook obligation notices can go stale for gitignored generated files
   (observed: `.bughunt/configs/blockbuster_plugin.py`). Authoritative checks
   are `trace verify --changed` and `trace summary`; when both are clean, do

@@ -6,6 +6,28 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-02
+
+### Fixed
+
+- The pytest session now resolves from one environment, so a scan no longer
+  depends on how BugHunt was launched. The same repository used to pass some
+  plugin defenses under `uv run` (BugHunt's `.venv` on PATH) and fail them
+  under a globally installed `bughunt` (`coverage`/`runtime-types` ERROR,
+  every plugin skipped, while `doctor` still said READY).
+  `technology.pytest_python` is now the single resolver used by the installer,
+  `doctor`, and every run-time plugin/coverage gate.
+- A repository without a virtualenv gets BugHunt's own pytest environment at
+  `.bughunt/runtime/pytest-venv` instead of `pytest`, `coverage`, and each
+  plugin landing in separate isolated `uv tool` environments (or BugHunt's own
+  interpreter) that the session could never import from. `requirements.txt` is
+  seeded into it, best effort.
+- `doctor` probes pytest plugins against the interpreter that runs the session,
+  not `target_python`, so READY/MISSING now predicts what the scan will do.
+- Pytest-family console scripts (`hypothesis` for HypoFuzz, `mutmut`) resolve
+  only from the session environment, so a copy on PATH cannot report a tool as
+  available that the session cannot import.
+
 ## [0.10.2] - 2026-10-02
 
 ### Fixed
