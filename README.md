@@ -96,10 +96,13 @@ bughunt install
     installs CodeQL and best-effort Watchman. Outside a Python project,
     analyzers install as isolated `uv tool` environments pinned to a stable
     CPython (`BUGHUNT_TOOL_PYTHON`, default 3.12) — never a free-threaded
-    build, which cannot resolve C-extension wheels. Library/pytest-plugin
-    packages (typeguard, pytest-randomly, deal, ...) have no console script
-    and are installed into the Python BugHunt runs under instead of
-    `uv tool`, which refuses packages that ship no executables.
+    build, which cannot resolve C-extension wheels. The pytest session
+    (pytest, its plugins, coverage.py, typeguard, mutmut, and the
+    test-support libraries) is the exception: the session imports all of them,
+    so they install into one environment — the project `.venv`, or BugHunt's
+    own `.bughunt/runtime/pytest-venv`, seeded from `requirements.txt` — never
+    scattered across tool environments BugHunt runs `pytest` from. See
+    `docs/adr/0010-pytest-session-environment.md`.
 
 bughunt install --dry-run
     Print what would be installed without changing the project.
@@ -405,6 +408,8 @@ The score is still not a probability that the repo is bug-free.
 `bughunt install` uses `uv`; it intentionally does not fall back to Poetry/pipenv/raw pip.
 
 For a project with `pyproject.toml`, it runs independent `uv add --dev ...` installs so each analyzer sees the real target environment and one optional package failure does not block the rest.
+
+The pytest session is installed differently because pytest imports its plugins from the interpreter it runs under. pytest, its plugins, coverage.py, typeguard, and mutmut all go into one environment: the project `.venv`, or BugHunt's own `.bughunt/runtime/pytest-venv` for a repository without a virtualenv. Resolution is uniform — `bughunt doctor`, the installer, and every run-time gate resolve the same environment through `technology.pytest_python` — so the defenses do not change with how BugHunt was launched. See `docs/adr/0010-pytest-session-environment.md`.
 
 The current Python stack includes:
 

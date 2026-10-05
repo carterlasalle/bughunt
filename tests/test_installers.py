@@ -114,3 +114,49 @@ def test_tool_install_pins_stable_python(
     assert item.command[0].endswith("uv")
     idx = item.command.index("--python")
     assert item.command[idx + 1] == "3.12"
+
+
+# trace:v1 id=test.tests-test-installers.test-pytest-family-installs-into-private-env work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_pytest_family_installs_into_private_env(tmp_path: Path) -> None:
+    """A no-project repo must co-locate the whole pytest session.
+
+    pytest, its plugins, and coverage.py were each installed into a separate
+    isolated `uv tool` environment (or BugHunt's own interpreter), so the
+    session could import none of them and every plugin defense skipped while
+    `bughunt doctor` still reported it ready.
+    """
+    (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "app.py").write_text("x = 1\n")
+    results = install_all(
+        tmp_path,
+        dry_run=True,
+        only={"pytest", "pytest-memray", "coverage", "typeguard"},
+    )
+    family = [
+        r
+        for r in results
+        if r.name in {"pytest", "pytest-memray", "coverage", "typeguard"}
+    ]
+    assert len(family) == 4
+    for result in family:
+        assert "pytest-venv" in result.note, (result.name, result.note)
+        assert "tool" not in result.command, (result.name, result.command)
+
+
+# trace:v1 id=test.tests-test-installers.test-family-packages-are-not-scattered-by-tool-install work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_family_packages_are_not_scattered_by_tool_install(tmp_path: Path) -> None:
+    """A package with a console script (pytest) still belongs to the session.
+
+    `is_library_only` classifies by console-script presence, which would send
+    pytest to `uv tool install`; the pytest family takes precedence.
+    """
+    from bughunt.installers import PYTEST_FAMILY_PACKAGES, is_library_only
+
+    assert "pytest" in PYTEST_FAMILY_PACKAGES
+    assert not is_library_only("pytest")
+    (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "app.py").write_text("x = 1\n")
+    results = install_all(tmp_path, dry_run=True, only={"pytest"})
+    pytest_rows = [r for r in results if r.name == "pytest"]
+    assert len(pytest_rows) == 1
+    assert "tool" not in pytest_rows[0].command

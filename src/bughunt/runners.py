@@ -22,7 +22,7 @@ from .config import CACHE_DIR, Config
 from .models import Check, Finding, Result, Status
 from .parsers import no_findings, parse_json_list, parse_sarif
 from .probes import executable, pysa_executable
-from .technology import target_executable
+from .technology import pytest_executable
 from .ui import console
 
 
@@ -610,7 +610,7 @@ async def run_mutmut(
 ) -> Result:
     if "mutmut" not in cfg.tools(profile):
         return Result("mutmut", "mutation", Status.SKIPPED, note="not in profile")
-    mm = target_executable(cfg.root, "mutmut")
+    mm = pytest_executable(cfg.root, "mutmut")
     if not mm:
         return Result("mutmut", "mutation", Status.SKIPPED, note="mutmut not installed")
     if not cfg.raw_section("mutmut").get("enabled", True):

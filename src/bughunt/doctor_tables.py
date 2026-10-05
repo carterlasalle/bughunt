@@ -17,6 +17,8 @@ from .probes import (
 )
 from .technology import (
     TechnologyInventory,
+    pytest_python,
+    target_has_module,
 )
 
 if TYPE_CHECKING:
@@ -228,7 +230,7 @@ def doctor_coverage_rows(
     coverage.add_row(
         "Runtime annotation verification",
         "[green]READY[/]"
-        if has_python and python_module_available("typeguard")
+        if has_python and target_has_module(pytest_python(cfg.root), "typeguard")
         else ("[cyan]N/A[/]" if not has_python else "[yellow]MISSING[/]"),
         (
             "Typeguard pytest pass checks annotation truth where "

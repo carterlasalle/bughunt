@@ -274,13 +274,15 @@ def test_pytest_plugin_gates_use_pytest_interpreter(
         return name != "pytest_memray"  # plugin absent from pytest's env
 
     monkeypatch.setattr(cr, "target_has_module", _spy_has_module)
-    import bughunt.cli as cli_mod
+    import bughunt.technology as tech_mod
 
     # trace:v1 id=test.tests-test-build-checks-test-pytest-plugin-gates-use-pytest-interpreter.fake-target-executable work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
     def _fake_target_executable(root: Path, *names: str) -> str | None:
         return str(pytest_bin)
 
-    monkeypatch.setattr(cli_mod, "target_executable", _fake_target_executable)
+    # `pytest_python` resolves through `technology`, so the fake pytest must be
+    # injected there for both the command and its interpreter to agree.
+    monkeypatch.setattr(tech_mod, "target_executable", _fake_target_executable)
     from bughunt.cli import build_checks
 
     checks, _skipped = build_checks(_cfg(tmp_path), "all", excluded={"mutmut"})

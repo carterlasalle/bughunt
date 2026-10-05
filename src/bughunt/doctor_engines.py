@@ -25,9 +25,10 @@ from .technology import (
     engine_applicable,
     llvm_executable,
     project_executable,
+    pytest_executable,
+    pytest_python,
     target_executable,
     target_has_module,
-    target_python,
 )
 
 if TYPE_CHECKING:
@@ -211,22 +212,25 @@ def doctor_engine_rows(
     )
     cli_row(rows, has_python, cfg.root, "CrossHair", "crosshair", python_only=True)
     cli_row(rows, has_python, cfg.root, "pytest", "pytest", python_only=True)
+    # Pytest plugin/module readiness must be probed against the interpreter
+    # that runs the session (`pytest_python`), the same one the scan gates and
+    # the installer use; probing `target_python` reported READY for packages
+    # the run could never import.
+    _pytest_py = pytest_python(cfg.root)
+    hypothesis_ready = has_python and target_has_module(_pytest_py, "hypothesis")
     rows.append(
         (
             "Hypothesis",
-            "N/A"
-            if not has_python
-            else ("READY" if python_module_available("hypothesis") else "MISSING"),
+            "N/A" if not has_python else ("READY" if hypothesis_ready else "MISSING"),
             "no first-party Python capability detected"
             if not has_python
             else (
-                "Python module importable"
-                if python_module_available("hypothesis")
-                else "Python module not importable"
+                "Python module importable in the pytest session environment"
+                if hypothesis_ready
+                else "Python module not importable in the pytest session environment"
             ),
         ),
     )
-    _target_py = target_python(cfg.root)
     for label, module in (
         ("coverage.py branch coverage", "coverage"),
         ("Typeguard runtime contracts", "typeguard"),
@@ -239,7 +243,7 @@ def doctor_engine_rows(
         ("pytest-memray", "pytest_memray"),
         ("pytest-benchmark", "pytest_benchmark"),
     ):
-        ready = target_has_module(_target_py, module)
+        ready = target_has_module(_pytest_py, module)
         rows.append(
             (
                 label,
@@ -260,16 +264,16 @@ def doctor_engine_rows(
             if not has_python
             else (
                 "READY"
-                if target_has_module(_target_py, "hypofuzz")
-                and target_executable(cfg.root, "hypothesis")
+                if target_has_module(_pytest_py, "hypofuzz")
+                and pytest_executable(cfg.root, "hypothesis")
                 else "MISSING"
             ),
             "no first-party Python capability detected"
             if not has_python
             else (
                 "hypofuzz module + Hypothesis CLI available in target environment"
-                if target_has_module(_target_py, "hypofuzz")
-                and target_executable(cfg.root, "hypothesis")
+                if target_has_module(_pytest_py, "hypofuzz")
+                and pytest_executable(cfg.root, "hypothesis")
                 else "install hypofuzz; the base Hypothesis CLI alone is not sufficient"
             ),
         ),

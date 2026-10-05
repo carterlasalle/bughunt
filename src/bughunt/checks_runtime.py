@@ -10,7 +10,7 @@ import sys
 from functools import partial
 from .checkctx import CheckBuildCx
 from .probes import generated_config, python_package_names, supports_subcommand
-from .technology import target_executable, target_has_module
+from .technology import pytest_executable, target_executable, target_has_module
 from .parsers import parse_bughunt_helper, text_findings
 from .models import Check, Result, Status
 
@@ -19,28 +19,32 @@ from .models import Check, Result, Status
 def build_runtime_checks(cx: CheckBuildCx) -> None:
     if cx.technology.has("python"):
         if "coverage" in cx.wanted:
-            cov_python = (
+            # The runner is BugHunt's own module, so the interpreter that
+            # starts it must have BugHunt importable. The coverage phases it
+            # drives run `coverage run -m pytest`, so coverage.py and pytest
+            # must both live in the pytest session's environment
+            # (`cx.pytest_interp`), which the runner is told explicitly.
+            runner_python = (
                 cx.target_py
                 if target_has_module(cx.target_py, "bughunt")
                 else sys.executable
             )
-            # coverage_runner runs `coverage run -m pytest`, so both coverage and
-            # pytest must live in cov_python's environment. Without co-location
-            # `coverage run` fails, no coverage.json is written, and the check
-            # collapses to an opaque "tool failed".
+            cov_python = cx.pytest_interp
             cov_ready = (
-                target_has_module(cov_python, "coverage")
+                bool(cx.pytest)
+                and target_has_module(cov_python, "coverage")
                 and target_has_module(cov_python, "pytest")
-                and bool(cx.pytest)
             )
             if cov_ready:
                 cx.add(
                     "coverage",
                     "coverage/branches",
                     [
-                        cov_python,
+                        runner_python,
                         "-m",
                         "bughunt.coverage_runner",
+                        "--python",
+                        cov_python,
                         str(cx.root),
                         *cx.tests,
                     ],
@@ -286,7 +290,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
             )
 
         if "hypofuzz" in cx.wanted:
-            hypothesis_cli = target_executable(cx.root, "hypothesis")
+            hypothesis_cli = pytest_executable(cx.root, "hypothesis")
             budget = int(
                 cx.cfg.raw_section("hypofuzz").get(
                     f"{cx.profile}_seconds",

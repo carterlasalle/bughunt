@@ -12,6 +12,19 @@ from .coverage_tools import parse_coverage_json
 # trace:v1 id=impl.src-bughunt-coverage_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
+    # coverage.py and pytest must live in the same environment: `coverage run`
+    # executes the test session. The caller resolves that environment once
+    # (`technology.pytest_python`) and passes it here, so this runner never
+    # assumes its own interpreter is the one that can import pytest.
+    python = sys.executable
+    if "--python" in args:
+        index = args.index("--python")
+        try:
+            python = args[index + 1]
+        except IndexError:
+            print(json.dumps({"error": "--python requires an interpreter path"}))
+            return 2
+        del args[index : index + 2]
     if not args:
         print(json.dumps({"error": "root required"}))
         return 2
@@ -20,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = root / ".bughunt" / "configs" / "coverage.ini"
     out = root / ".bughunt" / "cache" / "coverage.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    base = [sys.executable, "-m", "coverage"]
+    base = [python, "-m", "coverage"]
     _ = subprocess.run(  # noqa: S603 - audited: argv list, no shell
         [*base, "erase", f"--rcfile={cfg}"],
         cwd=root,

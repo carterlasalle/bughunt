@@ -14,6 +14,8 @@ from .technology import (
     applicable_technology_engines,
     discover_technologies,
     project_executable,
+    pytest_venv,
+    pytest_venv_python,
     rust_executable,
     target_python,
 )
@@ -163,6 +165,35 @@ LIBRARY_ONLY_PACKAGES = frozenset(
 def is_library_only(package_spec: str) -> bool:
     """True when a package ships no console script and needs a project env."""
     return package_spec in LIBRARY_ONLY_PACKAGES
+
+
+# Packages the pytest session itself imports: pytest, its plugins,
+# test-support libraries, coverage.py, and mutmut (which runs the suite).
+# They must all be importable by `technology.pytest_python` -- the interpreter
+# that runs `pytest` -- so they belong in ONE environment. Scattering them
+# across isolated `uv tool` environments and BugHunt's own installation is the
+# inconsistency this set exists to prevent.
+PYTEST_FAMILY_PACKAGES = frozenset(
+    {
+        "pytest",
+        "coverage",
+        "typeguard",
+        "hypothesis[cli]",
+        "mutmut",
+        "pytest-randomly",
+        "pytest-timeout",
+        "pytest-socket",
+        "pytest-xdist",
+        "pytest-run-parallel",
+        "blockbuster>=1.5,<1.6",
+        "pytest-memray",
+        "pytest-benchmark",
+        "hypofuzz",
+        "time-machine",
+        "freezegun",
+        "vcrpy",
+    }
+)
 
 
 # trace:v1 id=impl.src-bughunt-installers.-run work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1042,6 +1073,96 @@ def _install_technology_tools(
     return results
 
 
+# trace:v1 id=impl.src-bughunt-installers.install-pytest-family work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def install_pytest_family(
+    root: Path,
+    uv: str,
+    specs: list[str],
+    *,
+    dry_run: bool,
+    emit: Callable[[str], None],
+) -> list[InstallResult]:
+    """Install the pytest session's packages into one owned environment.
+
+    A repository with a project virtualenv installs these as dev dependencies
+    (see `install_all`), where the suite already runs. Without one there is
+    no environment to hold them, so BugHunt provisions its private pytest
+    environment (`technology.pytest_venv`) rather than scattering plugins
+    across isolated tool environments that pytest never imports from.
+    """
+    venv = pytest_venv(root)
+    python = pytest_venv_python(root)
+    if dry_run:
+        prefix = (
+            f"would install into {python}"
+            if python
+            else f"would create {venv} and install into its interpreter"
+        )
+        return [
+            InstallResult(
+                spec, "DRY-RUN", [uv, "pip", "install", "--python", "…", spec], prefix
+            )
+            for spec in sorted(specs)
+        ]
+    results: list[InstallResult] = []
+    if python is None:
+        created = _run(
+            [uv, "venv", "--python", tool_python(), str(venv)],
+            root,
+            emit,
+        )
+        created.name = "pytest-venv"
+        created.note = "BugHunt's private pytest environment for this repository"
+        if created.status != "PASS":
+            return [created]
+        python = pytest_venv_python(root)
+        if python is None:
+            return [
+                InstallResult(
+                    "pytest-venv",
+                    "ERROR",
+                    created.command,
+                    "uv venv reported success but produced no interpreter",
+                ),
+            ]
+        results.append(created)
+        # The suite runs in this environment, so the repository's declared
+        # dependencies belong here too; otherwise every test errored on import
+        # for an environment BugHunt itself created. Best effort: a failed
+        # install is reported, never fatal to the scan.
+        requirements = root / "requirements.txt"
+        if requirements.exists():
+            seeded = _run(
+                [uv, "pip", "install", "--python", python, "-r", str(requirements)],
+                root,
+                emit,
+            )
+            seeded.name = "requirements.txt"
+            if seeded.status == "PASS":
+                seeded.note = (
+                    "target dependencies installed into BugHunt's pytest environment"
+                )
+            else:
+                seeded.status = "SKIPPED"
+                seeded.note = (
+                    "could not install requirements.txt into BugHunt's pytest "
+                    + "environment; the test session may report import errors: "
+                    + seeded.note
+                )
+            results.append(seeded)
+    installed = _run(
+        [uv, "pip", "install", "--python", python, *sorted(specs)],
+        root,
+        emit,
+    )
+    installed.name = "pytest session"
+    installed.note = (
+        f"pytest, its plugins, and test-support libraries installed into {python}"
+    )
+    results.append(installed)
+    return results
+
+
 # trace:v1 id=impl.src-bughunt-installers.install-all work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def install_all(
     root: Path,
@@ -1113,10 +1234,17 @@ def install_all(
         ):
             results.extend(_install_atheris(root, uv, dry_run=dry_run, emit=emit))
     else:
+        pytest_family: list[str] = []
         for name, package_spec in PY_PACKAGES:
             if not python_needed:
                 continue
             if name in exclude or (only is not None and name not in only):
+                continue
+            if package_spec in PYTEST_FAMILY_PACKAGES:
+                # Not a standalone tool: the pytest session imports it, so it
+                # belongs to the pytest session's environment (provisioned
+                # below), never to an isolated `uv tool` environment.
+                pytest_family.append(package_spec)
                 continue
             if is_library_only(package_spec):
                 # No console script: `uv tool install` refuses these outright
@@ -1172,6 +1300,16 @@ def install_all(
                 result = _run(cmd, root, emit)
                 result.name = name
                 results.append(result)
+        if pytest_family:
+            results.extend(
+                install_pytest_family(
+                    root,
+                    uv,
+                    pytest_family,
+                    dry_run=dry_run,
+                    emit=emit,
+                ),
+            )
         if (
             python_needed
             and "atheris" not in exclude

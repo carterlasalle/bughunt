@@ -139,7 +139,7 @@ from .technology import (
     ENGINE_CATEGORY,
     discover_technologies,
     load_technology_inventory,
-    script_interpreter,
+    pytest_python,
     target_executable,
     target_has_module,
     target_python,
@@ -188,12 +188,13 @@ def build_checks(
     }
     target_py = target_python(root)
     pytest = target_executable(root, "pytest")
-    # Pytest plugins (memray, blockbuster, xdist, ...) must be importable by the
-    # interpreter that runs the `pytest` console script, which is not always
-    # target_py (a repo with no virtualenv resolves pytest from PATH while
-    # plugins land in the tool environment). Gate plugin readiness on the real
-    # owner, not target_py.
-    pytest_interp = (script_interpreter(pytest) if pytest else None) or target_py
+    # Pytest plugins (memray, blockbuster, xdist, ...) and coverage.py must be
+    # importable by the interpreter that runs the `pytest` session. That
+    # interpreter is the project virtualenv, BugHunt's private pytest
+    # environment, or the `pytest` console script's own environment -- never
+    # BugHunt's installation environment by accident. `pytest_python` is the
+    # single resolver for it; doctor and the installer use the same one.
+    pytest_interp = pytest_python(root)
     hypothesis_plugin = generated_config(root, "hypothesis_plugin.py")
     repro_seed = cfg.raw_int("tests", "repro_seed", 1)
     test_timeout = cfg.raw_int("tests", "timeout_seconds", 300)
@@ -211,7 +212,7 @@ def build_checks(
         if pytest
         else None
     )
-    if pytest_cmd and target_has_module(target_py, "pytest_timeout"):
+    if pytest_cmd and target_has_module(pytest_interp, "pytest_timeout"):
         pytest_cmd += ["--timeout", str(test_timeout)]
     if pytest_cmd and profile in {"deep", "all"}:
         # Resource/deprecation/runtime warnings are often latent bugs. Developer
@@ -219,7 +220,11 @@ def build_checks(
         pytest_cmd += ["-W", "error"]
         pytest_env["PYTHONDEVMODE"] = "1"
         pytest_env["PYTHONASYNCIODEBUG"] = "1"
-    if pytest_cmd and hypothesis_plugin and target_has_module(target_py, "hypothesis"):
+    if (
+        pytest_cmd
+        and hypothesis_plugin
+        and target_has_module(pytest_interp, "hypothesis")
+    ):
         pytest_cmd += ["-p", "hypothesis_plugin"]
         pytest_env["PYTHONPATH"] = (
             str(hypothesis_plugin.parent)

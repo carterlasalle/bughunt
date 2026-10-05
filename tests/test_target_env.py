@@ -9,7 +9,14 @@ from pathlib import Path
 import pytest
 
 from bughunt.cli import Check, Status, run_process
-from bughunt.technology import target_executable, target_has_module, target_python
+from bughunt.technology import (
+    pytest_executable,
+    pytest_python,
+    pytest_venv,
+    target_executable,
+    target_has_module,
+    target_python,
+)
 
 
 def _make_venv(root: Path, *names: str) -> Path:
@@ -92,3 +99,51 @@ def test_exit_five_errors_without_skip_codes(tmp_path: Path) -> None:
     check = _exit_five_check()
     check.cwd = tmp_path
     assert asyncio.run(run_process(check, 1024)).status == Status.ERROR
+
+
+# trace:v1 id=test.tests-test-target-env.test-pytest-python-prefers-repo-pytest-env work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_pytest_python_prefers_repo_pytest_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The suite's environment belongs to the repository, not BugHunt.
+
+    A repo with no virtualenv used to run pytest from PATH, so the scan's
+    result silently depended on how BugHunt was launched (`uv run` from the
+    BugHunt checkout vs a globally installed tool). BugHunt's private pytest
+    environment must win.
+    """
+    bindir = pytest_venv(tmp_path) / "bin"
+    bindir.mkdir(parents=True)
+    python = bindir / "python"
+    python.write_text("#!/bin/sh\n")
+    python.chmod(python.stat().st_mode | stat.S_IXUSR)
+    pytest_script = bindir / "pytest"
+    pytest_script.write_text(f"#!{python}\n")
+    pytest_script.chmod(pytest_script.stat().st_mode | stat.S_IXUSR)
+
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name)
+    assert target_executable(tmp_path, "pytest") == str(pytest_script)
+    assert pytest_python(tmp_path) == str(python)
+
+
+# trace:v1 id=test.tests-test-target-env.test-pytest-executable-stays-in-session-env work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_pytest_executable_stays_in_session_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pytest-family CLI on PATH belongs to a foreign environment.
+
+    Resolving it there would report the tool ready while the session cannot
+    import it, so only the environment that owns the session may answer.
+    """
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/" + name)
+    # The repository owns the session, but has no hypothesis of its own: the
+    # PATH copy (and BugHunt's own) must not answer for it.
+    _make_venv(tmp_path, "python")
+    assert pytest_executable(tmp_path, "hypothesis") is None
+
+    tool = tmp_path / ".venv" / "bin" / "hypothesis"
+    _ = tool.write_text("#!/bin/sh\n")
+    tool.chmod(tool.stat().st_mode | stat.S_IXUSR)
+    assert pytest_executable(tmp_path, "hypothesis") == str(tool)

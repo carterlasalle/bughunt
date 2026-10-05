@@ -718,11 +718,16 @@ def project_executable(root: Path, *names: str) -> str | None:
     actually being analyzed instead of accidentally using an unrelated global
     installation.
     """
+    bindir = "Scripts" if os.name == "nt" else "bin"
     candidates: list[Path] = []
     for name in names:
         candidates.extend(
             [
-                root / ".venv" / "bin" / name,
+                root / ".venv" / bindir / name,
+                # BugHunt's private pytest environment for repositories that
+                # have no project virtualenv. It holds the pytest session's
+                # plugins/libraries, so its console scripts must win over PATH.
+                pytest_venv(root) / bindir / name,
                 root / "node_modules" / ".bin" / name,
                 root / "vendor" / "bin" / name,
             ],
@@ -734,6 +739,31 @@ def project_executable(root: Path, *names: str) -> str | None:
         found = shutil.which(name)
         if found:
             return found
+    return None
+
+
+# trace:v1 id=impl.src-bughunt-technology.pytest-venv work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def pytest_venv(root: Path) -> Path:
+    """BugHunt's private per-repository pytest environment.
+
+    A repository with no virtualenv has no environment in which pytest
+    plugins and test-support libraries can be co-located, and resolving them
+    from BugHunt's own installation would make the scan depend on how
+    BugHunt was launched. BugHunt provisions this environment instead (see
+    `installers`), beside its existing pysa/atheris runtimes.
+    """
+    return root / ".bughunt" / "runtime" / "pytest-venv"
+
+
+# trace:v1 id=impl.src-bughunt-technology.pytest-venv-python work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def pytest_venv_python(root: Path) -> str | None:
+    """Interpreter of BugHunt's private pytest environment, when provisioned."""
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    candidate = (
+        pytest_venv(root) / bindir / ("python.exe" if os.name == "nt" else "python")
+    )
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
     return None
 
 
@@ -803,6 +833,39 @@ def script_interpreter(script_path: str) -> str | None:
                 return found
         return None
     return exe if Path(exe).exists() else None
+
+
+# trace:v1 id=impl.src-bughunt-technology.pytest-python work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def pytest_python(root: Path) -> str:
+    """The single interpreter that runs the target's pytest session.
+
+    Every pytest plugin, test-support library, and coverage.py must be
+    importable by this interpreter, so readiness probes, the installer, and
+    the report all resolve it through this one function. The owning
+    environment is the project virtualenv, BugHunt's private pytest
+    environment, or the `pytest` console script's own environment -- never
+    BugHunt's installation environment by accident.
+    """
+    pytest = target_executable(root, "pytest")
+    interp = script_interpreter(pytest) if pytest else None
+    return interp or pytest_venv_python(root) or target_python(root)
+
+
+# trace:v1 id=impl.src-bughunt-technology.pytest-executable work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
+def pytest_executable(root: Path, *names: str) -> str | None:
+    """Console script from the pytest session's own environment, or None.
+
+    Pytest-family tools (`hypothesis` for HypoFuzz, `mutmut`) run inside the
+    test session and import the session's environment. Resolving them from
+    PATH could pick a copy the session cannot import (including BugHunt's
+    own), so readiness must come from the environment that owns the session.
+    """
+    bindir = Path(pytest_python(root)).parent
+    for name in names:
+        candidate = bindir / (name + ".exe" if os.name == "nt" else name)
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return None
 
 
 # trace:v1 id=impl.src-bughunt-technology.target-has-module work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
