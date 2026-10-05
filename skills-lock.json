@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "brag": {
+      "source": "latent-spaces/brag",
+      "sourceType": "github",
+      "skillPath": "skills/brag/SKILL.md",
+      "computedHash": "bfa006908e7389adc592000980b99638f4db108286679ccd454a2d378709790b"
+    },
+    "ci-fix-dont-freeze": {
+      "source": "carterlasalle/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/ci-fix-dont-freeze/SKILL.md",
+      "computedHash": "a9b8dc8fc7647ba922356e58aa55f23beabb939480194ab7a9440442297b7d39"
+    }
+  }
+}

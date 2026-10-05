@@ -52,3 +52,12 @@ package.json
 # Brag video output (regenerable render artifacts).
 brag-output/
 brag-output-*/
+
+# Agent skill trees are materialized at session start from skills-lock.json and
+# the TraceLayer/BugCorpus tool syncs, which rewrite them. The lock file and the
+# hook/extension config stay tracked; the materialized copies do not, so
+# `git status` stays clean and a fresh clone re-materializes them.
+.omp/skills/
+.agents/skills/
+.claude/skills/
+.pi/skills/
