@@ -120,6 +120,28 @@ def main(argv: list[str] | None = None) -> int:
                 "severity": "error",
             },
         )
+    if test.returncode != 0 and not any(
+        item.get("code") == "BHCOV002" for item in findings
+    ):
+        # The suite failed while coverage was being measured, so the numbers
+        # describe a partial run. Name the cause: a bare ERROR with an empty
+        # note told the operator nothing, while the payload already knew
+        # (observed 2026-10-05: the row read ERROR, the payload said
+        # "1 failed, 242 passed").
+        tail = (test.stdout.strip().splitlines() or ["no output"])[-1]
+        findings.append(
+            {
+                "tool": "coverage",
+                "code": "BHCOV003",
+                "path": str(root),
+                "line": 1,
+                "message": (
+                    f"coverage measured a failing test suite: pytest exited "
+                    f"{test.returncode} ({tail[-200:]})"
+                ),
+                "severity": "error",
+            },
+        )
     payload = {
         "findings": findings,
         "summary": summary,

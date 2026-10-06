@@ -89,3 +89,40 @@ def test_report_failure_is_error(tmp_path: Path) -> None:
     # but `coverage json` cannot emit a report, exercising the report-failure
     # branch rather than the parse-failure branch.
     assert main([str(tmp_path)]) == 2
+
+
+# trace:v1 id=test.tests-test-coverage-runner.test-failing-suite-is-named-in-the-payload work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
+def test_failing_suite_is_named_in_the_payload(tmp_path: Path, capsys) -> None:
+    """A coverage failure must say why, not only that it failed.
+
+    A real report (2026-10-05) showed coverage as ERROR with an empty note while
+    its payload already said "1 failed, 242 passed": the operator had to open the
+    payload to learn the cause. The runner now names it as a finding.
+    """
+    import json
+
+    from bughunt.coverage_runner import main
+
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    _ = (pkg / "__init__.py").write_text("def add(a, b):\n    return a + b\n")
+    tests = tmp_path / "tests"
+    _ = tests.mkdir()
+    _ = (tmp_path / "conftest.py").write_text(
+        "import sys\nfrom pathlib import Path\n"
+        "sys.path.insert(0, str(Path(__file__).parent / 'src'))\n",
+    )
+    _ = (tests / "test_fail.py").write_text(
+        "from pkg import add\n\n\ndef test_fail() -> None:\n    assert add(1, 2) == 4\n",
+    )
+    _ = (tmp_path / ".bughunt" / "configs").mkdir(parents=True)
+    _ = (tmp_path / ".bughunt" / "configs" / "coverage.ini").write_text(
+        "[run]\nbranch = true\nsource =\n    src\n",
+    )
+
+    assert main([str(tmp_path)]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    named = {f["code"]: f for f in payload["findings"]}
+    assert "BHCOV003" in named, payload["findings"]
+    assert "exited 1" in named["BHCOV003"]["message"]
