@@ -6,6 +6,17 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-10-06
+
+### Fixed
+
+- A failing test suite no longer makes `coverage` fail opaquely. When the
+  measured suite fails, the defense reported ERROR with an empty note while its
+  payload already knew the cause: a real report (2026-10-05) showed a bare
+  ERROR whose payload read "1 failed, 242 passed". The runner now names it as
+  `BHCOV003` (`coverage measured a failing test suite: pytest exited 1 (...)`),
+  matching how a missing report already explained itself as `BHCOV002`.
+
 ## [0.10.6] - 2026-10-06
 
 ### Fixed
