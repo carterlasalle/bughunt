@@ -382,3 +382,44 @@ def test_silent_failure_rules_fire_on_fixtures(tmp_path: Path) -> None:
         cwd=configs,
     )
     assert astgrep_test.returncode == 0, astgrep_test.stderr[-500:]
+
+
+def _config_value(text: str, prefix: str) -> str:
+    return next(
+        line.split("=", 1)[1].strip()
+        for line in text.splitlines()
+        if line.startswith(prefix)
+    )
+
+
+# trace:v1 id=test.tests-test-configurator.test-generated-exclude-patterns-survive-embedding work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_generated_exclude_patterns_survive_embedding(tmp_path: Path) -> None:
+    """Generated exclude regexes must compile inside another expression.
+
+    Pylint embeds `ignore-paths` in a pattern of its own, where an inline flag
+    is a syntax error: with `(?x)` in the generated rcfile every pylint run
+    exited 32 with "global flags not at the start of the expression"
+    (observed 2026-10-06). Compiling the pattern standalone does not catch
+    that, so this compiles it the way the tool does.
+    """
+    import re
+
+    from bughunt.configurator import _mypy_config, _pylint_config
+
+    excluded = ["vendored", "third_party/legacy"]
+
+    pylint_pattern = _config_value(
+        _pylint_config(excluded=excluded),
+        "ignore-paths=",
+    )
+    assert re.compile(f"(?:{pylint_pattern})")
+    for entry in excluded:
+        assert re.search(pylint_pattern, f"{entry}/mod.py")
+
+    mypy_pattern = _config_value(
+        _mypy_config(tmp_path, ["src"], "3.12", excluded),
+        "exclude = ",
+    )
+    assert re.compile(f"(?:{mypy_pattern})")
+    for entry in excluded:
+        assert re.search(mypy_pattern, f"{entry}/mod.py")
