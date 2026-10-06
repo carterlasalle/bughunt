@@ -34,7 +34,7 @@ from .parsers import (
     text_findings,
 )
 from .models import Check, Result, Status
-from .configurator import JS_TOOL_IGNORES
+from .technology import js_ignore_entries
 
 
 # trace:v1 id=impl.src-bughunt-checks-native-b.-build-native-b-checks work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -168,7 +168,7 @@ def build_native_b_checks(cx: CheckBuildCx) -> None:
         # ignores travel as cwd-relative CLI flags instead. Bare directory
         # names: the `/**` form misbehaves on tracked dot-directories.
         oxlint_cmd += [
-            f"--ignore-pattern={p.removesuffix('/**')}" for p in JS_TOOL_IGNORES
+            f"--ignore-pattern={entry}" for entry in js_ignore_entries(cx.root)
         ]
     if oxlint_cmd and oxlint_cfg:
         oxlint_cmd += ["--config", str(oxlint_cfg)]

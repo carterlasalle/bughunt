@@ -246,3 +246,30 @@ def test_exclusions_match_names_and_prefixes(tmp_path: Path) -> None:
     assert exclusions.covers("anywhere/vendored/x.py")
     assert exclusions.covers("third_party/legacy/x.py")
     assert not exclusions.covers("third_party/kept/x.py")
+
+
+# trace:v1 id=test.tests-test-target-env.test-js-ignores-cover-gitignored-and-editor-dirs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_js_ignores_cover_gitignored_and_editor_dirs(tmp_path: Path) -> None:
+    """JS linters do not read `.gitignore`, so BugHunt enumerates the trees.
+
+    ESLint, oxlint, and knip take ignores from BugHunt's generated config and
+    CLI flags only; a gitignored tooling tree stayed linted until the flags
+    carried it (a cwd-wide oxlint run reported 1375 node_modules violations
+    plus one in each tooling directory, 2026-10-06).
+    """
+    from bughunt.technology import git_ignored_dirs, js_ignore_entries
+
+    (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "app.js").write_text("export const x = 1;\n")
+    (tmp_path / ".cursor").mkdir()
+    _ = (tmp_path / ".cursor" / "rules.js").write_text("export const r = 1;\n")
+    (tmp_path / "memory-bank").mkdir()
+    _ = (tmp_path / "memory-bank" / "notes.js").write_text("export const n = 1;\n")
+    (tmp_path / ".gitignore").write_text("memory-bank/\n")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    assert "memory-bank" in git_ignored_dirs(tmp_path)
+    entries = js_ignore_entries(tmp_path)
+    assert "memory-bank" in entries  # through .gitignore
+    assert ".cursor" in entries  # through the built-in editor-directory list
+    assert "src" not in entries

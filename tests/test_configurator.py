@@ -138,30 +138,38 @@ def test_managed_mutmut_config_refreshes_inferred_paths(tmp_path: Path) -> None:
 
 
 # trace:v1 id=test.tests-test-configurator.test-js-tool-configs-ignore-venvs-and-harness-dirs work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def test_js_tool_configs_ignore_venvs_and_harness_dirs() -> None:
+def test_js_tool_configs_ignore_venvs_and_harness_dirs(tmp_path: Path) -> None:
     import json
 
     from bughunt.configurator import (
-        JS_TOOL_IGNORES,
         _eslint_config,
+        _js_ignores,
         _knip_config,
         _oxlint_config,
     )
 
     # Neither tool resolves config-file patterns outside the generated
     # config's own directory, so the ESLint template inlines root-relative
-    # ignores verbatim and oxlint takes the same list as CLI flags.
-    assert ".venv/**" in JS_TOOL_IGNORES
-    assert ".omp/**" in JS_TOOL_IGNORES
-    assert "**/dist/**" in JS_TOOL_IGNORES
-    for text in (_eslint_config(True), _eslint_config(False)):
+    # ignores verbatim and oxlint takes bare directory names as CLI flags.
+    (tmp_path / "bughunt.toml").write_text(
+        '[project]\nexclude = ["vendored", "memory-bank"]\n',
+    )
+    ignores = _js_ignores(tmp_path)
+    assert ".venv/**" in ignores
+    assert ".omp/**" in ignores
+    assert "**/dist/**" in ignores
+    # A repository's own exclude reaches the JS tools, not just the Python ones.
+    assert "vendored/**" in ignores
+    assert "memory-bank/**" in ignores
+
+    for text in (_eslint_config(True, ignores), _eslint_config(False, ignores)):
         assert "__BUGHUNT" not in text
         assert "import.meta.url" not in text
-        for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
+        for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**", "vendored/**"):
             assert f'"{ignored}"' in text
     assert "ignorePatterns" not in json.loads(_oxlint_config(False))
-    knip = json.loads(_knip_config())
-    for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**"):
+    knip = json.loads(_knip_config(ignores))
+    for ignored in (".venv/**", "venv/**", ".omp/**", ".agents/**", "vendored/**"):
         assert ignored in knip["ignoreFiles"]
 
 

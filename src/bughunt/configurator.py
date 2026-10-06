@@ -18,7 +18,12 @@ from typing import Any
 from .coverage_tools import coverage_config
 from .policy_scan import ensure_env_example
 from .runtime_plugins import write_runtime_plugins
-from .technology import discover_technologies, excluded_entries, infer_sql_dialect
+from .technology import (
+    discover_technologies,
+    excluded_entries,
+    infer_sql_dialect,
+    js_ignore_entries,
+)
 
 
 # trace:v1 id=impl.src-bughunt-configurator.config-artifact work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
@@ -1485,71 +1490,25 @@ force_enable = True
 """
 
 
-# Directories that never hold first-party JS/TS product source: virtualenvs
-# (which vendor minified third-party bundles), VCS metadata, analyzer caches,
-# BugHunt's own output, and agent/harness runtime tooling. JS linters run
-# cwd-wide, so every entry here prevents thousands of third-party findings
-# from drowning the product's own signal.
-#
-# Ignore patterns are root-relative. With `--config`, ESLint matches `ignores`
-# against the invocation working directory (verified empirically: config-file-
-# relative and absolute forms both fail to match, and oxlint rejects `..`
-# outright), so the generated config lists them verbatim and oxlint receives
-# the same list as cwd-relative `--ignore-pattern` flags.
-JS_TOOL_IGNORES = [
-    "node_modules/**",
-    "dist/**",
-    "build/**",
-    ".next/**",
-    ".bughunt/**",
-    ".venv/**",
-    "venv/**",
-    "env/**",
-    ".direnv/**",
-    ".git/**",
-    ".hg/**",
-    ".svn/**",
-    ".tox/**",
-    ".nox/**",
-    ".mypy_cache/**",
-    ".pytest_cache/**",
-    ".ruff_cache/**",
-    ".pyre/**",
-    ".coverage/**",
-    "htmlcov/**",
-    "mutants/**",
-    "__pypackages__/**",
-    "site-packages/**",
-    ".agents/**",
-    ".claude/**",
-    ".codex/**",
-    ".pi/**",
-    ".omp/**",
-    ".hermes/**",
-    ".trace/**",
-    ".benchmarks/**",
-    ".complexipy_cache/**",
-    ".import_linter_cache/**",
-    # Nested build output: root-relative `dist/**` does not match
-    # `pkg/dist/bundle.js` (probed 2026-09-15: nested dist was linted).
-    # Leading-`**/` forms are honored by ESLint flat `ignores`, knip
-    # ignoreFiles, and oxlint `--ignore-pattern` (gitignore semantics).
-    "**/dist/**",
-    "**/build/**",
-    "**/.next/**",
-    "**/node_modules/**",
-    "**/.venv/**",
-    "**/venv/**",
-    "**/coverage/**",
-    "**/htmlcov/**",
-]
-# Rendered inline into the ESLint templates. Patterns are matched against
-# cwd-relative paths (verified: with `--config`, ESLint resolves `ignores`
-# against the invocation working directory, and rejects nothing), so the
-# generated config lists them verbatim.
-_JS_IGNORES_CLAUSE = (
-    "{ ignores: [" + ", ".join(f'"{p}"' for p in JS_TOOL_IGNORES) + "] }"
-)
+# JS/TS linters run cwd-wide and do not read `.gitignore`, so they receive the
+# same resolved exclusions as every other engine
+# (`technology.js_ignore_entries`), rendered in the form they expect. Patterns
+# are matched against cwd-relative paths (verified: with `--config`, ESLint
+# resolves `ignores` against the invocation working directory), so the
+# generated config lists them verbatim while oxlint takes bare directory names.
+# trace:v1 id=impl.src-bughunt-configurator.js-ignores work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _js_ignores(root: Path) -> list[str]:
+    entries = js_ignore_entries(root)
+    return sorted(
+        {f"{entry}/**" for entry in entries} | {f"**/{entry}/**" for entry in entries}
+    )
+
+
+# trace:v1 id=impl.src-bughunt-configurator.js-ignores-clause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _js_ignores_clause(ignores: list[str]) -> str:
+    return "{ ignores: [" + ", ".join(f'"{p}"' for p in ignores) + "] }"
+
+
 _JS_IGNORES_LINE_OLD = (
     '  { ignores: ["node_modules/**", "dist/**", "build/**", ".next/**", '
     '".bughunt/**"] },'
@@ -1587,19 +1546,20 @@ def _oxlint_config(react: bool) -> str:
 
 
 # trace:v1 id=impl.src-bughunt-configurator.-knip-config work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _knip_config() -> str:
+def _knip_config(ignores: list[str]) -> str:
     # ignoreFiles uses the shared JS ignore list. Resolution is verified
     # empirically after generation: if knip resolves these relative to the
     # config file instead of the root, the invocation must scope paths.
     data = {
         "$schema": "https://unpkg.com/knip@6/schema.json",
-        "ignoreFiles": JS_TOOL_IGNORES,
+        "ignoreFiles": ignores,
     }
     return json.dumps(data, indent=2)
 
 
 # trace:v1 id=impl.src-bughunt-configurator.-eslint-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
-def _eslint_config(typescript: bool) -> str:
+def _eslint_config(typescript: bool, ignores: list[str]) -> str:
+    clause = _js_ignores_clause(ignores)
     # Core ESLint correctness rules plus type-aware typescript-eslint when a
     # TypeScript project is actually present. Project Service reuses the same
     # tsconfig discovery model as editors/tsc instead of inventing a lint-only
@@ -1651,7 +1611,7 @@ export default defineConfig(
     }
   }
 );
-""".replace(_JS_IGNORES_LINE_OLD, "  " + _JS_IGNORES_CLAUSE + ",")
+""".replace(_JS_IGNORES_LINE_OLD, "  " + clause + ",")
     return r"""// Auto-generated by BugHunt. Correctness-first JS fallback.
 import js from "@eslint/js";
 export default [
@@ -1674,7 +1634,7 @@ export default [
     }
   }
 ];
-""".replace(_JS_IGNORES_LINE_OLD, "  " + _JS_IGNORES_CLAUSE + ",")
+""".replace(_JS_IGNORES_LINE_OLD, "  " + clause + ",")
 
 
 # trace:v1 id=impl.src-bughunt-configurator.buf-config work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
@@ -1806,7 +1766,7 @@ def _configure_technology_overlays(
         put(
             "Knip",
             "knip.json",
-            _knip_config(),
+            _knip_config(_js_ignores(root)),
             (
                 "harness/runtime/dependency dirs ignored so dynamically loaded "
                 "entry points are not reported unused"
@@ -1815,7 +1775,7 @@ def _configure_technology_overlays(
         put(
             "ESLint",
             "eslint.config.mjs",
-            _eslint_config(inv.has("typescript")),
+            _eslint_config(inv.has("typescript"), _js_ignores(root)),
             (
                 "correctness-first JS plus strict type-aware typescript-eslint "
                 "when TypeScript is detected; project-owned ESLint "

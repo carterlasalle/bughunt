@@ -475,7 +475,7 @@ test_paths = ["tests"]
 exclude = ["vendored", "third_party/legacy"]
 ```
 
-Scope is one rule everywhere. BugHunt's own scanners, every generated config (Ruff `extend-exclude`, mypy `exclude`, pylint `ignore`/`ignore-paths`, Bandit `exclude_dirs`, pyrefly/coverage excludes), and the final report all apply the same three inputs: built-in artifact directories, your `[project] exclude`, and your `.gitignore` — a gitignored tree is skipped exactly as Ruff skips it, and outside a git repository `.gitignore` simply does not apply. Findings whose path is excluded are dropped from the report, which is what makes whole-repository engines such as CodeQL respect the same boundary.
+Scope is one rule everywhere. BugHunt's own scanners, every generated config (Ruff `extend-exclude`, mypy `exclude`, pylint `ignore`/`ignore-paths`, Bandit `exclude_dirs`, pyrefly/coverage excludes, and the ESLint/oxlint/knip ignore lists), and the final report all apply the same three inputs: built-in artifact directories, your `[project] exclude`, and your `.gitignore` — a gitignored tree is skipped exactly as Ruff skips it, and outside a git repository `.gitignore` simply does not apply. Findings whose path is excluded are dropped from the report, which is what makes whole-repository engines such as CodeQL respect the same boundary.
 
 ## Exit codes
 

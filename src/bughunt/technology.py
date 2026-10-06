@@ -61,6 +61,11 @@ IGNORED_DIRS = {
     ".omp",
     ".hermes",
     ".scc",
+    # Editor/IDE metadata: user state and tool configuration, never product
+    # source, and never something a repository would want linted.
+    ".cursor",
+    ".vscode",
+    ".idea",
 }
 
 
@@ -344,6 +349,63 @@ def git_ignored(root: Path, relatives: Sequence[str]) -> set[str]:
     if proc.returncode not in {0, 1}:
         return set()
     return {item for item in proc.stdout.split("\0") if item}
+
+
+# trace:v1 id=impl.src-bughunt-technology.git-ignored-dirs work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def git_ignored_dirs(root: Path) -> list[str]:
+    """Directories `.gitignore` excludes, repository-relative and unslashed.
+
+    One `git ls-files --others --ignored --directory` call. Ignored individual
+    files are dropped: a linter ignore list is directory-shaped. Empty without
+    git, or outside a repository.
+    """
+    git = shutil.which("git")
+    if not git:
+        return []
+    try:
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [
+                git,
+                "-C",
+                str(root),
+                "ls-files",
+                "-z",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=_CHECK_IGNORE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if proc.returncode != 0:
+        return []
+    # `--directory` collapses a fully ignored, untracked tree into a single
+    # entry ending in "/".
+    return sorted(
+        {
+            item.rstrip("/")
+            for item in proc.stdout.split("\0")
+            if item.endswith("/") and item.strip("/")
+        },
+    )
+
+
+# trace:v1 id=impl.src-bughunt-technology.js-ignore-entries work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def js_ignore_entries(root: Path) -> list[str]:
+    """Directories the JS/TS linters must skip, repository-relative.
+
+    The same inputs as the Python side (`resolve_exclusions`) plus the
+    directories `.gitignore` excludes, because ESLint, oxlint, and knip do not
+    read `.gitignore` themselves. Each consumer adds the glob suffix its tool
+    wants; oxlint needs the bare directory name.
+    """
+    exclusions = resolve_exclusions(root)
+    return sorted({*exclusions.names, *exclusions.prefixes, *git_ignored_dirs(root)})
 
 
 # trace:v1 id=impl.src-bughunt-technology.scope-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

@@ -75,6 +75,12 @@ only (`.hypothesis/`, `brag-output/`, `.bugcorpus/generated/`, `.DS_Store`),
 and no first-party file is dropped (57 `src/` modules and 39 test modules are
 still walked).
 
+The JS/TS linters are covered by the same resolver rather than their own
+list: `technology.js_ignore_entries` feeds ESLint's `ignores`, knip's
+`ignoreFiles`, and oxlint's `--ignore-pattern` flags, because those tools do
+not read `.gitignore` themselves. A tree excluded in `bughunt.toml` is
+therefore invisible to them too.
+
 Accepted nuance: `git check-ignore` matches patterns regardless of tracking,
 so a tracked file that also matches an ignore pattern is excluded, exactly as
 Ruff treats it. Tracked-but-ignored is a repository inconsistency worth

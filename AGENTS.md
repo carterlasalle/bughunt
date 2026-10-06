@@ -3025,6 +3025,11 @@ Record exact traps, for example:
   (it scans a database, not a path list). `[project] exclude` entries: bare
   name = any path component, slashed = repository-relative prefix.
   `BUGHUNT_CONFIG` carries `--config` into the `python -m bughunt.*` helpers.
+  The JS/TS linters use the same resolver through
+  `technology.js_ignore_entries` (ESLint `ignores`, knip `ignoreFiles`, oxlint
+  `--ignore-pattern`); they do not read `.gitignore` themselves, so the
+  gitignored directories are enumerated with one `git ls-files --ignored` call.
+  A per-tool hardcoded list must never come back.
 - The pytest session resolves through ONE function,
   `technology.pytest_python` (project `.venv` → private pytest venv → the
   `pytest` console script's env). `doctor`, the installer, and every
