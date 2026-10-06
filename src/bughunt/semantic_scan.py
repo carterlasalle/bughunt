@@ -15,6 +15,7 @@ from pathlib import Path
 from .detectors import concurrency
 from .graph.facts import GraphFacts, load as load_facts
 from .semantic import contradictions, crosshair_confirm
+from .technology import scope_files
 
 CACHE_NAME = "system-ir.json"
 
@@ -29,13 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     source_paths = args[0].split(",") if args else ["src"]
     cache = root / ".bughunt" / "cache" / CACHE_NAME
     facts = load_facts(cache) if cache.exists() else GraphFacts()
-    files: list[Path] = []
-    for source in source_paths:
-        base = root / source
-        if base.is_file() and base.suffix == ".py":
-            files.append(base)
-        elif base.is_dir():
-            files.extend(sorted(base.rglob("*.py")))
+    files = scope_files(root, source_paths)
     found = contradictions.scan(root, files, facts)
     witnessed = crosshair_confirm.confirm(root, found)
     payload: list[dict[str, object]] = []

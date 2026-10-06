@@ -7,9 +7,11 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterable
+import tomllib
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import cast
 
 _GIT_TIMEOUT_S = 8
 # Upper bound (seconds) for interpreter probes. A wedged interpreter must
@@ -163,17 +165,24 @@ ENGINE_CATEGORY: dict[str, str] = {
 
 # trace:v1 id=impl.src-bughunt-technology.-iter-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _iter_files(root: Path) -> Iterable[Path]:
+    exclusions = resolve_exclusions(root)
+    found: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS]
         base = Path(dirpath)
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if not exclusions.covers(_rel_fast(root, base / name))
+        ]
         for name in filenames:
             path = base / name
             try:
                 if path.is_file():
-                    yield path
+                    found.append(path)
             except OSError:
                 # One bad file never fails a scan; skipped
                 continue
+    yield from exclusions.filtered(found)
 
 
 # trace:v1 id=impl.src-bughunt-technology.-rel work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -186,6 +195,200 @@ def _rel(root: Path, path: Path) -> str:
         )
     except ValueError:
         return path.as_posix()
+
+
+# trace:v1 id=impl.src-bughunt-technology.-rel-fast work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _rel_fast(root: Path, path: Path) -> str:
+    """Repository-relative POSIX path for paths already known to sit under root.
+
+    `_rel` resolves both sides, which costs a syscall per file; walks that start
+    at `root` do not need it.
+    """
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+# Upper bound (seconds) for the batched `git check-ignore` call. A wedged git
+# must never stall a scan; the `.gitignore` filter simply does not apply.
+_CHECK_IGNORE_TIMEOUT_S = 20
+
+
+# trace:v1 id=impl.src-bughunt-technology.-configured-excludes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _configured_excludes(root: Path) -> list[str]:
+    """`[project] exclude` entries from the repository's BugHunt configuration.
+
+    Read here rather than through `Config` because the tree walkers and the
+    `python -m bughunt.*` helper scanners receive only a repository root, and
+    all of them must agree on what is excluded. `BUGHUNT_CONFIG` carries an
+    explicit `--config` path into those helpers.
+    """
+    override = os.environ.get("BUGHUNT_CONFIG", "").strip()
+    candidates = [Path(override)] if override else []
+    candidates.append(root / "bughunt.toml")
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            data = tomllib.loads(path.read_text(errors="replace"))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+        project = data.get("project")
+        if not isinstance(project, dict):
+            return []
+        project_table = cast("dict[str, object]", project)
+        raw = project_table.get("exclude")
+        if not isinstance(raw, list):
+            return []
+        items = cast("list[object]", raw)
+        entries: list[str] = []
+        for item in items:
+            if not isinstance(item, str):
+                continue
+            entry = item.strip().strip("/")
+            if entry and entry != ".":
+                entries.append(entry)
+        return entries
+    return []
+
+
+# trace:v1 id=impl.src-bughunt-technology.exclusions work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@dataclass(frozen=True, slots=True)
+class Exclusions:
+    """What one repository excludes from a scan, resolved once per walk.
+
+    Built-in artifact/dependency directories (`IGNORED_DIRS`) plus the
+    repository's own `[project] exclude`. An entry without a slash matches any
+    path component anywhere (`vendored`); an entry with one matches a
+    repository-relative prefix (`third_party/legacy`). `.gitignore` is applied
+    by `filtered`, which batches it into a single `git check-ignore` call.
+    """
+
+    root: Path
+    names: frozenset[str]
+    prefixes: tuple[str, ...]
+
+    # trace:v1 id=impl.src-bughunt-technology.exclusions.covers work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def covers(self, relative: str) -> bool:
+        """True when a repository-relative POSIX path is excluded by name or prefix."""
+        if any(part in self.names for part in relative.split("/")):
+            return True
+        return any(
+            relative == prefix or relative.startswith(prefix + "/")
+            for prefix in self.prefixes
+        )
+
+    # trace:v1 id=impl.src-bughunt-technology.exclusions.filtered work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+    def filtered(self, paths: Iterable[Path]) -> list[Path]:
+        """Drop excluded paths, then whatever `.gitignore` excludes."""
+        kept = [p for p in paths if not self.covers(_rel_fast(self.root, p))]
+        if not kept:
+            return []
+        ignored = git_ignored(self.root, [_rel_fast(self.root, p) for p in kept])
+        if not ignored:
+            return kept
+        return [p for p in kept if _rel_fast(self.root, p) not in ignored]
+
+
+# trace:v1 id=impl.src-bughunt-technology.resolve-exclusions work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def resolve_exclusions(root: Path) -> Exclusions:
+    """Canonical exclusion rules for a repository: built-ins plus its config."""
+    entries = set(IGNORED_DIRS)
+    entries.update(_configured_excludes(root))
+    return Exclusions(
+        root=root,
+        names=frozenset(entry for entry in entries if "/" not in entry),
+        prefixes=tuple(sorted(entry for entry in entries if "/" in entry)),
+    )
+
+
+# trace:v1 id=impl.src-bughunt-technology.excluded-entries work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def excluded_entries(root: Path) -> list[str]:
+    """Everything to exclude, relative to the repository root, sorted.
+
+    For generated analyzer configs: built-in artifact/dependency directories
+    plus `[project] exclude`. Entries without a slash are bare directory names
+    (`vendor`); entries with one are already repository-relative prefixes
+    (`third_party/legacy`), which both Ruff and the other tools accept.
+    """
+    exclusions = resolve_exclusions(root)
+    return sorted({*exclusions.names, *exclusions.prefixes})
+
+
+# trace:v1 id=impl.src-bughunt-technology.git-ignored work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def git_ignored(root: Path, relatives: Sequence[str]) -> set[str]:
+    """Repository-relative paths that `.gitignore` excludes.
+
+    One batched `git check-ignore` for the whole list. Exit 1 means "nothing
+    matched" and exit 128 means "not a git repository"; neither is an error and
+    neither may fail a scan. Without git, or outside a repository, the built-in
+    and configured excludes still apply.
+    """
+    if not relatives:
+        return set()
+    git = shutil.which("git")
+    if not git:
+        return set()
+    try:
+        proc = subprocess.run(  # noqa: S603 - audited: argv list, no shell
+            [git, "-C", str(root), "check-ignore", "--stdin", "-z"],
+            input="\0".join(relatives) + "\0",
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=_CHECK_IGNORE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    if proc.returncode not in {0, 1}:
+        return set()
+    return {item for item in proc.stdout.split("\0") if item}
+
+
+# trace:v1 id=impl.src-bughunt-technology.scope-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def scope_files(
+    root: Path,
+    paths: Iterable[str],
+    *,
+    suffixes: Sequence[str] = (".py",),
+) -> list[Path]:
+    """Every first-party file under the given scope paths, in a stable order.
+
+    The single traversal used by BugHunt's native scanners, so built-in
+    excludes, `[project] exclude`, and `.gitignore` are applied identically
+    everywhere instead of once per scanner. `suffixes=("*",)` admits any file.
+    """
+    exclusions = resolve_exclusions(root)
+    any_suffix = "*" in suffixes
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for relative in paths:
+        base = root / relative
+        if base.is_file():
+            candidates: Iterable[Path] = [base]
+        elif base.is_dir():
+            candidates = (
+                base.rglob("*")
+                if any_suffix
+                else (path for suffix in suffixes for path in base.rglob(f"*{suffix}"))
+            )
+        else:
+            continue
+        for path in candidates:
+            try:
+                if not path.is_file():
+                    continue
+            except OSError:
+                continue
+            if not any_suffix and path.suffix not in suffixes:
+                continue
+            resolved = path.resolve(strict=False)
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            found.append(path)
+    return exclusions.filtered(found)
 
 
 # trace:v1 id=impl.src-bughunt-technology.small-enough work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

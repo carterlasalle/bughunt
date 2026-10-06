@@ -463,7 +463,19 @@ all = 14400
 enabled = true
 atheris_runs = 500000
 schemathesis_max_examples = 1000
+
+[project]
+python_paths = ["src", "tests"]
+source_paths = ["src"]
+test_paths = ["tests"]
+
+# Invisible to every engine: BugHunt's own scanners and the generated analyzer
+# configs. A bare name matches that directory anywhere (`vendored`); an entry
+# with a slash matches a repository-relative prefix (`third_party/legacy`).
+exclude = ["vendored", "third_party/legacy"]
 ```
+
+Scope is one rule everywhere. BugHunt's own scanners, every generated config (Ruff `extend-exclude`, mypy `exclude`, pylint `ignore`/`ignore-paths`, Bandit `exclude_dirs`, pyrefly/coverage excludes), and the final report all apply the same three inputs: built-in artifact directories, your `[project] exclude`, and your `.gitignore` — a gitignored tree is skipped exactly as Ruff skips it, and outside a git repository `.gitignore` simply does not apply. Findings whose path is excluded are dropped from the report, which is what makes whole-repository engines such as CodeQL respect the same boundary.
 
 ## Exit codes
 

@@ -5,6 +5,8 @@ BugHunt's generated configs are deliberately **max-recall**. The goal is not to 
 
 A finding can be deprioritized in the report, but a rule is not silently disabled merely because it is noisy. Generated/runtime/vendor paths are excluded so strictness applies to first-party code.
 
+Exclusion is one resolved set, not a per-tool list. `technology.resolve_exclusions` merges the built-in artifact directories, the repository's `[project] exclude`, and `.gitignore` (batched through one `git check-ignore`), and every generated config below carries it in that tool's own format; BugHunt's own scanners use the same resolver, and findings on excluded paths are dropped from the report. A repository can therefore add or drop a tree from every engine from one key, and a gitignored tree is invisible to BugHunt exactly as it is to Ruff.
+
 <!-- trace:exempt reason=repo-docs-move-no-behavior-change -->
 ## Ruff
 

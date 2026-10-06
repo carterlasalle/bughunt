@@ -13,22 +13,7 @@ from typing import cast
 
 from typing_extensions import override
 
-EXCLUDED = {
-    ".git",
-    ".hg",
-    ".svn",
-    ".venv",
-    "venv",
-    "env",
-    "node_modules",
-    ".tox",
-    ".nox",
-    "build",
-    "dist",
-    ".bughunt",
-    "mutants",
-    "__pycache__",
-}
+from .technology import scope_files
 
 SECRET_NAME = re.compile(
     r"(?:secret|token|password|passwd|api[_-]?key|private[_-]?key|access[_-]?key|"
@@ -128,20 +113,9 @@ def _call_name(node: ast.AST) -> str:
     return ""
 
 
+# trace:v1 id=impl.src-bughunt-policy-scan.-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _files(root: Path, paths: Iterable[str]) -> Iterable[Path]:
-    seen: set[Path] = set()
-    for rel in paths:
-        base = root / rel
-        if not base.exists():
-            continue
-        candidates = [base] if base.is_file() else base.rglob("*.py")
-        for path in candidates:
-            if path.suffix != ".py" or any(part in EXCLUDED for part in path.parts):
-                continue
-            resolved = path.resolve()
-            if resolved not in seen:
-                seen.add(resolved)
-                yield path
+    yield from scope_files(root, paths)
 
 
 # trace:v1 id=impl.src-bughunt-policy-scan.-literal work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

@@ -8,18 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-IGNORED = {
-    ".git",
-    ".venv",
-    "venv",
-    ".bughunt",
-    "node_modules",
-    "build",
-    "dist",
-    "__pycache__",
-    "site-packages",
-    "mutants",
-}
+from .technology import scope_files
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,21 +22,7 @@ class EvidenceFinding:
 
 # trace:v1 id=impl.src-bughunt-evidence_scan.-files work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _files(root: Path, paths: Iterable[str]) -> Iterable[Path]:
-    seen: set[Path] = set()
-    for rel in paths:
-        base = root / rel
-        candidates = (
-            [base]
-            if base.is_file() and base.suffix == ".py"
-            else base.rglob("*.py")
-            if base.is_dir()
-            else []
-        )
-        for path in candidates:
-            if path in seen or any(part in IGNORED for part in path.parts):
-                continue
-            seen.add(path)
-            yield path
+    yield from scope_files(root, paths)
 
 
 def _name(node: ast.AST | None) -> str:

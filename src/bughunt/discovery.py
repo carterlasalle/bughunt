@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 # Canonical generated/dependency directory set; shared with every scanner
-from .technology import IGNORED_DIRS as EXCLUDED
+from .technology import resolve_exclusions, scope_files
 
 FUZZ_NAME = re.compile(
     r"(^|_)(parse|parser|decode|deserialize|loads?|from_bytes|from_string|tokenize|lex|"
@@ -163,7 +163,7 @@ def infer_source_paths(root: Path) -> list[str]:
         if base.is_dir() and any(base.rglob("*.py")) and common not in candidates:
             candidates.append(common)
     # Flat-layout packages. Avoid obvious tooling/content directories.
-    ignored = EXCLUDED | {
+    ignored = resolve_exclusions(root).names | {
         "tests",
         "test",
         "docs",
@@ -195,23 +195,17 @@ def infer_test_paths(root: Path) -> list[str]:
     return ["tests"]
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-python-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _python_files(root: Path, source_paths: Iterable[str]) -> Iterable[Path]:
-    for rel in source_paths:
-        base = root / rel
-        if not base.exists():
-            continue
-        for path in base.rglob("*.py"):
-            if not any(part in EXCLUDED for part in path.parts):
-                yield path
+    yield from scope_files(root, source_paths)
 
 
+# trace:v1 id=impl.src-bughunt-discovery.-test-python-files work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _test_python_files(root: Path) -> Iterable[Path]:
-    for dirname in ("tests", "test"):
-        base = root / dirname
-        if base.exists():
-            for path in base.rglob("*.py"):
-                if not any(part in EXCLUDED for part in path.parts):
-                    yield path
+    yield from scope_files(
+        root,
+        [dirname for dirname in ("tests", "test") if (root / dirname).is_dir()],
+    )
 
 
 # trace:v1 id=impl.src-bughunt-discovery.-module-name work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -1436,10 +1430,8 @@ def discover_schemathesis(
             )
 
     # Schema files are safe to auto-run only when their server points at localhost.
-    for path in root.rglob("*"):
-        if not path.is_file() or any(part in EXCLUDED for part in path.parts):
-            continue
-        if path.suffix.lower() not in {".json", ".yaml", ".yml"} or not _looks_openapi(
+    for path in scope_files(root, ["."], suffixes=(".json", ".yaml", ".yml")):
+        if not _looks_openapi(
             path,
         ):
             continue

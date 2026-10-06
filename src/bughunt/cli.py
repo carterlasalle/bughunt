@@ -137,13 +137,15 @@ from .installers import InstallResult, install_all
 from .technology import (
     ENGINE_CAPABILITY,
     ENGINE_CATEGORY,
+    TECH_DEEP_TOOLS,
+    Exclusions,
     discover_technologies,
     load_technology_inventory,
     pytest_python,
+    resolve_exclusions,
     target_executable,
     target_has_module,
     target_python,
-    TECH_DEEP_TOOLS,
 )
 from .ui import console as console
 
@@ -152,6 +154,20 @@ from .ui import console as console
 # exists; N/A never lowers defense health. Lizard and Semgrep are intentionally
 # excluded because they can analyze multiple languages, while Schemathesis can
 # exercise an OpenAPI contract independently of the implementation language.
+
+
+# trace:v1 id=impl.src-bughunt-cli.-scoped work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _scoped(root: Path, values: list[str], exclusions: Exclusions) -> list[str]:
+    """Scope paths with excluded directories removed.
+
+    Falls back to the repository root when a repository excludes every root it
+    configured, so no tool is invoked without a path (Ruff would then default
+    to the working directory and reach the excluded trees anyway).
+    """
+    paths = [
+        path for path in analysis_scope(root, values) if not exclusions.covers(path)
+    ]
+    return paths or ["."]
 
 
 # trace:v1 id=impl.src-bughunt-cli.build-checks work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX implements=PLAN-BUG-560GXA79
@@ -166,9 +182,13 @@ def build_checks(
     profile_tools = cfg.tools(profile)
     excluded = set(excluded or ())
     wanted = [name for name in profile_tools if name not in excluded]
-    py = analysis_scope(root, cfg.python_paths)
-    src = analysis_scope(root, cfg.source_paths)
-    tests = analysis_scope(root, cfg.test_paths)
+    exclusions = resolve_exclusions(root)
+    # An excluded directory must not reach the engines even when it is also a
+    # configured scope root: mypy and pylint only apply their own `exclude`
+    # to paths they discover, never to the ones passed on the command line.
+    py = _scoped(root, cfg.python_paths, exclusions)
+    src = _scoped(root, cfg.source_paths, exclusions)
+    tests = _scoped(root, cfg.test_paths, exclusions)
     config_dir = root / ".bughunt" / "configs"
     checks: list[Check] = []
     skipped: list[Result] = []
@@ -743,6 +763,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     root = Path(str(args.root)).resolve()
     config_value = args.config
     config_path = Path(str(config_value)) if config_value is not None else None
+    if config_path is not None:
+        # Helper scanners run as `python -m bughunt.*` and receive only a root;
+        # carry an explicit --config to them so exclusions stay identical.
+        os.environ["BUGHUNT_CONFIG"] = str(config_path)
     cfg = load_config(root, config_path)
 
     if args.command == "rules":

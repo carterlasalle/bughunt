@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Iterable
 from typing import Any
 
 
@@ -16,12 +17,23 @@ class CoverageGap:
     severity: str = "warning"
 
 
-def coverage_config(source_paths: list[str]) -> str:
+# trace:v1 id=impl.src-bughunt-coverage_tools.coverage-config work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
+def coverage_config(
+    source_paths: list[str],
+    excluded: Iterable[str] = (),
+) -> str:
     source = "\n    ".join(source_paths) if source_paths else "."
+    # Coverage measures whatever its `source` roots reach, so an excluded tree
+    # needs an explicit omit pattern in both the nested and root-relative forms.
+    omits = "\n".join(
+        f"    {pattern}"
+        for entry in excluded
+        for pattern in (f"*/{entry}/*", f"{entry}/*")
+    )
     return (
         f"[run]\nbranch = true\nparallel = false\nsource =\n    {source}\n"
         "omit =\n    */.venv/*\n    */.bughunt/*\n    */site-packages/*\n"
-        "    */tests/*\n    */test_*\n\n[report]\nshow_missing = true\n"
+        f"    */tests/*\n    */test_*\n{omits}\n\n[report]\nshow_missing = true\n"
         "skip_covered = false\nprecision = 2\n\n[json]\npretty_print = true\n"
         "show_contexts = true\n"
     )

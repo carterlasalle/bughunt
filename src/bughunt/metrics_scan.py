@@ -12,20 +12,7 @@ from pathlib import Path
 
 from typing_extensions import override
 
-EXCLUDED = {
-    ".git",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".tox",
-    ".nox",
-    ".bughunt",
-    "__pycache__",
-    "mutants",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".pytest_cache",
-}
+from .technology import scope_files
 
 DEFAULTS = {
     "cyclomatic_warn": 10,
@@ -220,20 +207,7 @@ def _budget(root: Path) -> dict[str, float]:
 
 # trace:v1 id=impl.src-bughunt-metrics_scan.-files work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _files(root: Path, source_paths: Iterable[str]) -> Iterable[Path]:
-    seen: set[Path] = set()
-    for rel in source_paths:
-        base = root / rel
-        if not base.exists():
-            continue
-        candidates = [base] if base.is_file() else base.rglob("*.py")
-        for path in candidates:
-            if path.suffix == ".py" and not any(
-                part in EXCLUDED for part in path.parts
-            ):
-                rp = path.resolve()
-                if rp not in seen:
-                    seen.add(rp)
-                    yield path
+    yield from scope_files(root, source_paths)
 
 
 def _iter_functions(tree: ast.AST) -> Iterable[ast.FunctionDef | ast.AsyncFunctionDef]:

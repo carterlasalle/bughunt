@@ -21,6 +21,7 @@ from rich.text import Text
 from .config import REPORT_DIR, Config
 from .debt import debt_report, load_debt_ledger, mark_accepted
 from .models import Finding, Result, Status
+from .technology import git_ignored, resolve_exclusions
 from .ui import console
 
 
@@ -301,11 +302,27 @@ def _finding_on_trace_marker(
 
 # trace:v1 id=impl.src-bughunt-cli.canonicalize-findings work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def canonicalize_findings(root: Path, results: list[Result]) -> None:
+    exclusions = resolve_exclusions(root)
     cache: dict[str, list[str]] = {}
+    for result in results:
+        for finding in result.findings:
+            finding.path = canonical_finding_path(root, finding.path)
+    # Report only paths the scan itself would read. Whole-repository engines
+    # cannot take per-path excludes (CodeQL builds a database of the tree), so
+    # the exclusion is enforced once, here, for every engine.
+    surviving = [
+        finding.path
+        for result in results
+        for finding in result.findings
+        if finding.path and not exclusions.covers(finding.path)
+    ]
+    ignored = git_ignored(root, surviving)
     for result in results:
         kept = []
         for finding in result.findings:
-            finding.path = canonical_finding_path(root, finding.path)
+            path = finding.path or ""
+            if (path and exclusions.covers(path)) or path in ignored:
+                continue
             if _finding_on_trace_marker(root, finding, cache):
                 continue
             kept.append(finding)

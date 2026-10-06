@@ -3,6 +3,7 @@
 
 import asyncio
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -147,3 +148,101 @@ def test_pytest_executable_stays_in_session_env(
     _ = tool.write_text("#!/bin/sh\n")
     tool.chmod(tool.stat().st_mode | stat.S_IXUSR)
     assert pytest_executable(tmp_path, "hypothesis") == str(tool)
+
+
+def _scope_repo(root: Path) -> None:
+    """A repo with two excluded trees and one first-party tree."""
+    (root / "src" / "pkg").mkdir(parents=True)
+    (root / "vendored" / "deep").mkdir(parents=True)
+    (root / "third_party" / "legacy").mkdir(parents=True)
+    for rel in (
+        "src/pkg/keep.py",
+        "vendored/drop.py",
+        "vendored/deep/drop.py",
+        "third_party/legacy/drop.py",
+        "third_party/keep.py",
+    ):
+        _ = (root / rel).write_text("x = 1\n")
+
+
+# trace:v1 id=test.tests-test-target-env.test-project-exclude-scopes-every-walker work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_project_exclude_scopes_every_walker(tmp_path: Path) -> None:
+    """`[project] exclude` must reach the native walkers, not just the tools.
+
+    The directory set used to be a fixed constant, so a vendored tree could
+    only be dropped from Ruff; BugHunt's own scanners kept walking it. Bare
+    names match any path component, slashed entries match a path prefix.
+    """
+    from bughunt.technology import _iter_files, scope_files
+
+    _scope_repo(tmp_path)
+    (tmp_path / "bughunt.toml").write_text(
+        '[project]\nexclude = ["vendored", "third_party/legacy"]\n',
+    )
+    kept = {
+        path.relative_to(tmp_path).as_posix() for path in scope_files(tmp_path, ["."])
+    }
+    assert kept == {"src/pkg/keep.py", "third_party/keep.py"}
+
+    walked = {
+        path.relative_to(tmp_path).as_posix()
+        for path in _iter_files(tmp_path)
+        if path.suffix == ".py"
+    }
+    assert walked == kept
+
+
+# trace:v1 id=test.tests-test-target-env.test-gitignore-scopes-native-walkers work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_gitignore_scopes_native_walkers(tmp_path: Path) -> None:
+    """A gitignored tree is skipped by the native engines, as it is by Ruff.
+
+    Ruff's generated config sets `respect-gitignore`, so a gitignored vendored
+    tree was already invisible to it while BugHunt's own scanners still read
+    it. Both now agree.
+    """
+    from bughunt.technology import git_ignored, scope_files
+
+    _scope_repo(tmp_path)
+    (tmp_path / ".gitignore").write_text("third_party/\n")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    assert git_ignored(tmp_path, ["third_party/keep.py"]) == {"third_party/keep.py"}
+    kept = {
+        path.relative_to(tmp_path).as_posix() for path in scope_files(tmp_path, ["."])
+    }
+    assert kept == {"src/pkg/keep.py", "vendored/drop.py", "vendored/deep/drop.py"}
+
+
+# trace:v1 id=test.tests-test-target-env.test-gitignore-is-inert-outside-a-repo work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_gitignore_is_inert_outside_a_repo(tmp_path: Path) -> None:
+    """Without a git repository the built-in and configured excludes still hold.
+
+    `git check-ignore` exits 128 outside a work tree; that must be a no-op, not
+    a failure, and it must never hide first-party code on its own.
+    """
+    from bughunt.technology import git_ignored, scope_files
+
+    _scope_repo(tmp_path)
+    (tmp_path / ".gitignore").write_text("src/\n")
+    assert git_ignored(tmp_path, ["src/pkg/keep.py"]) == set()
+    kept = {
+        path.relative_to(tmp_path).as_posix() for path in scope_files(tmp_path, ["."])
+    }
+    assert "src/pkg/keep.py" in kept
+
+
+# trace:v1 id=test.tests-test-target-env.test-exclusions-match-names-and-prefixes work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_exclusions_match_names_and_prefixes(tmp_path: Path) -> None:
+    """Built-in names, configured names, and configured prefixes all resolve."""
+    from bughunt.technology import resolve_exclusions
+
+    (tmp_path / "bughunt.toml").write_text(
+        '[project]\nexclude = ["vendored", "third_party/legacy", "/trailing/"]\n',
+    )
+    exclusions = resolve_exclusions(tmp_path)
+    assert ".venv" in exclusions.names
+    assert "vendored" in exclusions.names
+    assert "trailing" in exclusions.names
+    assert exclusions.covers("anywhere/vendored/x.py")
+    assert exclusions.covers("third_party/legacy/x.py")
+    assert not exclusions.covers("third_party/kept/x.py")

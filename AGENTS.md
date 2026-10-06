@@ -3015,6 +3015,16 @@ Record exact traps, for example:
   PATH (see ADR-010). System-pytest ERRORs on a foreign tree mean the
   target env is incomplete (check install outcomes + root/.venv/bin), not
   that the resolver is wrong. Do not "fix" by removing the PATH fallback.
+- Scan scope resolves through ONE function, `technology.resolve_exclusions`
+  (built-in artifact dirs + `[project] exclude` + `.gitignore`), and every
+  native scanner walks through `technology.scope_files`. Three private
+  `EXCLUDED`/`IGNORED` copies inside `policy_scan`/`metrics_scan`/
+  `evidence_scan` had drifted from the canonical set (2026-10-06) — never add
+  another. Findings on excluded paths are dropped centrally in
+  `canonicalize_findings`, which is what makes CodeQL respect the boundary
+  (it scans a database, not a path list). `[project] exclude` entries: bare
+  name = any path component, slashed = repository-relative prefix.
+  `BUGHUNT_CONFIG` carries `--config` into the `python -m bughunt.*` helpers.
 - The pytest session resolves through ONE function,
   `technology.pytest_python` (project `.venv` → private pytest venv → the
   `pytest` console script's env). `doctor`, the installer, and every

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Canonical generated/dependency directory set; shared with every scanner
-from .technology import IGNORED_DIRS
+from .technology import scope_files
 
 _QUANTITY_HINTS = (
     "irradiance",
@@ -90,23 +90,7 @@ class DataFinding:
 
 # trace:v1 id=impl.src-bughunt-data-scan.-iter-python work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def _iter_python(root: Path, paths: list[str]) -> list[Path]:
-    out: list[Path] = []
-    seen: set[Path] = set()
-    for rel in paths:
-        base = root / rel
-        candidates = (
-            [base]
-            if base.is_file() and base.suffix == ".py"
-            else list(base.rglob("*.py"))
-            if base.is_dir()
-            else []
-        )
-        for path in candidates:
-            if path in seen or any(part in IGNORED_DIRS for part in path.parts):
-                continue
-            seen.add(path)
-            out.append(path)
-    return out
+    return scope_files(root, paths)
 
 
 # trace:v1 id=impl.src-bughunt-data-scan.-rel work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

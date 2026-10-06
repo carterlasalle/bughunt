@@ -10,7 +10,7 @@ from pathlib import Path
 from typing_extensions import override
 
 # Canonical generated/dependency directory set; shared with every scanner
-from .technology import IGNORED_DIRS
+from .technology import scope_files
 
 SERIALIZATION_BOUNDARIES = {
     "json.dump",
@@ -62,20 +62,7 @@ class SeamFinding:
 
 # trace:v1 id=impl.src-bughunt-seam_scan.-iter-python work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def _iter_python(root: Path, paths: Iterable[str]) -> Iterable[Path]:
-    seen: set[Path] = set()
-    for rel in paths:
-        base = root / rel
-        if base.is_file() and base.suffix == ".py":
-            candidates = [base]
-        elif base.is_dir():
-            candidates = list(base.rglob("*.py"))
-        else:
-            continue
-        for path in candidates:
-            if path in seen or any(part in IGNORED_DIRS for part in path.parts):
-                continue
-            seen.add(path)
-            yield path
+    yield from scope_files(root, paths)
 
 
 # trace:v1 id=impl.src-bughunt-seam_scan.-rel work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
@@ -795,12 +782,8 @@ def _schema_drift(root: Path, source_paths: Iterable[str]) -> list[SeamFinding]:
             _ = models.setdefault(name, (fields, _rel(root, path), 1))
 
     findings: list[SeamFinding] = []
-    schema_files: list[Path] = []
-    for suffix in ("*.json", "*.yaml", "*.yml"):
-        schema_files.extend(root.rglob(suffix))
+    schema_files = scope_files(root, ["."], suffixes=(".json", ".yaml", ".yml"))
     for path in schema_files:
-        if any(part in IGNORED_DIRS for part in path.parts):
-            continue
         data = _load_schema_doc(path)
         if data is None:
             continue

@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from .checkctx import CheckBuildCx
 from .probes import optional_cmd, generated_config
-from .technology import IGNORED_DIRS, target_executable
+from .technology import excluded_entries, target_executable
 from .parsers import (
     parse_bandit,
     parse_complexipy,
@@ -125,7 +125,7 @@ def build_quality_checks(cx: CheckBuildCx) -> None:
                 # would otherwise report dead code inside generated configs,
                 # vendored deps, and virtualenvs. Keep it to first-party code.
                 "--exclude",
-                ",".join(sorted(IGNORED_DIRS)),
+                ",".join(excluded_entries(cx.root)),
             ],
         ),
         findings_exit_codes={3},

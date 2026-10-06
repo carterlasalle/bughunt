@@ -9,3 +9,4 @@ Format: context, decision, alternatives, consequences.
 | [0008](0008-semantic-engine.md) | Semantic correctness engine on the SCC graph skeleton |
 | [0009](0009-data-invariant-layer.md) | Data-invariant layer over SemanticValue (MISS/DF/INT/ART/META) |
 | [0010](0010-pytest-session-environment.md) | One pytest-session environment, resolved from the repository |
+| [0011](0011-unified-exclusion-resolver.md) | One exclusion resolver for every engine and the report |

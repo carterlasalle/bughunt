@@ -171,17 +171,30 @@ def test_generated_dirs_ignored_in_all_generated_configs(tmp_path: Path) -> None
 
     Regression: the walker set (technology.IGNORED_DIRS) and the
     linter-exclude set (configurator.EXCLUDE_DIRS) diverged, so some
-    generated configs kept linting node_modules/venv trees. They are now one
-    canonical set.
+    generated configs kept linting node_modules/venv trees. Both now come from
+    `technology.excluded_entries`, which also carries the repository's own
+    `[project] exclude`.
     """
-    from bughunt.configurator import EXCLUDE_DIRS, _ruff_config
+    from bughunt.configurator import _ruff_config
+    from bughunt.technology import excluded_entries
 
-    assert EXCLUDE_DIRS == sorted(EXCLUDE_DIRS)
+    entries = excluded_entries(tmp_path)
+    assert entries == sorted(entries)
     for generated in ("node_modules", ".venv", "venv", ".tox", ".nox", "dist"):
-        assert generated in EXCLUDE_DIRS
-    ruff = _ruff_config("3.12", ["src"], ["tests"])
+        assert generated in entries
+
+    (tmp_path / "bughunt.toml").write_text(
+        '[project]\nexclude = ["vendored", "third_party/legacy"]\n',
+    )
+    excluded = excluded_entries(tmp_path)
+    assert "vendored" in excluded
+    assert "third_party/legacy" in excluded
+
+    ruff = _ruff_config("3.12", ["src"], ["tests"], excluded=excluded)
     for generated in ("node_modules", ".venv", "venv", ".tox", ".nox", "dist"):
         assert f'"{generated}"' in ruff
+    assert '"vendored"' in ruff
+    assert '"third_party/legacy"' in ruff
 
 
 # trace:v1 id=test.tests-test-configurator.test-ruff-per-file-ignores-scope-tests-and-runners work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
