@@ -6,6 +6,25 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-10-06
+
+### Fixed
+
+- The JS/TS linters now receive the same exclusions as every other engine.
+  ESLint, oxlint, and knip do not read `.gitignore` themselves and had their
+  own hardcoded directory list, so `[project] exclude` never reached them and a
+  tree excluded from BugHunt's own scanners was still linted. `technology.
+  js_ignore_entries` resolves built-ins, `[project] exclude`, and the
+  directories `.gitignore` excludes, one `git ls-files --ignored` call, and
+  feeds the ESLint `ignores` clause, knip `ignoreFiles`, and oxlint's
+  `--ignore-pattern` flags. Measured on a probe with `.agents/`, `.cursor/`,
+  `memory-bank/`, and an excluded `vendored/`: a cwd-wide oxlint run reported
+  1375 `node_modules` violations plus one in each tooling directory, and none
+  with the generated flags.
+- `.cursor`, `.vscode`, and `.idea` join the built-in ignored directories:
+  editor/IDE metadata is user state and tool configuration, never product
+  source.
+
 ## [0.10.5] - 2026-10-06
 
 ### Fixed
