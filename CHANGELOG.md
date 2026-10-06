@@ -6,6 +6,25 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-10-06
+
+### Fixed
+
+- The generated `pylintrc` no longer breaks pylint. `ignore-paths` carried an
+  inline `(?x)` flag, which pylint rejects when it embeds the pattern in an
+  expression of its own ("global flags not at the start of the expression"),
+  so every `pylint` and `pylint-tests` run exited 32 in 0.10.4. The mypy
+  `exclude` regex drops the same unnecessary flag, and a regression test now
+  compiles both patterns the way the tools do rather than standalone.
+- A test suite that collects nothing (pytest exit 5) is a SKIP, not a failure.
+  ADR-002 specifies that mapping, but ten pytest-running defenses (the plain
+  `pytest` check, the timezone/locale matrices, runtime-types, and the
+  pytest-random/no-network/xdist/async-blocking/parallel/memray plugins) passed
+  only `findings_exit_codes`, so a repository whose test directory holds no
+  tests reported ERRORs for defenses that behaved correctly. `coverage` maps it
+  too, via a distinct exit code from its runner instead of reporting
+  unexercised lines for a suite that never ran.
+
 ## [0.10.4] - 2026-10-06
 
 ### Added
