@@ -57,6 +57,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     findings: list[dict[str, object]] = []
     summary: dict[str, object] = {}
+    if test.returncode == 5:
+        # `coverage run -m pytest` inherits pytest's exit codes; 5 means nothing
+        # was collected. There is no coverage to measure, and reporting
+        # unexercised lines for a suite that never ran would be misleading, so
+        # signal a skip the caller maps to SKIPPED.
+        print(
+            json.dumps(
+                {
+                    "error": "no tests collected",
+                    "test_returncode": test.returncode,
+                    "findings": [],
+                    "summary": {},
+                },
+            ),
+        )
+        return 5
     if out.exists():
         try:
             gaps, summary = parse_coverage_json(out)

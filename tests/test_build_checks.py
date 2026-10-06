@@ -1,8 +1,10 @@
 # Copyright (c) 2026 Carter LaSalle
 """Check construction: wanted subsets, N/A branches, tech engines."""
 
-import pytest
+import asyncio
 from pathlib import Path
+
+import pytest
 
 
 def _cfg(root: Path):
@@ -291,3 +293,33 @@ def test_pytest_plugin_gates_use_pytest_interpreter(
         f"plugin gate did not probe pytest's interpreter: {seen}"
     )
     assert not any(c.name == "memray" for c in checks), "memray must skip, not run"
+
+
+# trace:v1 id=test.tests-test-build-checks.test-pytest-check-skips-empty-suite work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_pytest_check_skips_empty_suite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A suite that collects nothing (pytest exit 5) is a skip, not a failure.
+
+    ADR-002: empty pytest-style exits map to SKIP. The plain `pytest` defense
+    ran with only `findings_exit_codes`, so a repository whose test directory
+    holds no tests reported an ERROR for a defense that behaved correctly.
+    """
+    from bughunt.cli import build_checks, run_process
+    from bughunt.models import Status
+    from bughunt.technology import target_executable
+
+    if target_executable(tmp_path, "pytest") is None:
+        pytest.skip("pytest is not resolvable in this environment")
+
+    _project(tmp_path, ["pytest"])
+    (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "a.py").write_text("x = 1\n")
+    (tmp_path / "tests").mkdir()
+    # A test module with no tests in it: pytest exits 5 with nothing collected.
+    _ = (tmp_path / "tests" / "test_empty.py").write_text("x = 1\n")
+
+    checks, _skipped = build_checks(_cfg(tmp_path), "all", excluded={"mutmut"})
+    pytest_check = next(c for c in checks if c.name == "pytest")
+    assert asyncio.run(run_process(pytest_check, 4096)).status == Status.SKIPPED

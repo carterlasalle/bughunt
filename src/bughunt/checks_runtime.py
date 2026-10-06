@@ -50,6 +50,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     ],
                     lambda o, e, c: parse_bughunt_helper("coverage", o, e, c),
                     findings_exit_codes={1},
+                    skip_exit_codes={5},
                 )
             else:
                 cx.add(
@@ -145,6 +146,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     else "typeguard/pytest not installed"
                 ),
                 env={"PYTHONHASHSEED": str(cx.repro_seed)},
+                skip_exit_codes={5},
             )
 
         if "doctest" in cx.wanted:
@@ -195,6 +197,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="pytest-randomly not installed",
                 env={"PYTHONHASHSEED": str(seed), "PYTHONASYNCIODEBUG": "1"},
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "pytest-no-network" in cx.wanted:
@@ -217,6 +220,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="pytest-socket not installed",
                 env={"PYTHONHASHSEED": str(cx.repro_seed)},
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "pytest-xdist" in cx.wanted:
@@ -241,6 +245,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="pytest-xdist not installed",
                 env={"PYTHONHASHSEED": str(cx.repro_seed)},
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "pytest-async-blocking" in cx.wanted:
@@ -264,6 +269,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="Blockbuster plugin not configured/installed",
                 env=env,
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "pytest-parallel" in cx.wanted:
@@ -287,6 +293,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="pytest-run-parallel not installed",
                 env={"PYTHONASYNCIODEBUG": "1", "PYTHONHASHSEED": str(cx.repro_seed)},
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "hypofuzz" in cx.wanted:
@@ -414,6 +421,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                             "PYTHONASYNCIODEBUG": "1",
                         },
                         findings_exit_codes={1},
+                        skip_exit_codes={5},
                     ),
                 ) if cx.pytest else None
             # macOS commonly exposes Turkish as tr_TR.UTF-8/tr_TR.UTF-8-like names;
@@ -452,6 +460,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                             "PYTHONHASHSEED": str(cx.repro_seed),
                         },
                         findings_exit_codes={1},
+                        skip_exit_codes={5},
                     ),
                 )
 
@@ -475,6 +484,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 reason="pytest-memray not installed",
                 check_timeout=cx.cfg.timeout(cx.profile),
                 findings_exit_codes={1},
+                skip_exit_codes={5},
             )
 
         if "benchmark" in cx.wanted:

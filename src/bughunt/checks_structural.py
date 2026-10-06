@@ -209,6 +209,7 @@ def build_structural_checks(cx: CheckBuildCx) -> None:
                     cx.root,
                     env=cx.pytest_env,
                     findings_exit_codes={1},
+                    skip_exit_codes={5},
                 ),
             )
         else:
