@@ -6,6 +6,31 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-06
+
+### Added
+
+- `[project] exclude` excludes a tree from every engine at once. A bare name
+  matches that directory anywhere (`vendored`); an entry containing a slash
+  matches a repository-relative prefix (`third_party/legacy`).
+
+### Fixed
+
+- `.gitignore` now scopes BugHunt's own scanners, not just Ruff. A gitignored
+  tree produced native-engine findings while Ruff was already silent on it
+  (measured 2026-10-06); it is now skipped everywhere. Outside a git repository
+  `.gitignore` does not apply, and git being absent never fails a scan.
+- Exclusion is one resolved set. `policy_scan`, `metrics_scan`, and
+  `evidence_scan` each carried a private, drifted copy of the ignore list, so
+  the same file could be excluded by one engine and scanned by another. Every
+  native scanner, every generated config (Ruff, mypy, pylint, Bandit, pyrefly,
+  complexipy, coverage), and the report now agree.
+- Findings on excluded paths are dropped from the report, so whole-repository
+  engines respect the same boundary — CodeQL builds a database rather than a
+  path list. An excluded `vendored/` tree went from eleven findings to zero.
+- Scope roots handed to engines are filtered, because mypy and pylint apply
+  their own `exclude` only to paths they discover, never to explicit ones.
+
 ## [0.10.3] - 2026-10-02
 
 ### Fixed
