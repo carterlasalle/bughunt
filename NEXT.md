@@ -116,3 +116,25 @@ property and stateful generation (hypofuzz + hypothesis), packaging
   blind spot explicitly — "N rules matched nothing" and "N without a verdict"
   are never noise, the same contract as `Check.empty_scope_markers` and
   BHVERIFY003.
+
+<!-- trace:exempt reason=repo-planning-no-product-behavior -->
+## 9. Per-defense receipts: the version and the scope actually used
+
+`Result` already records what a review needs to trust a row: the exact
+`command`, `duration_s`, `status`/`exit_code`, the raw `stdout`/`stderr`,
+`note`, and `artifacts`. Three receipts from the same review are still missing
+from `report.json` (schema_version 3):
+
+- **tool version per defense** — the doctor tables detect installed versions at
+  scan start (`doctor_engines.py`, `doctor_tables.py`) but the report does not
+  carry them, so "which ruff produced this finding" needs the environment;
+- **what was actually analyzed** — a tool's own "N files" line lives in
+  `stdout`, not as a first-class field, so a scan cannot be diffed against the
+  next one to say what entered or left scope;
+- **suppressions and rule packs applied** — partly in `command` for the
+  engines that take flags, absent for those that read a config file
+  (`.semgrep.yml`, `eslint.config.js`, `pytest.ini`).
+
+This is a schema change (`schema_version` bump) with consumers to update
+(agent queue, bugcorpus and tracelayer adapters), which is why it is a separate
+change rather than a field bolted onto the boundary-ring work.
