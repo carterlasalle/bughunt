@@ -325,11 +325,38 @@ def test_main_reports_findings(monkeypatch, tmp_path: Path, capsys) -> None:
 
     _ = (tmp_path / ".scc").mkdir()
     finding = {"tool": "verify-gaps", "code": "BHVERIFY001"}
-    monkeypatch.setattr(verify_gaps, "scan", lambda root: [finding])
+    monkeypatch.setattr(verify_gaps, "_graph", lambda root: ({"entities": []}, None))
+    monkeypatch.setattr(verify_gaps, "_scan_graph", lambda root, data: [finding])
     assert verify_gaps.main([str(tmp_path)]) == 1
     assert json.loads(capsys.readouterr().out)["findings"] == [finding]
-    monkeypatch.setattr(verify_gaps, "scan", lambda root: [])
+    monkeypatch.setattr(verify_gaps, "_scan_graph", lambda root, data: [])
     assert verify_gaps.main([str(tmp_path)]) == 0
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_unavailable_graph_is_an_error work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_unavailable_graph_is_an_error(monkeypatch, tmp_path: Path, capsys) -> None:
+    """An SCC workspace with no usable graph must not read as a clean tree.
+
+    Observed on a real scan: the export was regenerating while verify-gaps ran,
+    the rule reported zero findings, and the row read PASS although no rule had
+    executed.
+    """
+    import json
+
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / ".scc").mkdir()
+    monkeypatch.setattr(
+        verify_gaps,
+        "_graph",
+        lambda root: (None, "scc export failed (exit 1): boom"),
+    )
+
+    assert verify_gaps.main([str(tmp_path)]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "scc export failed (exit 1): boom"
+    assert [f["code"] for f in payload["findings"]] == ["BHVERIFY003"]
+    assert "boom" in payload["findings"][0]["message"]
 
 
 # trace:v1 id=test.tests-test-verify-gaps.test-boundary-without-failure-path-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4

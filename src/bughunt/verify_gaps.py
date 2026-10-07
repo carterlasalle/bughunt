@@ -198,19 +198,37 @@ FAILURE_NAME_WORDS = (
 )
 
 
-# trace:v1 id=impl.src-bughunt-verify-gaps.-load-graph work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
-def _load_graph(root: Path) -> dict[str, object] | None:
+# trace:v1 id=impl.src-bughunt-verify-gaps.-graph work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _graph(root: Path) -> tuple[dict[str, object] | None, str | None]:
+    """Cached System IR payload, with the reason when it is unusable.
+
+    The reason is load-bearing: an unavailable graph is otherwise
+    indistinguishable from a clean tree, and the ring's contract
+    (system_ir_adapter) is that a failing index/export is an error, never clean.
+    """
     from bughunt.system_ir_adapter import export
 
     cache, error = export(root)
-    if error is not None or cache is None:
-        return None
+    if error is not None:
+        return None, error
+    if cache is None:
+        return None, "system-ir export produced no cache"
     try:
         payload = json.loads(cache.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
+    except OSError as exc:
+        return None, f"cannot read {cache}: {exc}"
+    except json.JSONDecodeError:
+        return None, f"{cache} is not valid JSON"
     data = payload.get("system_ir")
-    return data if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return None, f"{cache} carries no system_ir payload"
+    return data, None
+
+
+# trace:v1 id=impl.src-bughunt-verify-gaps.-load-graph work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _load_graph(root: Path) -> dict[str, object] | None:
+    """Cached System IR payload, or None when the graph is unavailable."""
+    return _graph(root)[0]
 
 
 # trace:v1 id=impl.src-bughunt-verify-gaps.-module-level work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
@@ -518,6 +536,12 @@ def scan(root: Path) -> list[dict[str, object]]:
     data = _load_graph(root)
     if not data:
         return []
+    return _scan_graph(root, data)
+
+
+# trace:v1 id=impl.src-bughunt-verify-gaps.-scan-graph work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def _scan_graph(root: Path, data: dict[str, object]) -> list[dict[str, object]]:
+    """Apply the gap rules to an already-loaded System IR payload."""
     entities = data.get("entities", [])
     relationships = data.get("relationships", [])
     if not isinstance(entities, list) or not isinstance(relationships, list):
@@ -694,7 +718,34 @@ def main(argv: list[str] | None = None) -> int:
     if not (root / ".scc").is_dir():
         print(json.dumps({"findings": [], "not_applicable": True}))
         return 0
-    findings = scan(root)
+    data, reason = _graph(root)
+    if data is None:
+        # An SCC workspace with no usable graph is a blind spot, not a clean
+        # tree. Report the reason so a scan never reads PASS for a rule that
+        # did not run (the ring's contract: a failing export is never clean).
+        detail = reason or "unavailable"
+        print(
+            json.dumps(
+                {
+                    "findings": [
+                        {
+                            "tool": "verify-gaps",
+                            "code": "BHVERIFY003",
+                            "path": str(root),
+                            "line": 1,
+                            "severity": "error",
+                            "message": (
+                                "System IR graph unavailable, verify-gaps did "
+                                f"not run: {detail}"
+                            ),
+                        }
+                    ],
+                    "error": detail,
+                }
+            )
+        )
+        return 2
+    findings = _scan_graph(root, data)
     print(json.dumps({"findings": findings}))
     return 1 if findings else 0
 
