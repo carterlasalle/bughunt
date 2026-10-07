@@ -97,9 +97,22 @@ property and stateful generation (hypofuzz + hypothesis), packaging
   BHVERIFY002 tests above are exactly that shape), and the doctor tables carry
   the engine-level signal. A whole-corpus harness is a larger piece needing its
   own ADR.
-- JEV (`jev-lint`, mizchi): a natural-language rule linter — ast-grep selects
-  the code, a written sentence is the rule, and a verdict comes back. It ships
-  `gate`, `report`, and a `calibrate`/`eval` harness for precision scoring.
-  Interesting for rule *authoring*, but the verdict path needs a model and the
-  rules are user prose, so it does not replace the deterministic native pack.
-  Revisit if BugHunt grows user-authored rules.
+- JEV (`jev-lint`, mizchi; the verdict model is Jev from typesafe.ai): a rule
+  is an ast-grep matcher plus one sentence and its criteria ("does this
+  function's body do what its name promises?"), ast-grep deciding *which* code
+  is judged and the model deciding whether the sentence holds, over a cutoff
+  fitted to a labelled corpus. It is explicit that this is the axis parsers
+  cannot take — name-vs-body drift, stale comments, tests that cannot verify
+  their title, catch blocks that hide failures — and that it is measurably poor
+  at what a compiler or type checker already decides. Not adopted here: the
+  verdict path needs an API key, it is non-deterministic by construction (~1 in
+  5 findings wrong on its own repo), and BugHunt's native pack is deterministic
+  ast-grep/semgrep. Three disciplines worth borrowing regardless:
+  (a) labels for a calibration corpus must live outside the judged artifact —
+  jev-lint's own markers inside the files it showed the model inflated its fit
+  from 17 real rules at 1.00 to 22 claimed; (b) record/replay so a threshold is
+  auditable and CI can re-score for free (`eval --replay`), which is the shape a
+  known-bad corpus should take if item above is ever built; (c) report the
+  blind spot explicitly — "N rules matched nothing" and "N without a verdict"
+  are never noise, the same contract as `Check.empty_scope_markers` and
+  BHVERIFY003.
