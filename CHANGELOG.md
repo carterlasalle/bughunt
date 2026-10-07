@@ -6,6 +6,36 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-07
+
+### Added
+
+- `BHVERIFY002` — unverified boundary fault path. A module-level public
+  function that calls an external boundary (HTTP client, subprocess, socket,
+  database) and has no detected failure-path test is reported as a warning.
+  A happy-path test proves the success branch only; the failure branches
+  (timeout, refused connection, non-zero exit, malformed response, lost
+  acknowledgement) are where boundary code actually breaks. Boundaries are a
+  curated qualified set (`requests.get`, `subprocess.run`, `sqlite3.connect`,
+  `sqlite3.Connection`, `cursor.execute`, ...) with `import x as y` aliases
+  resolved, because a bare `send`/`write`/`execute` matches half a tree. The
+  rule is emitted only when neither `BHVERIFY001` nor `BHIMPL001` already owns
+  the symbol, so one function never collects two gap findings. Calibrated
+  against this repository: 5 findings, each verified by hand, and a known
+  fault-tested boundary (`version_diff_runner._git_show`, `crosshair_confirm.
+  confirm`) correctly suppressed.
+
+### Fixed
+
+- The mention heuristic behind verification gaps now follows re-exports and
+  module-attribute usage. Tests import a package's convenience module
+  (`from bughunt.cli import reset_tool_dir`, `from pkg import mod` then
+  `mod.serve()`), while the graph records the symbol under the module that
+  defines it, so direct tests looked missing. Relative imports resolve to their
+  absolute module (`from .runners import x` in `bughunt/cli.py` is
+  `bughunt.runners`). On this repository the same change removed 13 false
+  "no detected direct test" findings (34 → 21 `BHVERIFY001`).
+
 ## [0.10.7] - 2026-10-06
 
 ### Fixed

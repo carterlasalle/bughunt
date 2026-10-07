@@ -3212,6 +3212,27 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   mutmut defense correctly reports ERROR (loud, never silent). Revisit after
   the cli.py split; do not "fix" by excluding cli.py from mutation scope.
 
+- 2026-10-07 verification-gap rule: `verify_gaps` ships BHVERIFY002 (boundary
+  fault path) — a module-level public function calling a curated *qualified*
+  external boundary (`requests.get`, `subprocess.run`, `sqlite3.connect`,
+  `*.execute`, ...), with `import x as y` aliases resolved, and no detected
+  failure-path test. Bare `send`/`write`/`execute` are deliberately not
+  qualified: they match half a tree. Receipt on this repo: 5 findings, each
+  hand-checked true; `version_diff_runner._git_show` and
+  `semantic/crosshair_confirm.confirm` (real fault-injection tests) correctly
+  suppressed. The mention heuristic that gates *every* gap rule must follow
+  re-exports (`from .runners import x`, where tests import it from
+  `bughunt.cli`), module-attribute usage (`mod.func()`), and relative imports
+  resolved to absolute modules — missing those shapes overstated BHVERIFY001
+  34 → 21 on this tree. Failure evidence is test-name words (including the
+  absence vocabulary `without`/`missing`/`none`, which is how this repo's
+  `test_fault_boundaries.py` writes degradation tests) plus exception and
+  `side_effect` markers scoped to one test function; only suppressions flow
+  from it, never findings. The rest of the 2026-10-07 oracle-layer review
+  (beartype, nplusone, abi3audit, TLA+/Z3, known-bad calibration corpus,
+  JEV/`jev-lint`) is triaged with reasons in NEXT.md item 8 — do not
+  re-litigate without an acceptance case.
+
 ## Last maintenance review
 
 Date:

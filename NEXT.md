@@ -58,3 +58,48 @@ The precision-policy ADR (a) is recommended whenever scoping debates recur.
 harness surfaces; cannot be fixed retroactively — verified clean for the
 next tag. The `cmpop` dict-key strict debt in `_range_for_variable` is
 pre-existing (proven at HEAD) and waits with the rest of the strict overlay.
+
+<!-- trace:exempt reason=repo-planning-no-product-behavior -->
+## 8. Oracle-layer review (2026-10-07) — boundary rule shipped, rest triaged
+
+A defense review proposed a broad oracle/property/fault-injection agenda. The
+outcome per item, so the same proposals do not get re-litigated:
+
+**Shipped**: BHVERIFY002 (unverified boundary fault path) in `verify_gaps.py` —
+a module-level public function that calls an external boundary (HTTP,
+subprocess, socket, database) and has no detected failure-path test. Calibrated
+on this repo: 5 findings, each cross-checked by hand (the `technology`/`probes`
+`subprocess.run` sites have happy-path-only tests). The same work fixed two
+mention-heuristic gaps that also over-reported BHVERIFY001 on real code:
+re-exports (`from .runners import x`, where tests import from `bughunt.cli`) and
+module-attribute calls (`mod.func()`), worth 34 → 21 findings on this tree.
+
+**Already covered, no work needed**: runtime types (typeguard), memory (memray),
+async blocking (blockbuster), parallel/pollution (pytest-parallel,
+pytest-random, pytest-xdist), network isolation (pytest-no-network),
+interpreter/timezone/locale matrices, contracts (deal, pact-contracts),
+property and stateful generation (hypofuzz + hypothesis), packaging
+(packaging, version-diff, twine, check-manifest).
+
+**Triaged, not adopted** (each needs an acceptance case before it earns a ring):
+
+- beartype, scalene, objgraph, tracemalloc: alternatives to engines already
+  wired; add only if a measured gap appears.
+- N+1 query counting (`nplusone`, pytest-antilop): needs an ORM-specific
+  runtime hook (SQLAlchemy/Django), so it belongs behind a technology
+  capability gate like the JS engines, not in the Python core.
+- `abi3audit`, `check-wheel-contents`: meaningful only for C-extension or
+  wheel-shipping targets; wire when such a target appears.
+- TLA+/Z3: formal specification of the target's own algorithms, which a
+  scanner cannot infer from source.
+- Known-bad calibration corpus (one planted defect per defense, asserted
+  caught): the per-rule tests already plant the defect they target (the
+  BHVERIFY002 tests above are exactly that shape), and the doctor tables carry
+  the engine-level signal. A whole-corpus harness is a larger piece needing its
+  own ADR.
+- JEV (`jev-lint`, mizchi): a natural-language rule linter — ast-grep selects
+  the code, a written sentence is the rule, and a verdict comes back. It ships
+  `gate`, `report`, and a `calibrate`/`eval` harness for precision scoring.
+  Interesting for rule *authoring*, but the verdict path needs a model and the
+  rules are user prose, so it does not replace the deterministic native pack.
+  Revisit if BugHunt grows user-authored rules.
