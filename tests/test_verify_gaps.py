@@ -330,3 +330,196 @@ def test_main_reports_findings(monkeypatch, tmp_path: Path, capsys) -> None:
     assert json.loads(capsys.readouterr().out)["findings"] == [finding]
     monkeypatch.setattr(verify_gaps, "scan", lambda root: [])
     assert verify_gaps.main([str(tmp_path)]) == 0
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test-boundary-without-failure-path-is-flagged work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_boundary_without_failure_path_is_flagged(monkeypatch, tmp_path: Path) -> None:
+    """A tested boundary function still needs a failure path, not just a happy one."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "m.py").write_text(
+        "def fetch():\n    import requests\n    return requests.get('https://x')\n"
+    )
+    _ = (tmp_path / "tests").mkdir()
+    _ = (tmp_path / "tests" / "test_m.py").write_text(
+        "from m import fetch\n\n\ndef test_fetch():\n    assert fetch()\n"
+    )
+    data = _ir(_sym("s/fetch", file="src/m.py", line=1), tested=["s/fetch"])
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    findings = verify_gaps.scan(tmp_path)
+
+    assert [item["code"] for item in findings] == ["BHVERIFY002"]
+    assert "requests.get" in str(findings[0]["message"])
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_failure_path_test_suppresses work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_failure_path_test_suppresses(monkeypatch, tmp_path: Path) -> None:
+    """A test that raises at the boundary is evidence, so the gap disappears."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "m.py").write_text(
+        "def fetch():\n    import requests\n    return requests.get('https://x')\n"
+    )
+    _ = (tmp_path / "tests").mkdir()
+    _ = (tmp_path / "tests" / "test_m.py").write_text(
+        "import pytest\nfrom m import fetch\n\n\ndef test_fetch_raises():\n"
+        "    with pytest.raises(ConnectionError):\n        fetch()\n"
+    )
+    data = _ir(_sym("s/fetch", file="src/m.py", line=1), tested=["s/fetch"])
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    assert verify_gaps.scan(tmp_path) == []
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_aliases_and_db_exec_are_boundaries work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_aliases_and_db_exec_are_boundaries(monkeypatch, tmp_path: Path) -> None:
+    """`import x as y` resolves to the real module, and DB execute is a boundary."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "m.py").write_text(
+        "def run_it():\n"
+        "    import subprocess as sp\n"
+        "    return sp.run(['x'])\n"
+        "\n"
+        "\n"
+        "def save(cur):\n"
+        "    return cur.execute('insert')\n"
+    )
+    data = _ir(
+        _sym("s/run_it", file="src/m.py", line=1),
+        _sym("s/save", file="src/m.py", line=6),
+        tested=["s/run_it", "s/save"],
+    )
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    messages = " | ".join(str(item["message"]) for item in verify_gaps.scan(tmp_path))
+
+    assert "subprocess.run" in messages
+    assert "cur.execute" in messages
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_boundary_gap_never_doubles_with_transitive_gap work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_boundary_gap_never_doubles_with_transitive_gap(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """One symbol collects one gap: the stronger rule owns it."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "m.py").write_text(
+        "def top():\n"
+        "    import requests\n"
+        "    requests.get('https://x')\n"
+        "    return helper()\n"
+    )
+    data = _ir(
+        _sym("s/top", file="src/m.py", line=1),
+        _sym("s/helper", file="src/m.py", line=9),
+        calls=[("s/top", "s/helper")],
+        tested=["s/helper"],
+    )
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    assert [item["code"] for item in verify_gaps.scan(tmp_path)] == ["BHVERIFY001"]
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_nested_boundary_call_is_not_attributed work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_nested_boundary_call_is_not_attributed(monkeypatch, tmp_path: Path) -> None:
+    """A nested function's boundary call belongs to the nested symbol, not its host."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src").mkdir()
+    _ = (tmp_path / "src" / "m.py").write_text(
+        "def outer():\n"
+        "    def inner():\n"
+        "        import requests\n"
+        "        return requests.get('https://x')\n"
+        "    return inner\n"
+    )
+    data = _ir(_sym("s/outer", file="src/m.py", line=1), tested=["s/outer"])
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    assert verify_gaps.scan(tmp_path) == []
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_reexported_symbol_is_linked_to_its_test work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_reexported_symbol_is_linked_to_its_test(monkeypatch, tmp_path: Path) -> None:
+    """`from .mod import serve` re-exports must link tests to the defining module.
+
+    Tests import a package's convenience module, while the graph records the
+    symbol under the module that defines it. Without following the re-export,
+    the boundary reads as untested and the finding is wrong.
+    """
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src" / "pkg").mkdir(parents=True)
+    _ = (tmp_path / "src" / "pkg" / "__init__.py").write_text("")
+    _ = (tmp_path / "src" / "pkg" / "mod.py").write_text(
+        "def serve():\n    import requests\n    return requests.get('https://x')\n"
+    )
+    _ = (tmp_path / "src" / "pkg" / "api.py").write_text(
+        "from .mod import serve as serve\n"
+    )
+    _ = (tmp_path / "tests").mkdir()
+    _ = (tmp_path / "tests" / "test_api.py").write_text(
+        "import pytest\n"
+        "from pkg.api import serve\n"
+        "\n"
+        "\n"
+        "def test_serve_raises_on_timeout():\n"
+        "    with pytest.raises(TimeoutError):\n"
+        "        serve()\n"
+    )
+    data = _ir(_sym("s/serve", file="src/pkg/mod.py", line=1))
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    assert verify_gaps.scan(tmp_path) == []
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_absolute_import_resolves_levels work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_absolute_import_resolves_levels() -> None:
+    """Relative levels resolve against the importing module's package."""
+    import ast
+
+    from bughunt.verify_gaps import _absolute_import
+
+    def resolve(source: str, importer: str) -> str | None:
+        node = ast.parse(source).body[0]
+        assert isinstance(node, ast.ImportFrom)
+        return _absolute_import(node, importer)
+
+    assert resolve("from a.b import c", "x.y") == "a.b"
+    assert resolve("from .mod import c", "bughunt.runners") == "bughunt.mod"
+    assert resolve("from . import c", "bughunt.runners") == "bughunt"
+    assert resolve("from ..pkg import c", "bughunt.sub.mod") == "bughunt.pkg"
+    assert resolve("from ... import c", "bughunt.sub.mod") is None
+
+
+# trace:v1 id=test.tests-test-verify-gaps.test_module_attribute_usage_counts_as_mention work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_module_attribute_usage_counts_as_mention(monkeypatch, tmp_path: Path) -> None:
+    """`mod.serve()` in a failure test verifies the `serve` that lives in `mod`."""
+    from bughunt import verify_gaps
+
+    _ = (tmp_path / "src" / "pkg").mkdir(parents=True)
+    _ = (tmp_path / "src" / "pkg" / "__init__.py").write_text("")
+    _ = (tmp_path / "src" / "pkg" / "mod.py").write_text(
+        "def serve():\n    import requests\n    return requests.get('https://x')\n"
+    )
+    _ = (tmp_path / "tests").mkdir()
+    _ = (tmp_path / "tests" / "test_mod.py").write_text(
+        "import pytest\n"
+        "from pkg import mod\n"
+        "\n"
+        "\n"
+        "def test_serve_raises_on_timeout():\n"
+        "    with pytest.raises(TimeoutError):\n"
+        "        mod.serve()\n"
+    )
+    data = _ir(_sym("s/serve", file="src/pkg/mod.py", line=1))
+    monkeypatch.setattr(verify_gaps, "_load_graph", lambda root: data)
+
+    assert verify_gaps.scan(tmp_path) == []
