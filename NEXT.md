@@ -138,3 +138,28 @@ from `report.json` (schema_version 3):
 This is a schema change (`schema_version` bump) with consumers to update
 (agent queue, bugcorpus and tracelayer adapters), which is why it is a separate
 change rather than a field bolted onto the boundary-ring work.
+
+<!-- trace:exempt reason=repo-planning-no-product-behavior -->
+## 10. `BUGHUNT_CONFIG` / `BUGHUNT_TOOL_PYTHON` read as REQUIRED in .env.example
+
+Running a scan on this repository (whose own auto-config refreshes
+`.env.example`) classifies both variables as **REQUIRED** in the managed ENV
+CONTRACT block:
+
+```text
+# REQUIRED | type: str | default: '' | example: '' | source: src/bughunt/cli.py:769
+BUGHUNT_CONFIG=
+# REQUIRED | type: str | source: src/bughunt/installers.py:134
+BUGHUNT_TOOL_PYTHON=
+```
+
+Neither is. `BUGHUNT_CONFIG` carries the `--config` choice into the
+`python -m bughunt.*` helpers and `BUGHUNT_TOOL_PYTHON` names the target
+interpreter for a helper subprocess: BugHunt sets both itself, and a user who
+reads "REQUIRED" is being told to export plumbing. The generator counts a
+default-less `os.environ.get(name)` as required without asking whether the call
+site has a fallback. Either classify variables that BugHunt's own subprocess
+calls set as internal, or accept an explicit opt-out list for them; the
+regenerated block was reverted rather than committed so the misleading labels
+are not enshrined. Effect is documentation-only today (no runtime reads it),
+which is why it is here and not in the boundary-ring change.
