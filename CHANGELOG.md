@@ -6,6 +6,18 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-07
+
+### Fixed
+
+- `verify-gaps` no longer reports PASS when it could not run. With an SCC
+  workspace present but no usable graph (the export still regenerating while
+  the check ran, a failing `scc index`/`export`, or a corrupt cache), the check
+  printed `{"findings": []}` and the row read PASS although no rule had
+  executed. It now reports `BHVERIFY003` naming the reason and exits 2, so the
+  row is ERROR: the ring's own contract is that a failing index/export is an
+  error, never clean. Observed on a real scan of this repository.
+
 ## [0.11.0] - 2026-10-07
 
 ### Added

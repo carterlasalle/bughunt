@@ -3232,6 +3232,21 @@ ADR-002: test interpreters resolve from the target repo (`.venv` first).
   (beartype, nplusone, abi3audit, TLA+/Z3, known-bad calibration corpus,
   JEV/`jev-lint`) is triaged with reasons in NEXT.md item 8 — do not
   re-litigate without an acceptance case.
+- 2026-10-07 `verify-gaps` reported PASS with zero findings while it could not
+  run at all: `_load_graph` collapsed "export failed/unavailable" into the same
+  empty result as "no gaps", so a scan of this repo showed `verify-gaps PASS`
+  although the module returns 26 findings when run directly. Cause of the
+  particular sighting: `system-ir` regenerates `.bughunt/cache/system-ir.json`
+  while checks run concurrently, so a cold/racing scan hits no usable graph.
+  Fixed by `_graph(root) -> (data, reason)`: an SCC workspace without a usable
+  graph emits `BHVERIFY003` naming the reason and exits 2 (ERROR), matching the
+  adapter's stated contract "a failing index/export is an error, never clean"
+  and the BHCOV002/BHCOV003 precedent in coverage_runner. When a rule's status
+  depends on a cache another ring owns, verify the *report* row, not just the
+  module: running the module by hand proved nothing about the pipeline.
+  Ordering verify-gaps after system-ir is still open (noted here, no receipt of
+  routine failure yet: the second pipeline run found the graph warm and
+  reported 26 findings).
 
 ## Last maintenance review
 
