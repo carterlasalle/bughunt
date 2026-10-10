@@ -73,6 +73,8 @@ from .runners import (
     run_process as run_process,
     run_pysa as run_pysa,
     reset_tool_dir as reset_tool_dir,
+    first_finding_note as first_finding_note,
+    isolated_test_tmp as isolated_test_tmp,
 )
 from .checkctx import CheckBuildCx
 from .doctor_engines import doctor_engine_rows, doctor_guarded_rows
