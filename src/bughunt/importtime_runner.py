@@ -15,6 +15,20 @@ _IMPORT_TIMEOUT_S = 120
 # trace:v1 id=impl.src-bughunt-importtime_runner.main work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
+    # The profiling child must import the target's dependencies, which live
+    # in the target's environment -- never assume the interpreter running
+    # this module (BugHunt's own) can import them. The caller resolves the
+    # target interpreter once (`technology.pytest_python`, same as
+    # pytest/coverage) and passes it here, mirroring coverage_runner.
+    python = sys.executable
+    if "--python" in args:
+        index = args.index("--python")
+        try:
+            python = args[index + 1]
+        except IndexError:
+            print(json.dumps({"error": "--python requires an interpreter path"}))
+            return 2
+        del args[index : index + 2]
     if not args:
         return 0
     threshold_ms = float(args.pop(0))
@@ -36,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             continue
         proc = subprocess.run(  # noqa: S603 - validated identifier input
-            [sys.executable, "-X", "importtime", "-c", f"import {module}"],
+            [python, "-X", "importtime", "-c", f"import {module}"],
             text=True,
             capture_output=True,
             check=False,
@@ -52,13 +66,22 @@ def main(argv: list[str] | None = None) -> int:
         ms = cumulative_us / 1000.0
         samples.append({"module": module, "ms": ms, "returncode": proc.returncode})
         if proc.returncode != 0:
+            # `-X importtime` rows go to stderr ahead of the traceback, so a
+            # raw tail starts mid-word (`ime:`) and buries the cause. Lead
+            # with the traceback when one is present.
+            detail_lines = [
+                line
+                for line in proc.stderr.splitlines()
+                if not line.startswith("import time:")
+            ]
+            detail = "\n".join(detail_lines).strip() or proc.stderr.strip()
             findings.append(
                 {
                     "tool": "importtime",
                     "code": "BHPERF001",
                     "message": (
                         f"import {module} failed during startup profiling: "
-                        f"{proc.stderr[-1000:]}"
+                        f"{detail[-1000:]}"
                     ),
                 },
             )
