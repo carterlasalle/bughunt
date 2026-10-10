@@ -51,6 +51,11 @@ def noxfile(python_versions: list[str], test_paths: list[str]) -> str:
         '        "-r",\n'
         '        "pyproject.toml",\n'
         "    )\n"
+        "    # The pytest flags below need their plugins even when the target's\n"
+        "    # dev group does not provide them; install them the same way the\n"
+        "    # free-threaded extra below is installed, so every session collects\n"
+        "    # instead of dying with exit 4 'unrecognized arguments'.\n"
+        '    session.install("pytest-timeout", "pytest-randomly")\n'
         "    seed = str(secrets.randbelow(2**31 - 2) + 1)\n"
         '    env = {"PYTHONHASHSEED": seed, "PYTHONASYNCIODEBUG": "1"}\n'
         '    cmd = ["pytest", "-q", "--timeout=300", '

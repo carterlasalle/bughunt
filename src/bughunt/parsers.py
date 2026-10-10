@@ -64,6 +64,48 @@ def text_findings(tool: str, stdout: str, stderr: str, exit_code: int) -> list[F
     return findings
 
 
+# trace:v1 id=impl.src-bughunt-parsers.parse-nox work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def parse_nox(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+    """Report every failed nox session with its cause, not just the last line.
+
+    Nox prints one `Session tests-X.Y failed.` line per failed session and a
+    trailing `* tests-X.Y: failed` summary; the generic text parser keeps only
+    the last summary line, so a four-session failure names one session and
+    gives no cause. This parser emits one finding per failed session and
+    appends the observed failure cause (e.g. pytest exit 4 from missing
+    plugin flags, or the collected failure summary).
+    """
+    if exit_code == 0:
+        return []
+    combined = stdout + "\n" + stderr
+    failed = sorted(
+        set(re.findall(r"Session\s+(\S+?)\s+failed\.", combined))
+        or set(re.findall(r"\*\s+(\S+?):\s+failed", combined)),
+    )
+    if not failed:
+        return text_findings("python-matrix", stdout, stderr, exit_code)
+    cause_markers = [
+        line.strip()
+        for line in combined.splitlines()
+        if line.strip()
+        and (
+            "unrecognized arguments" in line
+            or line.strip().startswith("FAILED")
+            or re.match(r"^(ERROR|error|E\s)", line.strip())
+            or re.match(r"^=+.*(fail|error)", line.strip(), re.IGNORECASE)
+            or re.match(r"^\d+\s+(failed|passed|error)", line.strip())
+        )
+    ]
+    cause = cause_markers[-1][:300] if cause_markers else "no failure detail captured"
+    return [
+        Finding(
+            tool="python-matrix",
+            message=f"nox session {session} failed: {cause}",
+        )
+        for session in failed
+    ]
+
+
 # trace:v1 id=impl.src-bughunt-cli.parse-ruff work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_ruff(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     try:
