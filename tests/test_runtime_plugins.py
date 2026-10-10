@@ -41,3 +41,18 @@ def test_noxfile_anchors_sessions_at_root() -> None:
     text = noxfile(["3.12"], ["tests"])
     assert "session.chdir(Path(__file__).resolve().parent.parent.parent)" in text
     assert '"--group"' in text and '"dev"' in text
+
+
+# trace:v1 id=test.tests-test-runtime-plugins.test-noxfile-installs-pytest-plugins work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_noxfile_installs_pytest_plugins() -> None:
+    """The generated session passes plugin flags, so it must install them.
+
+    A target dev group without pytest-timeout/pytest-randomly died in every
+    session with pytest exit 4 `unrecognized arguments` (issue #6); the flags
+    are ours, so the plugins are installed alongside the project.
+    """
+    import ast
+
+    text = noxfile(["3.12"], ["tests"])
+    assert 'session.install("pytest-timeout", "pytest-randomly")' in text
+    _ = ast.parse(text)

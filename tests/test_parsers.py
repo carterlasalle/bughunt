@@ -338,3 +338,38 @@ def test_no_findings_parser() -> None:
     from bughunt.parsers import no_findings
 
     assert no_findings("out", "err", 0) == []
+
+
+# trace:v1 id=test.tests-test-parsers.test-nox-reports-every-failed-session-with-cause work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_nox_reports_every_failed_session_with_cause() -> None:
+    """A four-session nox failure must name all four, with the cause attached.
+
+    The generic text parser kept only the last `* tests-3.14: failed` summary
+    line, so issue #6 reported one session and no cause for a failure that
+    hit every interpreter (pytest exit 4: plugin flags without plugins).
+    """
+    from bughunt.parsers import parse_nox
+
+    stdout = "pytest: error: unrecognized arguments: --timeout=300 --randomly-seed=1"
+    stderr = (
+        "nox > Session tests-3.11 failed.\n"
+        "nox > Session tests-3.12 failed.\n"
+        "nox > Session tests-3.13 failed.\n"
+        "nox > Session tests-3.14 failed.\n"
+        "nox > Ran 4 sessions in 36 seconds:\n"
+        "nox > * tests-3.11: failed, took 11 seconds\n"
+        "nox > * tests-3.12: failed, took 7 seconds\n"
+        "nox > * tests-3.13: failed, took 8 seconds\n"
+        "nox > * tests-3.14: failed, took 8 seconds"
+    )
+    found = parse_nox(stdout, stderr, 1)
+    assert [f.tool for f in found] == ["python-matrix"] * 4
+    assert sorted(f.message.split()[2] for f in found) == [
+        "tests-3.11",
+        "tests-3.12",
+        "tests-3.13",
+        "tests-3.14",
+    ]
+    assert all("unrecognized arguments" in f.message for f in found)
+    assert parse_nox("", "", 0) == []
+    assert parse_nox("nox > blew up", "", 1) != []

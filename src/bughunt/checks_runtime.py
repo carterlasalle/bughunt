@@ -11,7 +11,7 @@ from functools import partial
 from .checkctx import CheckBuildCx
 from .probes import generated_config, python_package_names, supports_subcommand
 from .technology import pytest_executable, target_executable, target_has_module
-from .parsers import parse_bughunt_helper, text_findings
+from .parsers import parse_bughunt_helper, parse_nox, text_findings
 from .models import Check, Result, Status
 
 
@@ -397,6 +397,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 [nox, "-f", str(noxfile), "--download-python", "auto"]
                 if nox and noxfile.exists()
                 else None,
+                parse_nox,
                 reason="Nox matrix not configured/installed",
                 check_timeout=cx.cfg.timeout("all"),
                 findings_exit_codes={1},
