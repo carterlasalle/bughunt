@@ -299,6 +299,36 @@ def parse_pylint(
     return out or (text_findings(tool, stdout, stderr, exit_code) if exit_code else [])
 
 
+# trace:v1 id=impl.src-bughunt-cli.parse-pydoclint work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def parse_pydoclint(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
+    """Parse pydoclint's file-header plus indented `line: CODE: message` rows."""
+    out: list[Finding] = []
+    current: str | None = None
+    violation = re.compile(r"^(?P<line>\d+):\s*(?P<code>DOC\d{3}):\s*(?P<msg>.+)$")
+    for raw in (stdout + "\n" + stderr).splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("Skipping files"):
+            continue
+        m = violation.match(stripped)
+        if m:
+            if current is None:
+                continue
+            out.append(
+                Finding(
+                    tool="pydoclint",
+                    path=current,
+                    line=int(m.group("line")),
+                    code=m.group("code"),
+                    message=m.group("msg"),
+                    severity="error",
+                ),
+            )
+            continue
+        if re.match(r"^\S.*\.py$", stripped) and ":" not in stripped:
+            current = stripped
+    return out or text_findings("pydoclint", stdout, stderr, exit_code)
+
+
 # trace:v1 id=impl.src-bughunt-cli.parse-deptry work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def parse_deptry(stdout: str, stderr: str, exit_code: int) -> list[Finding]:
     """Parse deptry's text output, including pyproject findings without line numbers."""
