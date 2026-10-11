@@ -8,14 +8,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Failed engine installs are recorded in the report as `install:<name>` ERROR
+  rows (report.json, the defense table, BLIND_SPOTS.md), keeping the "final
+  report records the remaining blind spots" promise. `pact-python`/`uvicorn`
+  install only when the pact-contracts defense itself could run (concrete
+  local Pact JSON plus exactly one local ASGI provider target); otherwise the
+  defense stays N/A and no dev dependency is added to the analyzed repo.
 - ERROR defense rows now name the cause the analyzer already reported. A
-  coverage ERROR used to render with an empty note ("tool failed" /
-  "no trusted result") while `report.json` already named the failing test;
-  the row note now carries the first parsed finding (e.g. the BHCOV003
-  message). Concurrently-running test-executing defenses (pytest, coverage,
-  and the other suite runners) each get a private temp dir under
-  `.bughunt/cache/scan-tmp/<check>/` (TMPDIR/TEMP/TMP), so a temp file from
-  one session can no longer trip another session's temp-cleanup assertion.
 
 ## [0.11.1] - 2026-10-07
 

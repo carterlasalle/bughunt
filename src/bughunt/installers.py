@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .technology import (
+    TechnologyInventory,
     applicable_technology_engines,
     discover_technologies,
     project_executable,
@@ -19,6 +20,26 @@ from .technology import (
     rust_executable,
     target_python,
 )
+
+
+# trace:v1 id=impl.src-bughunt-installers.pact-verifiable work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def _pact_verifiable(root: Path, inventory: TechnologyInventory) -> bool:
+    """True only when the pact defense itself could run, not merely when the word appears."""
+    from .discovery import load_generated_targets
+    from .probes import pact_json_files
+
+    files = inventory.files.get("pact", [])
+    if not inventory.has("pact"):
+        return False
+    if not pact_json_files(root, files):
+        return False
+    targets = load_generated_targets(root)
+    asgi = [
+        t
+        for t in targets
+        if t.kind == "schemathesis" and (t.metadata or {}).get("transport") == "asgi"
+    ]
+    return len(asgi) == 1
 
 
 # Probe bounds (seconds) for environment interrogation. Install probes must
@@ -1195,6 +1216,11 @@ def install_all(
         only is not None and bool(python_components & only)
     )
     project = root / "pyproject.toml"
+    # pact-python/uvicorn exist only to run the pact-contracts defense, which
+    # additionally needs a concrete Pact JSON plus exactly one local ASGI
+    # provider target. Without both, installing them mutates the target
+    # manifest for a defense that reports N/A.
+    pact_verifiable = _pact_verifiable(root, inventory)
     if project.exists():
         # Install independently so one platform/version-specific package cannot
         # prevent the rest of the analysis stack from being installed.
@@ -1202,6 +1228,19 @@ def install_all(
             if not python_needed:
                 continue
             if name in exclude or (only is not None and name not in only):
+                continue
+            if name in {"pact-python", "uvicorn"} and not pact_verifiable:
+                if only is not None and name in only:
+                    results.append(
+                        InstallResult(
+                            name,
+                            "SKIPPED",
+                            [],
+                            "pact-contracts is N/A: no concrete local Pact JSON plus "
+                            "exactly one local ASGI provider target; explicit "
+                            "--only request recorded without mutating the manifest",
+                        ),
+                    )
                 continue
             if _project_component_ready(root, name):
                 results.append(
@@ -1239,6 +1278,19 @@ def install_all(
             if not python_needed:
                 continue
             if name in exclude or (only is not None and name not in only):
+                continue
+            if name in {"pact-python", "uvicorn"} and not pact_verifiable:
+                if only is not None and name in only:
+                    results.append(
+                        InstallResult(
+                            name,
+                            "SKIPPED",
+                            [],
+                            "pact-contracts is N/A: no concrete local Pact JSON plus "
+                            "exactly one local ASGI provider target; explicit "
+                            "--only request recorded without installing",
+                        ),
+                    )
                 continue
             if package_spec in PYTEST_FAMILY_PACKAGES:
                 # Not a standalone tool: the pytest session imports it, so it

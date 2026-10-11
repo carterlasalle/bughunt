@@ -102,10 +102,12 @@ bughunt install
     so they install into one environment — the project `.venv`, or BugHunt's
     own `.bughunt/runtime/pytest-venv`, seeded from `requirements.txt` — never
     scattered across tool environments BugHunt runs `pytest` from. See
-    `docs/adr/0010-pytest-session-environment.md`.
-
-bughunt install --dry-run
-    Print what would be installed without changing the project.
+    `docs/adr/0010-pytest-session-environment.md`. Failed engine installs are
+    recorded in the report as `install:<name>` ERROR rows (blind spots), never
+    silent console text. `pact-python`/`uvicorn` install only when the
+    pact-contracts defense itself could run (concrete local Pact JSON plus
+    exactly one local ASGI provider target); otherwise the defense stays N/A
+    and no dev dependency is added.
 
 bughunt configure --auto
     Generate/refresh paranoid configs for Ruff, basedpyright, mypy, ty, Pyrefly,
@@ -407,7 +409,7 @@ The score is still not a probability that the repo is bug-free.
 
 `bughunt install` uses `uv`; it intentionally does not fall back to Poetry/pipenv/raw pip.
 
-For a project with `pyproject.toml`, it runs independent `uv add --dev ...` installs so each analyzer sees the real target environment and one optional package failure does not block the rest.
+For a project with `pyproject.toml`, it runs independent `uv add --dev ...` installs so each analyzer sees the real target environment and one optional package failure does not block the rest. That mutates the analyzed repo's manifest by design (dev dependencies only); pass `--dry-run` first when that is unwanted.
 
 The pytest session is installed differently because pytest imports its plugins from the interpreter it runs under. pytest, its plugins, coverage.py, typeguard, and mutmut all go into one environment: the project `.venv`, or BugHunt's own `.bughunt/runtime/pytest-venv` for a repository without a virtualenv. Resolution is uniform — `bughunt doctor`, the installer, and every run-time gate resolve the same environment through `technology.pytest_python` — so the defenses do not change with how BugHunt was launched. See `docs/adr/0010-pytest-session-environment.md`.
 

@@ -101,3 +101,32 @@ def test_report_counts_autofixes(tmp_path: Path) -> None:
     agent = md.parent / "agent"
     assert (agent / "AUTOFIX.md").exists()
     assert "2 deterministic auto-fixes" in (agent / "FIX_QUEUE.md").read_text()
+
+
+# trace:v1 id=test.tests-test-reporting.test-installer-failures-reported-as-blind-spots work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_installer_failures_reported_as_blind_spots(tmp_path: Path) -> None:
+    """A failed engine install is a blind spot, never silent console text.
+
+    Regression for the dropped `pact-python` failure: install outcomes must
+    surface as ERROR rows in report.json, the defense table, and
+    BLIND_SPOTS.md.
+    """
+    import json
+
+    from bughunt.installers import InstallResult
+
+    installs = [
+        InstallResult(
+            "pact-python", "ERROR", ["uv", "add", "--dev", "pact-python"], "boom"
+        ),
+        InstallResult("ruff", "PASS", [], "already available"),
+    ]
+    cfg = Config(tmp_path, {"execution": {}})
+    md, js = write_reports(cfg, [], "all", 1.0, installs=installs)
+    payload = json.loads(js.read_text())
+    assert "pact-python" in json.dumps(payload)
+    assert payload["summary"]["errors"] == 1
+    assert [r["name"] for r in payload["results"]] == ["install:pact-python"]
+    assert "install:pact-python" in md.read_text()
+    blind = (md.parent / "agent" / "BLIND_SPOTS.md").read_text()
+    assert "install:pact-python" in blind

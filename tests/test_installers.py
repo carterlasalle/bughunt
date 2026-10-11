@@ -160,3 +160,19 @@ def test_family_packages_are_not_scattered_by_tool_install(tmp_path: Path) -> No
     pytest_rows = [r for r in results if r.name == "pytest"]
     assert len(pytest_rows) == 1
     assert "tool" not in pytest_rows[0].command
+
+
+# trace:v1 id=test.tests-test-installers.test-pact-packages-skipped-without-verifiable-targets work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def test_pact_packages_skipped_without_verifiable_targets(tmp_path: Path) -> None:
+    """pact-python/uvicorn exist only for a runnable pact-contracts defense.
+
+    The defense additionally needs a concrete Pact JSON plus exactly one local
+    ASGI provider target; without both it reports N/A, so installing the
+    packages would mutate the target manifest for no defense.
+    """
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (tmp_path / "app.py").write_text("x = 1\n")
+    results = install_all(tmp_path, dry_run=True, emit=lambda _: None)
+    names = {r.name for r in results}
+    assert "pact-python" not in names
+    assert "uvicorn" not in names
