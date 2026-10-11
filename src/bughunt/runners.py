@@ -191,6 +191,84 @@ def interrupted_result(name: str, category: str) -> Result:
     )
 
 
+# trace:v1 id=impl.src-bughunt-runners.first-finding-note work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def first_finding_note(items: list[Finding]) -> str | None:
+    """Name an ERROR row from the cause the analyzer already reported.
+
+    An ERROR row with an empty note is unactionable: it reads "tool failed"
+    in report.md and "no trusted result" in BLIND_SPOTS.md while the real
+    cause sits in the payload (observed 2026-10-10: coverage ERROR whose
+    report.json payload named the failing test). When the parser already
+    extracted findings from the output, the first one is that cause, so the
+    row note surfaces it. The findings list and raw output keep full detail.
+    """
+    first = items[0] if items else None
+    if first is None or not first.message:
+        return None
+    location = ""
+    if first.path:
+        location = first.path
+        if first.line:
+            location += f":{first.line}"
+        location += " — "
+    note = f"{location}{first.message}".strip()
+    return note[:500] if note else None
+
+
+# trace:v1 id=impl.src-bughunt-cli.-runs-test-suite work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+RUNS_TEST_SUITE = frozenset(
+    {
+        "coverage",
+        "pytest",
+        "pytest-random",
+        "pytest-no-network",
+        "pytest-xdist",
+        "pytest-async-blocking",
+        "pytest-parallel",
+        "runtime-types",
+        "doctest",
+        "timezone-matrix",
+        "locale-matrix",
+        "memray",
+        "benchmark",
+        "python-matrix",
+        "hypofuzz",
+    }
+)
+
+
+# trace:v1 id=impl.src-bughunt-runners.isolated-test-tmp work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def isolated_test_tmp(check: Check, root: Path) -> dict[str, str] | None:
+    """Give suite-executing defenses a private temp dir (issue #10).
+
+    Defenses run concurrently, and both `pytest` and `coverage` execute the
+    same suite. A test that globs the global temp dir (observed 2026-10-10:
+    a temp-cleanup assertion tripped by the sibling defense's file) flakes
+    when the sibling's file lands mid-assertion. A per-check dir under
+    `.bughunt/cache/scan-tmp/<check>/` keeps TMPDIR/TEMP/TMP and the macOS
+    TMPDIR-adjacent fallback (`tempfile.tempdir` honours the env at first
+    use) private to the session, so one defense's files cannot fail
+    another's assertions. Checks that already set their own temp vars keep
+    them; nothing else changes.
+    """
+    name = check.name.split(":", 1)[0]
+    if name not in RUNS_TEST_SUITE:
+        return None
+    env = dict(check.env or {})
+    if "TMPDIR" in env and "TEMP" in env and "TMP" in env:
+        return None
+    private = root / ".bughunt" / "cache" / "scan-tmp" / name.replace("/", "-")
+    try:
+        private.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None
+    path = str(private)
+    env.setdefault("TMPDIR", path)
+    env.setdefault("TEMP", path)
+    env.setdefault("TMP", path)
+    return env
+
+
 # trace:v1 id=impl.src-bughunt-cli.run-process work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 async def run_process(
     check: Check,
@@ -247,7 +325,8 @@ async def run_process(
             progress.activity(check.name, activity_tail.strip()[-500:])
 
     try:
-        child_env = {**os.environ, **(check.env or {})}
+        private_tmp = isolated_test_tmp(check, check.cwd)
+        child_env = {**os.environ, **(private_tmp or check.env or {})}
         for name in check.env_scrub:
             _ = child_env.pop(name, None)
         proc = await asyncio.create_subprocess_exec(
@@ -341,6 +420,9 @@ async def run_process(
 
     if parse_error:
         status = Status.ERROR
+        if findings:
+            parse_error = parse_error + "; " + (first_finding_note(findings) or "")
+            parse_error = parse_error.rstrip("; ")
     elif not findings and any(
         m in stdout or m in stderr for m in check.empty_scope_markers
     ):
@@ -362,6 +444,7 @@ async def run_process(
         parse_error = f"exited {exit_code}: nothing collected"
     else:
         status = Status.ERROR
+        parse_error = first_finding_note(findings)
 
     return finish(
         Result(

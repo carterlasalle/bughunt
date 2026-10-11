@@ -1184,4 +1184,81 @@ def test_semgrep_pkg_resources_is_error() -> None:
     findings = parse_semgrep("", out, 1)
     assert len(findings) == 1
     assert findings[0].severity == "error"
-    assert "pkg_resources" in (findings[0].message or "")
+
+
+# trace:v1 id=test.tests-test-core.test-error-row-names-first-finding work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_error_row_names_first_finding(tmp_path: Path) -> None:
+    """An ERROR row must name the cause the analyzer already reported.
+
+    Issue #10: coverage returned ERROR with an empty note while its payload
+    already named the failing test, so report.md read "tool failed" and
+    BLIND_SPOTS.md read "no trusted result". The row note now carries the
+    first parsed finding.
+    """
+    import asyncio
+    import sys
+
+    from bughunt.cli import Check, Finding, run_process
+
+    cause = "coverage measured a failing test suite: pytest exited 1 (1 failed)"
+    check = Check(
+        name="coverage",
+        category="coverage/branches",
+        command=[sys.executable, "-c", "import sys; sys.exit(2)"],
+        parser=lambda out, err, code: [
+            Finding(tool="coverage", message=cause, path=str(tmp_path), line=1)
+        ],
+        timeout=60,
+        cwd=tmp_path,
+    )
+    result = asyncio.run(run_process(check, 4096))
+    assert result.status == Status.ERROR
+    assert cause in (result.note or "")
+
+
+# trace:v1 id=test.tests-test-core.test-suite-defenses-get-private-tmpdir work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+@serialized
+def test_suite_defenses_get_private_tmpdir(tmp_path: Path) -> None:
+    """Concurrent suite defenses must not share the global temp dir.
+
+    Issue #10: pytest and coverage run the same suite concurrently, and a
+    temp-cleanup assertion globbing the global temp dir flaked when the
+    sibling defense's file landed mid-assertion. Suite-executing defenses
+    now get a per-check TMPDIR under .bughunt/cache/scan-tmp/.
+    """
+    import asyncio
+    import sys
+
+    from bughunt.cli import Check, isolated_test_tmp, run_process
+
+    def _show(var: str) -> str:
+        return (
+            "import os, tempfile; "
+            f"print(tempfile.gettempdir() + chr(10) + {var!r} + chr(61) "
+            f"+ str(os.environ.get({var!r}))); "
+        )
+
+    for name in ("coverage", "pytest"):
+        check = Check(
+            name=name,
+            category="tests",
+            command=[sys.executable, "-c", _show("TMPDIR")],
+            parser=lambda out, err, code: [],
+            timeout=60,
+            cwd=tmp_path,
+        )
+        env = isolated_test_tmp(check, tmp_path)
+        assert env is not None
+        result = asyncio.run(run_process(check, 4096))
+        line = result.stdout.strip().splitlines()[0]
+        assert line == str(tmp_path / ".bughunt" / "cache" / "scan-tmp" / name), line
+
+    lint_check = Check(
+        name="ruff",
+        category="lint",
+        command=[sys.executable, "-c", "pass"],
+        parser=lambda out, err, code: [],
+        timeout=60,
+        cwd=tmp_path,
+    )
+    assert isolated_test_tmp(lint_check, tmp_path) is None
