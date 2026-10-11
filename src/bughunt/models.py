@@ -140,5 +140,11 @@ class Check:
     # parser yields nothing and a marker is present, the result is SKIPPED
     # ("nothing in scope") instead of a synthetic FINDINGS entry.
     empty_scope_markers: tuple[str, ...] = ()
+    # Substrings proving the analyzer itself crashed or failed to execute (as
+    # opposed to reporting repo findings). When the exit code is a findings
+    # code yet output carries an engine-crash marker, the result is ERROR
+    # ("defense failed") instead of a FINDINGS entry, so the report lists a
+    # blind spot rather than a repo finding.
+    error_markers: tuple[str, ...] = ()
     record_progress: bool = True
     timeout_is_success: bool = False
