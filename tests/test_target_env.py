@@ -102,6 +102,55 @@ def test_exit_five_errors_without_skip_codes(tmp_path: Path) -> None:
     assert asyncio.run(run_process(check, 1024)).status == Status.ERROR
 
 
+def _crash_check(**kwargs):
+    from functools import partial
+
+    from bughunt.parsers import text_findings
+
+    crash = (
+        "ImportError: With sys.path = "
+        "['/tmp/griffe-worktree-pkg-abc123/pkg'], accessing 'pkg' raises "
+        "ModuleNotFoundError: No module named 'difflib'"
+    )
+    return Check(
+        name="griffe",
+        category="python-api-compatibility",
+        command=[
+            sys.executable,
+            "-c",
+            f"import sys; print({crash!r}, file=sys.stderr); sys.exit(1)",
+        ],
+        parser=partial(text_findings, "griffe"),
+        timeout=30,
+        cwd=Path(),
+        **kwargs,
+    )
+
+
+def test_engine_crash_marker_errors_instead_of_findings(tmp_path: Path) -> None:
+    """A worktree-import crash is a failed defense, not a repo finding.
+
+    griffe's `--against` comparison imports the target with sys.path narrowed
+    to the worktree, so any not-yet-imported module (even stdlib) fails the
+    import itself. The crash line must become the ERROR note (blind spot),
+    never a FINDINGS entry in the fix queue.
+    """
+    check = _crash_check(error_markers=("raises ModuleNotFoundError",))
+    check.cwd = tmp_path
+    result = asyncio.run(run_process(check, 1024))
+    assert result.status == Status.ERROR
+    assert result.findings == []
+    assert "No module named 'difflib'" in (result.note or "")
+
+
+def test_same_crash_without_marker_stays_findings(tmp_path: Path) -> None:
+    check = _crash_check()
+    check.cwd = tmp_path
+    result = asyncio.run(run_process(check, 1024))
+    assert result.status == Status.FINDINGS
+    assert len(result.findings) == 1
+
+
 # trace:v1 id=test.tests-test-target-env.test-pytest-python-prefers-repo-pytest-env work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
 def test_pytest_python_prefers_repo_pytest_env(
     tmp_path: Path,

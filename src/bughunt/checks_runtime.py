@@ -359,6 +359,15 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     cmd,
                     reason="griffe unavailable",
                     findings_exit_codes={1},
+                    # griffe's `--against` worktree import runs with sys.path
+                    # narrowed to the worktree, so any not-yet-imported module
+                    # (even stdlib, e.g. `No module named 'difflib'`) fails the
+                    # import itself: no compatibility check happened. Classify
+                    # as a failed defense (blind spot), never a repo finding.
+                    error_markers=(
+                        "raises ModuleNotFoundError",
+                        "raises ImportError",
+                    ),
                 )
             else:
                 reason = (
