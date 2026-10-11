@@ -737,10 +737,15 @@ def _predicates(tree: ast.AST, rel: str) -> list[DataFinding]:
                     isinstance(stmt, ast.Raise)
                     or (
                         isinstance(stmt, ast.Return)
-                        and stmt.value is not None
-                        and not (
-                            isinstance(stmt.value, ast.Constant)
-                            and stmt.value.value is True
+                        and (
+                            stmt.value is None
+                            or (
+                                isinstance(stmt.value, ast.Constant)
+                                and (
+                                    stmt.value.value is None
+                                    or stmt.value.value is False
+                                )
+                            )
                         )
                     )
                     for stmt in sub.body
