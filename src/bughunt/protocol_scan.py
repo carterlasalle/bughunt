@@ -271,7 +271,11 @@ def _file_state(tree: ast.AST, rel: str) -> list[ProtocolFinding]:
                     receiver = child.func.value
                     if isinstance(receiver, ast.Name):
                         if child.func.attr == "close":
-                            closed.add(receiver.id)
+                            # `os.close(fd)` closes the fd argument, not the
+                            # `os` module; only a bare `stream.close()` marks
+                            # the receiver closed.
+                            if not child.args and not child.keywords:
+                                closed.add(receiver.id)
                         elif receiver.id in closed:
                             out.append(
                                 ProtocolFinding(

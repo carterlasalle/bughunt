@@ -157,6 +157,20 @@ def test_use_after_close(tmp_path: Path) -> None:
     assert [item.code for item in findings] == ["BHPRT005"]
 
 
+# trace:v1 id=test.tests-test-protocol-scan.test-module-close-no-finding work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_module_close_no_finding(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        "import os\n"
+        + "def cleanup():\n"
+        + "    fd, path = 1, 'x'\n"
+        + "    os.write(fd, b'x')\n"
+        + "    os.close(fd)\n"
+        + "    os.remove(path)\n",
+    )
+    assert [item.code for item in findings] == []
+
+
 # trace:v1 id=test.tests-test-protocol-scan.test-open-mode-mismatch work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 def test_open_mode_mismatch(tmp_path: Path) -> None:
     findings = _scan(
