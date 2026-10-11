@@ -261,7 +261,9 @@ def canonical_finding_path(root: Path, raw: str | None) -> str | None:
             )
     except ValueError:
         return path.as_posix()
-    normalized = path.as_posix().lstrip("./")
+    normalized = path.as_posix()
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
     if (root / normalized).exists():
         return normalized
     # CodeQL databases rooted at `src/` can emit package-relative paths.
