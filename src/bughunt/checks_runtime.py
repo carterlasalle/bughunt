@@ -371,13 +371,23 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
         if "importtime" in cx.wanted:
             packages = python_package_names(cx.root, cx.cfg.source_paths)
             threshold = cx.cfg.raw_int("performance", "import_ms_warn", 1000)
+            # Same split as coverage: the runner needs BugHunt importable, the
+            # profiling child needs the target's dependencies importable, so
+            # the child runs under the resolved pytest-session interpreter.
+            runner_python = (
+                cx.target_py
+                if target_has_module(cx.target_py, "bughunt")
+                else sys.executable
+            )
             cx.add(
                 "importtime",
                 "startup-performance",
                 [
-                    sys.executable,
+                    runner_python,
                     "-m",
                     "bughunt.importtime_runner",
+                    "--python",
+                    cx.pytest_interp,
                     str(threshold),
                     *packages,
                 ]
