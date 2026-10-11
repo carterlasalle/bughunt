@@ -388,6 +388,19 @@ def test_canonicalize_findings_collapses_absolute_and_relative_repo_paths(
     assert hotspot_files(results)[0] == ("src/a.py", 2)
 
 
+# trace:v1 id=test.tests-test-core.test-canonical-finding-path-preserves-dot-directories work=WORK-CO-Q8Z1HJJJ satisfies=REQ-CO-T692W95P
+def test_canonical_finding_path_preserves_dot_directories(tmp_path: Path) -> None:
+    from bughunt.reporting import canonical_finding_path
+
+    assert (
+        canonical_finding_path(
+            tmp_path, ".venv/lib/python3.14/site-packages/typeguard/x.py"
+        )
+        == ".venv/lib/python3.14/site-packages/typeguard/x.py"
+    )
+    assert canonical_finding_path(tmp_path, "./src/a.py") == "src/a.py"
+
+
 # trace:v1 id=test.tests-test-core.test-canonicalize-findings-exempts-trace-marker-lines work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def test_canonicalize_findings_exempts_trace_marker_lines(tmp_path: Path) -> None:
     from bughunt.cli import canonicalize_findings

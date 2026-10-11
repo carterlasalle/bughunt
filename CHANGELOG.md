@@ -15,6 +15,21 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   local Pact JSON plus exactly one local ASGI provider target); otherwise the
   defense stays N/A and no dev dependency is added to the analyzed repo.
 - ERROR defense rows now name the cause the analyzer already reported. A
+  coverage ERROR used to render with an empty note ("tool failed" /
+  "no trusted result") while `report.json` already named the failing test;
+  the row note now carries the first parsed finding (e.g. the BHCOV003
+  message). Concurrently-running test-executing defenses (pytest, coverage,
+  and the other suite runners) each get a private temp dir under
+  `.bughunt/cache/scan-tmp/<check>/` (TMPDIR/TEMP/TMP), so a temp file from
+  one session can no longer trip another session's temp-cleanup assertion.
+- Analyzer engine crashes are no longer reported as repo findings. A `Check`
+  can declare `error_markers` (substrings proving the analyzer itself failed
+  to execute); when the exit code is a findings code but the output carries
+  a marker, the row is ERROR with the crash line as its note, so the report
+  lists a blind spot instead of a fix-queue item. Griffe's `--against`
+  worktree import (which narrows `sys.path` to the worktree, failing even on
+  stdlib imports such as `No module named 'difflib'`) is wired to
+  `raises ModuleNotFoundError` / `raises ImportError`.
 
 ## [0.11.1] - 2026-10-07
 

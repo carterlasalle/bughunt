@@ -111,6 +111,22 @@ def test_matching_predicates_quiet(tmp_path: Path) -> None:
     assert findings == []
 
 
+def test_escape_dispatch_is_quiet(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        'def esc(ch):\n    if ch == "\\n":\n        return "\\\\n"\n    if ch == "\\t":\n        return "\\\\t"\n    return ch\n',
+    )
+    assert [item.code for item in findings if item.code == "BHINV001"] == []
+
+
+def test_none_reject_predicates_still_fire(tmp_path: Path) -> None:
+    findings = _scan(
+        tmp_path,
+        'def a(tier):\n    if tier == "provisional":\n        return None\n    return True\ndef b(tier):\n    if tier == "stale":\n        return None\n    return True\n',
+    )
+    assert [item.code for item in findings] == ["BHINV001"]
+
+
 def test_artifact_before_validation(tmp_path: Path) -> None:
     findings = _scan(
         tmp_path,

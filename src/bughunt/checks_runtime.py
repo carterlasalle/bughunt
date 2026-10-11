@@ -11,7 +11,12 @@ from functools import partial
 from .checkctx import CheckBuildCx
 from .probes import generated_config, python_package_names, supports_subcommand
 from .technology import pytest_executable, target_executable, target_has_module
-from .parsers import parse_bughunt_helper, parse_nox, text_findings
+from .parsers import (
+    parse_bughunt_helper,
+    parse_nox,
+    parse_pydoclint,
+    text_findings,
+)
 from .models import Check, Result, Status
 
 
@@ -169,6 +174,7 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                 "pydoclint",
                 "doc-contracts",
                 [pd, *cx.src] if pd else None,
+                parse_pydoclint,
                 reason="pydoclint not installed",
                 findings_exit_codes={1},
             )
@@ -359,6 +365,15 @@ def build_runtime_checks(cx: CheckBuildCx) -> None:
                     cmd,
                     reason="griffe unavailable",
                     findings_exit_codes={1},
+                    # griffe's `--against` worktree import runs with sys.path
+                    # narrowed to the worktree, so any not-yet-imported module
+                    # (even stdlib, e.g. `No module named 'difflib'`) fails the
+                    # import itself: no compatibility check happened. Classify
+                    # as a failed defense (blind spot), never a repo finding.
+                    error_markers=(
+                        "raises ModuleNotFoundError",
+                        "raises ImportError",
+                    ),
                 )
             else:
                 reason = (

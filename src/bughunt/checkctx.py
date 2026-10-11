@@ -147,6 +147,7 @@ class CheckBuildCx:
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
         skip_exit_codes: set[int] | None = None,
+        error_markers: tuple[str, ...] | None = None,
         empty_scope_markers: tuple[str, ...] | None = None,
         check_timeout: int | None = None,
         env: dict[str, str] | None = None,
@@ -189,6 +190,7 @@ class CheckBuildCx:
                 skip_exit_codes=skip_exit_codes
                 if skip_exit_codes is not None
                 else set(),
+                error_markers=error_markers or (),
                 empty_scope_markers=empty_scope_markers or (),
                 env=env,
                 env_scrub=env_scrub or (),
@@ -205,6 +207,7 @@ class CheckBuildCx:
         *,
         reason: str | None = None,
         findings_exit_codes: set[int] | None = None,
+        error_markers: tuple[str, ...] | None = None,
         empty_scope_markers: tuple[str, ...] | None = None,
         name: str | None = None,
         check_timeout: int | None = None,
@@ -251,6 +254,7 @@ class CheckBuildCx:
                 findings_exit_codes=findings_exit_codes
                 if findings_exit_codes is not None
                 else {1},
+                error_markers=error_markers or (),
                 empty_scope_markers=empty_scope_markers or (),
                 env=env,
             ),

@@ -423,6 +423,18 @@ async def run_process(
         if findings:
             parse_error = parse_error + "; " + (first_finding_note(findings) or "")
             parse_error = parse_error.rstrip("; ")
+    elif exit_code in check.findings_exit_codes and any(
+        m in stdout or m in stderr for m in check.error_markers
+    ):
+        # The analyzer itself crashed (e.g. griffe's worktree import raising
+        # ModuleNotFoundError for stdlib modules through its narrowed
+        # sys.path): no check happened, so this is a failed defense, not a
+        # repo finding. The crash line becomes the blind-spot note.
+        status = Status.ERROR
+        parse_error = first_finding_note(findings) or (
+            f"{check.name} crashed; no trusted result (exited {exit_code})"
+        )
+        findings = []
     elif not findings and any(
         m in stdout or m in stderr for m in check.empty_scope_markers
     ):

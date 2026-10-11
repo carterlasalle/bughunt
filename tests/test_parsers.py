@@ -373,3 +373,27 @@ def test_nox_reports_every_failed_session_with_cause() -> None:
     assert all("unrecognized arguments" in f.message for f in found)
     assert parse_nox("", "", 0) == []
     assert parse_nox("nox > blew up", "", 1) != []
+
+
+# trace:v1 id=test.tests-test-parsers.test-pydoclint-header-rows work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
+def test_pydoclint_header_rows_become_located_findings() -> None:
+    """pydoclint's header-plus-indented-rows must not collapse to one finding.
+
+    The generic text parser matches only `path:line:` rows, so the indented
+    `line: DOCxxx:` rows fell through to the last-line fallback (issue #9:
+    13 violations became one unlocated finding). Each row keeps its file,
+    line, and code.
+    """
+    from bughunt.parsers import parse_pydoclint
+
+    stderr = (
+        "pkg/phone.py\n"
+        "    45: DOC105: Function `f`: type hints do not match: locale_id\n"
+        "    429: DOC203: Function `g` return type not consistent\n"
+    )
+    got = parse_pydoclint("", stderr, 1)
+    assert [(x.path, x.line, x.code) for x in got] == [
+        ("pkg/phone.py", 45, "DOC105"),
+        ("pkg/phone.py", 429, "DOC203"),
+    ]
+    assert parse_pydoclint("", "", 0) == []
