@@ -8,6 +8,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Failed engine installs are recorded in the report as `install:<name>` ERROR
+  rows (report.json, the defense table, BLIND_SPOTS.md), keeping the "final
+  report records the remaining blind spots" promise. `pact-python`/`uvicorn`
+  install only when the pact-contracts defense itself could run (concrete
+  local Pact JSON plus exactly one local ASGI provider target); otherwise the
+  defense stays N/A and no dev dependency is added to the analyzed repo.
 - ERROR defense rows now name the cause the analyzer already reported. A
   coverage ERROR used to render with an empty note ("tool failed" /
   "no trusted result") while `report.json` already named the failing test;

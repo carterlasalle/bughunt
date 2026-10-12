@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +26,40 @@ from .technology import git_ignored, resolve_exclusions
 from .ui import console
 
 
+# trace:v1 id=impl.src-bughunt-reporting.installer-results work=WORK-BUG-4ABH9VEY satisfies=REQ-BUG-KZG483AX
+def installer_results(
+    installs: Sequence[object] | None,
+) -> list[Result]:
+    """Convert scan-time installer outcomes into reportable defense results.
+
+    Every failed engine install is a real blind spot: the capability was
+    detected, the engine was attempted, and it did not become usable. Passed
+    and skipped installs carry no signal, so they stay out of the report.
+    Installer failure rows use the ERROR status, never N/A.
+    """
+    from .installers import InstallResult as _InstallResult
+
+    out: list[Result] = []
+    for item in installs or []:
+        if not isinstance(item, _InstallResult):
+            continue
+        if item.status != "ERROR":
+            continue
+        note = f"engine install failed: {item.note or 'see installer output'}"
+        out.append(
+            Result(
+                f"install:{item.name}",
+                "installer",
+                Status.ERROR,
+                command=list(item.command),
+                note=note,
+            ),
+        )
+    return out
+
+
 # trace:v1 id=impl.src-bughunt-reporting.reporting work=WORK-BUG-06107X2Q satisfies=REQ-BUG-5XJWASR4
 # (module marker: finding/report shaping and writing)
-# trace:v1 id=impl.src-bughunt-cli.type-disagreement-result work=WORK-BUG-JZ02ASSD satisfies=REQ-BUG-SY8DHSTC
 def type_disagreement_result(results: list[Result]) -> Result | None:
     """Make cross-checker disagreement a first-class, deduplicated signal."""
     checker_names = {"mypy", "basedpyright", "pyrefly", "ty"}
@@ -843,7 +875,9 @@ def write_reports(
     results: list[Result],
     profile: str,
     elapsed: float,
+    installs: Sequence[object] | None = None,
 ) -> tuple[Path, Path]:
+    results = [*installer_results(installs), *results]
     now = dt.datetime.now().astimezone()
     stamp = now.strftime("%Y%m%d-%H%M%S")
     out = cfg.root / REPORT_DIR / stamp

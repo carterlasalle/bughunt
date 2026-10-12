@@ -32,6 +32,7 @@ from .reporting import (
     correlated_issue_groups as correlated_issue_groups,
     coverage_summary_from_results as coverage_summary_from_results,
     hotspot_files as hotspot_files,
+    installer_results as installer_results,
     logical_issue_groups as logical_issue_groups,
     odc_class as odc_class,
     overall_score as overall_score,
@@ -859,6 +860,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             + ", ".join(unknown_skips),
         )
 
+    install_results: list[InstallResult] = []
     if args.command in {"all", "full", "skipmutmut"} and args.install_missing:
         suffix = " (mutmut skipped)" if "mutmut" in excluded else ""
         inventory = discover_technologies(root, persist=True)
@@ -923,6 +925,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     else:
         scan_results, elapsed = asyncio.run(run_all(cfg, profile, auto_discover=False))
+    scan_results = [*installer_results(install_results), *scan_results]
     md, js = write_reports(cfg, scan_results, profile, elapsed)
     render_terminal(scan_results, profile, elapsed, md, js)
     if runners.stop_requested():
